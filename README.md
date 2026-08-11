@@ -16,8 +16,8 @@ RouteHeat is a mobile-first delivery performance tracker for iPhone and Android.
 - Pause and break tracking excluded from active pace
 - Numbered stop and tote markers on live and saved maps
 - Saved route history with CSV export
-- Confirmed route deletion that also removes the cloud copy without restoring it
-- Animated chronological route replay along the recorded street path
+- Confirmed route deletion that removes current and legacy cloud copies without restoring them
+- Animated chronological route replay along the recorded street path with 0.5×, 1×, 2×, and 4× speed controls
 - End-of-day report card with route highlights and sharing
 - Tote analytics including stops per tote, average tote time, and recent performance
 - Smooth delivery-density heat map with 7-day, 30-day, and all-time filters
