@@ -2,6 +2,7 @@
   'use strict';
   const $ = s => document.querySelector(s);
   const STORE = 'routeheat.routes.v2';
+  const DELETED_ROUTES_STORE = 'routeheat.cloud.deletedRoutes.v1';
   let route = null, watchId = null, map = null, userMarker = null, routeLayer = null, liveTraceLine = null, timerId = null, historyMap = null, historyReplayLayer = null, zoneMap = null, reportMap = null, undoTimer = null, replayTimer = null, confirmTimer = null, audioContext = null, lastStopAction = 0;
   let autoEnabled = localStorage.getItem('routeheat.autoDetect') === 'true', followMap = true;
   let detector = {phase:'moving',anchor:null,stoppedAt:null,last:null,moveHits:0};
@@ -19,7 +20,48 @@
     setTimeout(() => map.invalidateSize(), 100);
   }
 
-  const routes = () => { try { return JSON.parse(localStorage.getItem(STORE)) || []; } catch { return []; } };
+  const deletionTimeKey = value => {
+    if (value == null) return '';
+    const parsed = typeof value === 'number' ? value : Date.parse(value);
+    return Number.isFinite(parsed) ? String(parsed) : String(value);
+  };
+  const localDeletionSignature = saved => {
+    const stops = Array.isArray(saved?.stops) ? saved.stops : [];
+    return {
+      id: saved?.id == null ? '' : String(saved.id),
+      startedAt: deletionTimeKey(saved?.startedAt),
+      stopCount: stops.length,
+      firstStop: deletionTimeKey(stops[0]?.timestamp),
+      lastStop: deletionTimeKey(stops.at(-1)?.timestamp)
+    };
+  };
+  const localDeletionMatch = (first, second) => {
+    if (!first || !second) return false;
+    if (first.id && second.id && first.id === second.id) return true;
+    if (first.startedAt && second.startedAt && first.startedAt === second.startedAt) return true;
+    return first.stopCount === second.stopCount && first.firstStop && first.lastStop
+      && first.firstStop === second.firstStop && first.lastStop === second.lastStop;
+  };
+  const deletionLedger = () => {
+    try { const saved=JSON.parse(localStorage.getItem(DELETED_ROUTES_STORE));return Array.isArray(saved)?saved:[]; }
+    catch { return []; }
+  };
+  function rememberLocalDeletion(saved) {
+    if (!saved) return;
+    const signature=localDeletionSignature(saved), ledger=deletionLedger().filter(item=>!localDeletionMatch(item.signature||localDeletionSignature(item.routeData),signature));
+    ledger.push({deletedAt:new Date().toISOString(),signature,routeData:saved});
+    localStorage.setItem(DELETED_ROUTES_STORE,JSON.stringify(ledger.slice(-500)));
+  }
+  function routes() {
+    let saved;
+    try { saved=JSON.parse(localStorage.getItem(STORE)) || []; } catch { saved=[]; }
+    if (!Array.isArray(saved)) saved=[];
+    const blocked=deletionLedger().map(item=>item.signature||localDeletionSignature(item.routeData));
+    if (!blocked.length) return saved;
+    const visible=saved.filter(item=>!blocked.some(signature=>localDeletionMatch(localDeletionSignature(item),signature)));
+    if (visible.length !== saved.length) localStorage.setItem(STORE,JSON.stringify(visible));
+    return visible;
+  }
   const saveRoutes = data => localStorage.setItem(STORE, JSON.stringify(data));
   const formatDuration = ms => { const t=Math.max(0,Math.floor(ms/1000)), h=String(Math.floor(t/3600)).padStart(2,'0'), m=String(Math.floor(t%3600/60)).padStart(2,'0'), s=String(t%60).padStart(2,'0'); return `${h}:${m}:${s}`; };
   const pace = ms => ms > 0 ? 3600000/ms : 0;
@@ -116,7 +158,7 @@
 
   function openDeleteConfirmation(id){const saved=routes().find(r=>String(r.id)===String(id));if(!saved)return;pendingDeleteId=String(id);$('#deleteRouteSummary').textContent=`${dateLabel(saved.startedAt)} · ${saved.stops.length} stop${saved.stops.length===1?'':'s'}`;$('#deleteModal').classList.add('open');$('#deleteModal').setAttribute('aria-hidden','false');setTimeout(()=>$('#cancelDelete').focus(),0);}
   function closeDeleteConfirmation(){pendingDeleteId=null;$('#deleteModal').classList.remove('open');$('#deleteModal').setAttribute('aria-hidden','true');}
-  function confirmDeleteRoute(){if(!pendingDeleteId)return;const id=pendingDeleteId,removed=routes().find(r=>String(r.id)===id);saveRoutes(routes().filter(r=>String(r.id)!==id));closeDeleteConfirmation();if(removed)window.dispatchEvent(new CustomEvent('routeheat:route-deleted',{detail:{route:removed}}));renderHistory();toast('Route deleted · legacy cloud copies queued');}
+  function confirmDeleteRoute(){if(!pendingDeleteId)return;const id=pendingDeleteId,all=routes(),removed=all.find(r=>String(r.id)===id);if(removed)rememberLocalDeletion(removed);saveRoutes(all.filter(r=>String(r.id)!==id));closeDeleteConfirmation();if(removed)window.dispatchEvent(new CustomEvent('routeheat:route-deleted',{detail:{route:removed}}));renderHistory();toast('Route permanently removed from this phone');}
   function renderHistory(){
     const all=routes(), totalStops=all.reduce((n,r)=>n+r.stops.length,0), totalMs=all.reduce((n,r)=>n+activeMs(r,r.endedAt||Date.now()),0), avg=totalStops&&totalMs?pace(totalMs/totalStops):0;
     $('#historySummary').innerHTML=`<div class="summary-tile"><span>ROUTES</span><strong>${all.length}</strong></div><div class="summary-tile"><span>STOPS</span><strong>${totalStops}</strong></div><div class="summary-tile"><span>AVG /HR</span><strong>${avg?avg.toFixed(1):'—'}</strong></div>`;

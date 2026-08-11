@@ -6,6 +6,7 @@
   const ROUTES_KEY = 'routeheat.routes.v2';
   const OWNER_KEY = 'routeheat.cloud.owner.v1';
   const DELETIONS_KEY = 'routeheat.cloud.deletions.v1';
+  const BLOCKLIST_KEY = 'routeheat.cloud.deletedRoutes.v1';
   const LAST_SYNC_KEY = 'routeheat.cloud.lastSync.v1';
   const $ = selector => document.querySelector(selector);
   let client = null;
@@ -19,7 +20,9 @@
   };
   const localRoutes = () => readJson(ROUTES_KEY, []);
   const deletionQueue = () => readJson(DELETIONS_KEY, []);
+  const deletionBlocklist = () => readJson(BLOCKLIST_KEY, []);
   const saveDeletions = items => localStorage.setItem(DELETIONS_KEY, JSON.stringify(items));
+  const saveBlocklist = items => localStorage.setItem(BLOCKLIST_KEY, JSON.stringify(items.slice(-500)));
   const iso = value => value ? new Date(value).toISOString() : null;
   const routeIdOf = route => route?.id == null ? '' : String(route.id);
   const timeKey = value => {
@@ -27,6 +30,28 @@
     const parsed = typeof value === 'number' ? value : Date.parse(value);
     return Number.isFinite(parsed) ? String(parsed) : String(value);
   };
+  const routeSignature = route => {
+    const stops = Array.isArray(route?.stops) ? route.stops : [];
+    return {
+      id: routeIdOf(route),
+      startedAt: timeKey(route?.startedAt),
+      endedAt: timeKey(route?.endedAt),
+      stopCount: stops.length,
+      firstStop: timeKey(stops[0]?.timestamp),
+      lastStop: timeKey(stops.at(-1)?.timestamp)
+    };
+  };
+  function signaturesMatch(first, second) {
+    if (!first || !second) return false;
+    if (first.id && second.id && first.id === second.id) return true;
+    if (first.startedAt && second.startedAt && first.startedAt === second.startedAt) return true;
+    if (first.stopCount !== second.stopCount) return false;
+    if (first.firstStop && second.firstStop && first.lastStop && second.lastStop && first.firstStop === second.firstStop && first.lastStop === second.lastStop) return true;
+    const startA = Number(first.startedAt), startB = Number(second.startedAt), endA = Number(first.endedAt), endB = Number(second.endedAt);
+    return first.stopCount > 0
+      && Number.isFinite(startA) && Number.isFinite(startB) && Math.abs(startA - startB) <= 300000
+      && Number.isFinite(endA) && Number.isFinite(endB) && Math.abs(endA - endB) <= 300000;
+  }
   const chunks = (items, size = 5) => Array.from(
     {length: Math.ceil(items.length / size)},
     (_, index) => items.slice(index * size, index * size + size)
@@ -133,8 +158,13 @@
     const routeId = routeIdOf(route);
     const startedAt = timeKey(route.startedAt);
     const items = deletionQueue().filter(item => item.routeId !== routeId && (!startedAt || timeKey(item.routeData?.startedAt) !== startedAt));
-    items.push({routeId, deletedAt: new Date().toISOString(), routeData: route});
+    const deletedAt = new Date().toISOString();
+    items.push({routeId, deletedAt, routeData: route});
     saveDeletions(items);
+    const signature = routeSignature(route);
+    const blocked = deletionBlocklist().filter(item => !signaturesMatch(item.signature || routeSignature(item.routeData), signature));
+    blocked.push({deletedAt, signature, routeData: route});
+    saveBlocklist(blocked);
   }
 
   async function flushDeletions(userId) {
@@ -200,12 +230,30 @@
       const queued = new Set(queuedItems.map(item => item.routeId));
       const queuedDataIds = new Set(queuedItems.map(item => routeIdOf(item.routeData)).filter(Boolean));
       const queuedStarts = new Set(queuedItems.map(item => timeKey(item.routeData?.startedAt)).filter(Boolean));
+      const blockedSignatures = [
+        ...deletionBlocklist().map(item => item.signature || routeSignature(item.routeData)),
+        ...deletedRows.map(row => routeSignature(row.route_data)),
+        ...queuedItems.map(item => routeSignature(item.routeData))
+      ];
       const isDeletedRoute = (saved, rowId = '') => {
         const savedId = routeIdOf(saved), startedAt = timeKey(saved?.startedAt);
         return deleted.has(String(rowId || savedId))
           || (savedId && (deletedDataIds.has(savedId) || queued.has(savedId) || queuedDataIds.has(savedId)))
-          || (startedAt && (deletedStarts.has(startedAt) || queuedStarts.has(startedAt)));
+          || (startedAt && (deletedStarts.has(startedAt) || queuedStarts.has(startedAt)))
+          || blockedSignatures.some(signature => signaturesMatch(routeSignature(saved), signature));
       };
+      const liveAliases = (remoteRows || []).filter(row => !row.deleted_at && row.route_data && isDeletedRoute(row.route_data, row.route_id));
+      if (liveAliases.length) {
+        const aliasDeletedAt = new Date().toISOString();
+        for (const alias of liveAliases) {
+          const {error: aliasError} = await client
+            .from(TABLE)
+            .update({deleted_at: aliasDeletedAt, updated_at: aliasDeletedAt})
+            .eq('user_id', userId)
+            .eq('route_id', alias.route_id);
+          if (aliasError) throw aliasError;
+        }
+      }
       const local = localRoutes().filter(saved => saved?.id != null && !isDeletedRoute(saved));
       const rows = local.map(route => routeRow(route, userId));
       for (const group of chunks(rows)) {
@@ -226,6 +274,10 @@
           if (key === item.routeId || (deletedStart && timeKey(saved.startedAt) === deletedStart)) merged.delete(key);
         }
       });
+      const finalBlocked = deletionBlocklist().map(item => item.signature || routeSignature(item.routeData));
+      for (const [key, saved] of merged) {
+        if (finalBlocked.some(signature => signaturesMatch(routeSignature(saved), signature))) merged.delete(key);
+      }
       saveLocalRoutes([...merged.values()]);
 
       const now = Date.now();
