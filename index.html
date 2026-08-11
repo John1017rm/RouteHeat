@@ -21,7 +21,7 @@
   <div class="app-shell">
     <header class="topbar">
       <a class="brand" href="#" aria-label="RouteHeat home"><span class="brand-mark"><img src="assets/icon-192-v2.png" alt=""></span><span>RouteHeat</span></a>
-      <div class="status-chip"><span id="gpsDot" class="status-dot"></span><span id="gpsStatus">GPS ready</span></div>
+      <div class="top-actions"><button id="cloudBtn" class="status-chip cloud-chip" type="button" aria-label="Open cloud backup"><span id="cloudDot" class="status-dot"></span><span id="cloudText">Cloud off</span></button><div class="status-chip"><span id="gpsDot" class="status-dot"></span><span id="gpsStatus">GPS ready</span></div></div>
     </header>
 
     <main>
@@ -101,6 +101,25 @@
 
   <div id="toast" class="toast" role="status"></div>
   <div id="stopConfirm" class="stop-confirm" role="status" aria-live="assertive"><div><span>✓</span><b id="confirmStopNumber">STOP SAVED</b><small id="confirmStopPace">Recorded successfully</small></div></div>
+  <div id="cloudModal" class="modal" aria-hidden="true">
+    <div class="modal-card cloud-modal-card">
+      <button id="closeCloud" class="cloud-close" type="button" aria-label="Close cloud backup">×</button>
+      <div class="modal-icon cloud-icon">☁</div><h2>Cloud backup</h2><p>Securely back up routes and restore them on another device.</p>
+      <div id="cloudSignedOut" class="cloud-section">
+        <label class="form-label cloud-label">EMAIL ADDRESS<input id="cloudEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com"></label>
+        <label class="form-label cloud-label">PASSWORD<input id="cloudPassword" type="password" autocomplete="current-password" minlength="8" placeholder="At least 8 characters"></label>
+        <button id="cloudSignIn" class="route-toggle cloud-primary" type="button">Sign in and sync</button>
+        <button id="cloudCreateAccount" class="secondary-btn cloud-create" type="button">First time? Create account</button>
+        <small class="cloud-help">Create the account once, then use the same email and password on every device.</small>
+      </div>
+      <div id="cloudSignedIn" class="cloud-section" hidden>
+        <div class="cloud-account"><span class="status-dot live"></span><div><b id="cloudAccountEmail">Signed in</b><small id="cloudLastSync">Not synced yet</small></div></div>
+        <div class="cloud-actions"><button id="cloudSyncNow" class="route-toggle" type="button">Sync now</button><button id="cloudSignOut" class="secondary-btn" type="button">Sign out</button></div>
+      </div>
+      <div id="cloudStatus" class="cloud-status" role="status">Sign in to protect your route history.</div>
+      <p class="cloud-privacy">Your GPS history is private to your signed-in account. Local copies remain available offline.</p>
+    </div>
+  </div>
   <div id="confirmModal" class="modal" aria-hidden="true">
     <div class="modal-card"><div class="modal-icon">■</div><h2>Finish this route?</h2><p>Your route and all stop data will be saved to history.</p><div class="modal-actions"><button id="cancelFinish" class="secondary-btn">Keep going</button><button id="confirmFinish" class="danger-btn">Finish route</button></div></div>
   </div>
@@ -128,6 +147,9 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/supabase-config.js"></script>
   <script src="assets/app.js"></script>
+  <script src="assets/cloud.js"></script>
 </body>
 </html>

@@ -22,6 +22,7 @@ RouteHeat is a mobile-first delivery performance tracker for iPhone and Android.
 - Smooth delivery-density heat map with 7-day, 30-day, and all-time filters
 - Lifetime street-coverage map with recorded mileage and every mapped delivery
 - Alternate neighborhood pace map
+- Secure Supabase cloud backup with email/password sign-in, automatic sync, offline retry, and new-device restore
 - Installable PWA shell and device-local history
 
 ## Publish on GitHub Pages
@@ -44,7 +45,9 @@ Open the published site in Chrome, open the browser menu, and choose **Install a
 
 ## How route data works
 
-- History is stored only in the current browser on the current device.
+- History remains cached in the installed app for offline use. After cloud sign-in, finished routes are also backed up to the signed-in Supabase account.
+- Existing local routes upload during the first successful cloud sync. A new device can restore cloud routes by signing in with the same email and password.
+- Complete the one-time instructions in `SUPABASE_SETUP.md` before using the Cloud button.
 - Stops without GPS coordinates remain in route statistics but cannot appear on maps or heat layers.
 - Street traces are recorded for routes completed after the street-recording update; older routes retain their stop markers but cannot recreate a road path that was never captured.
 - For best street coverage, keep RouteHeat open with precise location enabled. Mobile browsers can reduce or pause GPS updates when the screen is locked or the app is backgrounded.
@@ -58,7 +61,11 @@ Open the published site in Chrome, open the browser menu, and choose **Install a
 - `index.html` — application interface
 - `assets/styles.css` — responsive dark visual design
 - `assets/app.js` — GPS, route, history, analytics, report, and replay behavior
+- `assets/cloud.js` — secure authentication, automatic backup, offline retry, and restore behavior
+- `assets/supabase-config.js` — Supabase project URL and browser-safe publishable key
 - `manifest.webmanifest` — installable app metadata
 - `sw.js` — offline application-shell caching
+- `supabase-setup.sql` — protected database table and Row Level Security policies
+- `SUPABASE_SETUP.md` — one-time Supabase dashboard instructions
 
 Map data is provided by OpenStreetMap and displayed with Leaflet. Smooth density rendering uses Leaflet.heat.
