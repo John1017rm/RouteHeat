@@ -57,6 +57,7 @@
     if (/password.*(least|characters|short)/i.test(message)) return 'Use a password with at least 8 characters.';
     if (/user already registered/i.test(message)) return 'That account already exists. Tap Sign in and sync.';
     if (/signups.*disabled|signup.*disabled/i.test(message)) return 'Account creation is closed. Sign in with the account you already created.';
+    if (/cloud deletion could not be confirmed/i.test(message)) return 'The route stayed deleted on this device. Cloud removal is waiting to retry.';
     if (/rate limit/i.test(message)) return 'Too many attempts. Wait a moment and try again.';
     return message.length > 120 ? `${message.slice(0, 117)}...` : message;
   }
@@ -124,7 +125,7 @@
   function rememberDeletion(route) {
     if (!route?.id) return;
     const items = deletionQueue().filter(item => item.routeId !== String(route.id));
-    items.push({routeId: String(route.id), deletedAt: new Date().toISOString()});
+    items.push({routeId: String(route.id), deletedAt: new Date().toISOString(), routeData: route});
     saveDeletions(items);
   }
 
@@ -132,12 +133,20 @@
     const pending = deletionQueue();
     if (!pending.length) return;
     for (const item of pending) {
-      const {error} = await client
+      const routeData = item.routeData
+        || localRoutes().find(route => String(route.id) === item.routeId)
+        || {id: item.routeId, startedAt: Date.parse(item.deletedAt) || Date.now(), endedAt: Date.parse(item.deletedAt) || Date.now(), stops: [], totes: [], track: []};
+      const tombstone = routeRow(routeData, userId);
+      tombstone.route_id = item.routeId;
+      tombstone.updated_at = item.deletedAt;
+      tombstone.deleted_at = item.deletedAt;
+      const {data, error} = await client
         .from(TABLE)
-        .update({deleted_at: item.deletedAt, updated_at: item.deletedAt})
-        .eq('user_id', userId)
-        .eq('route_id', item.routeId);
+        .upsert(tombstone, {onConflict: 'user_id,route_id'})
+        .select('route_id,deleted_at');
       if (error) throw error;
+      const confirmed = (data || []).some(row => String(row.route_id) === item.routeId && row.deleted_at);
+      if (!confirmed) throw new Error('Cloud deletion could not be confirmed.');
       saveDeletions(deletionQueue().filter(queued => queued.routeId !== item.routeId));
     }
   }

@@ -115,7 +115,7 @@
 
   function openDeleteConfirmation(id){const saved=routes().find(r=>r.id===id);if(!saved)return;pendingDeleteId=id;$('#deleteRouteSummary').textContent=`${dateLabel(saved.startedAt)} · ${saved.stops.length} stop${saved.stops.length===1?'':'s'}`;$('#deleteModal').classList.add('open');$('#deleteModal').setAttribute('aria-hidden','false');setTimeout(()=>$('#cancelDelete').focus(),0);}
   function closeDeleteConfirmation(){pendingDeleteId=null;$('#deleteModal').classList.remove('open');$('#deleteModal').setAttribute('aria-hidden','true');}
-  function confirmDeleteRoute(){if(!pendingDeleteId)return;const id=pendingDeleteId,removed=routes().find(r=>r.id===id);saveRoutes(routes().filter(r=>r.id!==id));closeDeleteConfirmation();if(removed)window.dispatchEvent(new CustomEvent('routeheat:route-deleted',{detail:{route:removed}}));renderHistory();toast('Route deleted from device and cloud');}
+  function confirmDeleteRoute(){if(!pendingDeleteId)return;const id=pendingDeleteId,removed=routes().find(r=>r.id===id);saveRoutes(routes().filter(r=>r.id!==id));closeDeleteConfirmation();if(removed)window.dispatchEvent(new CustomEvent('routeheat:route-deleted',{detail:{route:removed}}));renderHistory();toast('Route deleted · cloud removal queued');}
   function renderHistory(){
     const all=routes(), totalStops=all.reduce((n,r)=>n+r.stops.length,0), totalMs=all.reduce((n,r)=>n+activeMs(r,r.endedAt||Date.now()),0), avg=totalStops&&totalMs?pace(totalMs/totalStops):0;
     $('#historySummary').innerHTML=`<div class="summary-tile"><span>ROUTES</span><strong>${all.length}</strong></div><div class="summary-tile"><span>STOPS</span><strong>${totalStops}</strong></div><div class="summary-tile"><span>AVG /HR</span><strong>${avg?avg.toFixed(1):'—'}</strong></div>`;
