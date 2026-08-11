@@ -11,6 +11,7 @@
   let client = null;
   let session = null;
   let syncing = false;
+  let syncRequested = false;
 
   const readJson = (key, fallback) => {
     try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
@@ -130,24 +131,23 @@
   async function flushDeletions(userId) {
     const pending = deletionQueue();
     if (!pending.length) return;
-    const remaining = [];
     for (const item of pending) {
       const {error} = await client
         .from(TABLE)
         .update({deleted_at: item.deletedAt, updated_at: item.deletedAt})
         .eq('user_id', userId)
         .eq('route_id', item.routeId);
-      if (error) {
-        remaining.push(item);
-        saveDeletions(remaining.concat(pending.slice(pending.indexOf(item) + 1)));
-        throw error;
-      }
+      if (error) throw error;
+      saveDeletions(deletionQueue().filter(queued => queued.routeId !== item.routeId));
     }
-    saveDeletions([]);
   }
 
   async function syncNow(showComplete = false) {
-    if (syncing || !client || !session?.user) return;
+    if (!client || !session?.user) return;
+    if (syncing) {
+      syncRequested = true;
+      return;
+    }
     if (!navigator.onLine) {
       setStatus('offline', 'Offline. New changes will sync automatically when service returns.');
       return;
@@ -168,7 +168,8 @@
       if (remoteError) throw remoteError;
 
       const deleted = new Set((remoteRows || []).filter(row => row.deleted_at).map(row => row.route_id));
-      const local = localRoutes().filter(route => route?.id && !deleted.has(String(route.id)));
+      const queued = new Set(deletionQueue().map(item => item.routeId));
+      const local = localRoutes().filter(route => route?.id && !deleted.has(String(route.id)) && !queued.has(String(route.id)));
       const rows = local.map(route => routeRow(route, userId));
       for (const group of chunks(rows)) {
         const {error} = await client.from(TABLE).upsert(group, {onConflict: 'user_id,route_id'});
@@ -181,6 +182,7 @@
         .forEach(row => {
           if (!merged.has(String(row.route_id))) merged.set(String(row.route_id), row.route_data);
         });
+      deletionQueue().forEach(item => merged.delete(item.routeId));
       saveLocalRoutes([...merged.values()]);
 
       const now = Date.now();
@@ -196,6 +198,10 @@
       setStatus('error', friendlyError(error));
     } finally {
       syncing = false;
+      if (syncRequested) {
+        syncRequested = false;
+        setTimeout(() => syncNow(showComplete), 0);
+      }
     }
   }
 
