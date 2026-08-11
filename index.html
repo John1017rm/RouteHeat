@@ -123,6 +123,9 @@
   <div id="confirmModal" class="modal" aria-hidden="true">
     <div class="modal-card"><div class="modal-icon">■</div><h2>Finish this route?</h2><p>Your route and all stop data will be saved to history.</p><div class="modal-actions"><button id="cancelFinish" class="secondary-btn">Keep going</button><button id="confirmFinish" class="danger-btn">Finish route</button></div></div>
   </div>
+  <div id="deleteModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle">
+    <div class="modal-card"><div class="modal-icon delete-icon">×</div><h2 id="deleteModalTitle">Delete this route?</h2><p id="deleteRouteSummary">This saved route will be removed.</p><p class="delete-warning">It will be deleted from this device and your cloud history. This cannot be undone.</p><div class="modal-actions"><button id="cancelDelete" class="secondary-btn" type="button">Keep route</button><button id="confirmDelete" class="danger-btn" type="button">Delete route</button></div></div>
+  </div>
   <div id="goalModal" class="modal" aria-hidden="true">
     <div class="modal-card goal-modal-card"><div class="modal-icon goal-icon">◎</div><h2>Set today’s target</h2><p>RouteHeat will track whether you’re ahead of pace and project your finish time.</p><label class="form-label">PACE GOAL <span>stops per hour</span><input id="paceGoalInput" type="number" inputmode="decimal" min="1" max="99" step="0.5" value="20"></label><label class="form-label">PLANNED STOPS <span>for finish projection</span><input id="plannedStopsInput" type="number" inputmode="numeric" min="1" max="999" step="1" value="100"></label><div class="modal-actions"><button id="cancelGoal" class="secondary-btn">Cancel</button><button id="confirmGoal" class="route-toggle">Start route</button></div></div>
   </div>
