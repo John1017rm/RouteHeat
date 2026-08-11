@@ -21,6 +21,12 @@
   const deletionQueue = () => readJson(DELETIONS_KEY, []);
   const saveDeletions = items => localStorage.setItem(DELETIONS_KEY, JSON.stringify(items));
   const iso = value => value ? new Date(value).toISOString() : null;
+  const routeIdOf = route => route?.id == null ? '' : String(route.id);
+  const timeKey = value => {
+    if (value == null) return '';
+    const parsed = typeof value === 'number' ? value : Date.parse(value);
+    return Number.isFinite(parsed) ? String(parsed) : String(value);
+  };
   const chunks = (items, size = 5) => Array.from(
     {length: Math.ceil(items.length / size)},
     (_, index) => items.slice(index * size, index * size + size)
@@ -123,9 +129,11 @@
   }
 
   function rememberDeletion(route) {
-    if (!route?.id) return;
-    const items = deletionQueue().filter(item => item.routeId !== String(route.id));
-    items.push({routeId: String(route.id), deletedAt: new Date().toISOString(), routeData: route});
+    if (route?.id == null) return;
+    const routeId = routeIdOf(route);
+    const startedAt = timeKey(route.startedAt);
+    const items = deletionQueue().filter(item => item.routeId !== routeId && (!startedAt || timeKey(item.routeData?.startedAt) !== startedAt));
+    items.push({routeId, deletedAt: new Date().toISOString(), routeData: route});
     saveDeletions(items);
   }
 
@@ -147,6 +155,14 @@
       if (error) throw error;
       const confirmed = (data || []).some(row => String(row.route_id) === item.routeId && row.deleted_at);
       if (!confirmed) throw new Error('Cloud deletion could not be confirmed.');
+      if (routeData.startedAt != null) {
+        const {error: legacyError} = await client
+          .from(TABLE)
+          .update({deleted_at: item.deletedAt, updated_at: item.deletedAt})
+          .eq('user_id', userId)
+          .eq('started_at', iso(routeData.startedAt));
+        if (legacyError) throw legacyError;
+      }
       saveDeletions(deletionQueue().filter(queued => queued.routeId !== item.routeId));
     }
   }
@@ -176,9 +192,21 @@
         .limit(1000);
       if (remoteError) throw remoteError;
 
-      const deleted = new Set((remoteRows || []).filter(row => row.deleted_at).map(row => row.route_id));
-      const queued = new Set(deletionQueue().map(item => item.routeId));
-      const local = localRoutes().filter(route => route?.id && !deleted.has(String(route.id)) && !queued.has(String(route.id)));
+      const deletedRows = (remoteRows || []).filter(row => row.deleted_at);
+      const deleted = new Set(deletedRows.map(row => String(row.route_id)));
+      const deletedDataIds = new Set(deletedRows.map(row => routeIdOf(row.route_data)).filter(Boolean));
+      const deletedStarts = new Set(deletedRows.map(row => timeKey(row.route_data?.startedAt)).filter(Boolean));
+      const queuedItems = deletionQueue();
+      const queued = new Set(queuedItems.map(item => item.routeId));
+      const queuedDataIds = new Set(queuedItems.map(item => routeIdOf(item.routeData)).filter(Boolean));
+      const queuedStarts = new Set(queuedItems.map(item => timeKey(item.routeData?.startedAt)).filter(Boolean));
+      const isDeletedRoute = (saved, rowId = '') => {
+        const savedId = routeIdOf(saved), startedAt = timeKey(saved?.startedAt);
+        return deleted.has(String(rowId || savedId))
+          || (savedId && (deletedDataIds.has(savedId) || queued.has(savedId) || queuedDataIds.has(savedId)))
+          || (startedAt && (deletedStarts.has(startedAt) || queuedStarts.has(startedAt)));
+      };
+      const local = localRoutes().filter(saved => saved?.id != null && !isDeletedRoute(saved));
       const rows = local.map(route => routeRow(route, userId));
       for (const group of chunks(rows)) {
         const {error} = await client.from(TABLE).upsert(group, {onConflict: 'user_id,route_id'});
@@ -187,11 +215,17 @@
 
       const merged = new Map(local.map(route => [String(route.id), route]));
       (remoteRows || [])
-        .filter(row => !row.deleted_at && row.route_data?.id)
+        .filter(row => !row.deleted_at && row.route_data?.id != null && !isDeletedRoute(row.route_data, row.route_id))
         .forEach(row => {
-          if (!merged.has(String(row.route_id))) merged.set(String(row.route_id), row.route_data);
+          const logicalId = routeIdOf(row.route_data);
+          if (!merged.has(logicalId)) merged.set(logicalId, row.route_data);
         });
-      deletionQueue().forEach(item => merged.delete(item.routeId));
+      deletionQueue().forEach(item => {
+        const deletedStart = timeKey(item.routeData?.startedAt);
+        for (const [key, saved] of merged) {
+          if (key === item.routeId || (deletedStart && timeKey(saved.startedAt) === deletedStart)) merged.delete(key);
+        }
+      });
       saveLocalRoutes([...merged.values()]);
 
       const now = Date.now();
