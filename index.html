@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#07110f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="RouteHeat">
+  <meta name="description" content="GPS street-route recording, delivery pace tracking, route history, and lifetime coverage maps.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icon-192-v2.png">
+  <link rel="apple-touch-icon" href="assets/icon-192-v2.png">
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="preconnect" href="https://tile.openstreetmap.org">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <link rel="stylesheet" href="assets/styles.css">
+  <title>RouteHeat — Delivery Pace</title>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="RouteHeat home"><span class="brand-mark"><img src="assets/icon-192-v2.png" alt=""></span><span>RouteHeat</span></a>
+      <div class="status-chip"><span id="gpsDot" class="status-dot"></span><span id="gpsStatus">GPS ready</span></div>
+    </header>
+
+    <main>
+      <section id="liveView" class="view active">
+        <div class="map-wrap">
+          <div id="map" aria-label="Live route map"></div>
+          <div class="map-shade"></div>
+          <div class="map-controls">
+            <button id="locateBtn" class="icon-btn" aria-label="Center on my location">⌖</button>
+          </div>
+          <div class="route-overlay">
+            <div>
+              <p class="eyebrow">LIVE ROUTE</p>
+              <h1 id="routeTitle">Ready when you are</h1>
+            </div>
+            <div class="route-actions"><button id="pauseBtn" class="route-toggle pause-toggle" hidden><span>Ⅱ</span><span>Pause</span></button><button id="routeToggle" class="route-toggle"><span class="play">▶</span><span>Start route</span></button></div>
+          </div>
+          <div class="legend" aria-label="Map legend"><span><i class="fast"></i>Fast</span><span><i class="steady"></i>Steady</span><span><i class="slow"></i>Slow</span><span><i class="tote-key"></i>New tote</span></div>
+        </div>
+
+        <div class="dashboard">
+          <div class="stats-grid">
+            <article class="stat-card primary"><p>STOPS</p><strong id="stopCount">0</strong><span id="routeTime">00:00:00 route time</span></article>
+            <article class="stat-card"><p>OVERALL PACE</p><strong><span id="overallPace">—</span><small> /hr</small></strong><span>Since route start</span></article>
+            <article class="stat-card"><p>LAST SEGMENT</p><strong><span id="segmentPace">—</span><small> /hr</small></strong><span id="segmentTime">Complete a stop</span></article>
+          </div>
+          <div id="goalStrip" class="goal-strip"><div><span>PACE GOAL</span><b id="goalStatus">Set a goal before starting</b></div><div class="goal-projection"><span>PROJECTED FINISH</span><b id="finishProjection">—</b></div></div>
+          <div class="auto-detect-card"><div class="auto-copy"><span class="auto-icon">⌁</span><div><b>Auto-detect stops <em>EXPERIMENTAL</em></b><small id="autoStatus">Off · manual button still available</small></div></div><label class="switch"><input id="autoToggle" type="checkbox" aria-label="Toggle automatic stop detection"><span></span></label></div>
+          <div id="autoUndo" class="auto-undo" hidden><span><b>Stop counted automatically</b><small>Not a delivery stop?</small></span><button id="undoAuto">Undo</button></div>
+
+          <div class="action-dock">
+            <button id="stopBtn" class="stop-button" disabled><span class="stop-icon">✓</span><span><b>STOP COMPLETE</b><small id="stopButtonHint">Start your route first</small></span></button>
+            <button id="toteBtn" class="tote-button" disabled aria-label="Open new tote"><span class="tote-button-icon">＋</span><span class="tote-label"><b>NEW TOTE</b><small id="toteButtonHint">Mark location</small></span></button>
+          </div>
+          <p class="safety-note"><span>◆</span> For safety, only use RouteHeat while parked.</p>
+
+          <section class="recent-card">
+            <div class="section-head"><div><p class="eyebrow">THIS ROUTE</p><h2>Recent stops</h2></div><span id="stopBadge" class="count-badge">0 logged</span></div>
+            <div id="recentStops" class="empty-state"><div class="empty-icon">◎</div><p>Your completed stops will appear here.</p></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="driveView" class="view drive-view">
+        <div class="drive-top"><div><p class="eyebrow">DRIVE MODE</p><h1 id="driveState">Ready to start</h1></div><div id="driveGps" class="status-chip"><span class="status-dot"></span><span>GPS ready</span></div></div>
+        <div class="speedometer"><div class="speed-ring"><span>OVERALL PACE</span><strong id="drivePace">—</strong><small>STOPS / HOUR</small></div><div id="driveGoal" class="drive-goal">Set a route goal to begin</div></div>
+        <div class="drive-stats"><div><span>STOPS</span><b id="driveStops">0</b></div><div><span>ACTIVE TIME</span><b id="driveTime">00:00</b></div><div><span>LAST SEGMENT</span><b id="driveLast">—</b></div><div><span>FINISH</span><b id="driveFinish">—</b></div></div>
+        <button id="driveStartBtn" class="drive-start">Start route</button>
+        <div class="drive-actions"><button id="driveStopBtn" class="drive-stop" disabled><span>✓</span><b>STOP COMPLETE</b><small id="driveStopHint">Start your route first</small></button><button id="driveToteBtn" class="drive-tote" disabled><span>＋</span><b>NEW TOTE</b><small id="driveToteHint">Mark location</small></button></div>
+        <div class="drive-controls"><button id="drivePauseBtn" disabled>Ⅱ Pause</button><button id="soundToggle">Sound on</button><button id="driveFinishBtn" disabled>Finish route</button></div>
+        <p class="safety-note"><span>◆</span> Only interact with RouteHeat while parked.</p>
+      </section>
+
+      <section id="historyView" class="view history-view">
+        <div class="page-head"><div><p class="eyebrow">YOUR PERFORMANCE</p><h1>Route history</h1></div><button id="exportAll" class="secondary-btn">Export all</button></div>
+        <div id="historySummary" class="history-summary"></div>
+        <section id="toteAnalytics" class="analytics-card"><div class="section-head"><div><p class="eyebrow">TOTE PERFORMANCE</p><h2>Tote analytics</h2></div><span id="toteAnalyticsBadge" class="count-badge">0 tracked</span></div><div id="toteMetrics" class="tote-metrics"></div><div id="toteRanking" class="tote-ranking"></div></section>
+        <div id="historyList" class="history-list"></div>
+      </section>
+
+      <section id="heatView" class="view heat-view">
+        <div class="page-head heat-head"><div><p class="eyebrow">LIFETIME COVERAGE</p><h1>All-time map</h1><p>See every recorded street, delivery area, and long-term performance trend.</p></div></div>
+        <div class="heat-toolbar"><div class="segmented" id="heatRange"><button data-range="7">7 days</button><button data-range="30">30 days</button><button class="active" data-range="all">All time</button></div><div class="segmented" id="heatMode"><button class="active" data-mode="streets">Streets</button><button data-mode="density">Density</button><button data-mode="pace">Pace</button></div></div>
+        <div id="heatSummary" class="history-summary heat-summary"></div>
+        <section class="zone-section heat-card"><div id="zoneMap"></div><div id="heatLegend" class="heat-gradient-legend"><span>Fewer deliveries</span><i></i><span>Most deliveries</span></div><div id="zoneList" class="zone-list"></div></section>
+        <p class="heat-privacy">◆ Heat map data stays in this browser on your device.</p>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Main navigation">
+      <button class="nav-item active" data-view="liveView"><span>◉</span>Live</button>
+      <button class="nav-item" data-view="driveView"><span>◈</span>Drive</button>
+      <button class="nav-item" data-view="historyView"><span>▥</span>History</button>
+      <button class="nav-item" data-view="heatView"><span>◌</span>All time</button>
+    </nav>
+  </div>
+
+  <div id="toast" class="toast" role="status"></div>
+  <div id="stopConfirm" class="stop-confirm" role="status" aria-live="assertive"><div><span>✓</span><b id="confirmStopNumber">STOP SAVED</b><small id="confirmStopPace">Recorded successfully</small></div></div>
+  <div id="confirmModal" class="modal" aria-hidden="true">
+    <div class="modal-card"><div class="modal-icon">■</div><h2>Finish this route?</h2><p>Your route and all stop data will be saved to history.</p><div class="modal-actions"><button id="cancelFinish" class="secondary-btn">Keep going</button><button id="confirmFinish" class="danger-btn">Finish route</button></div></div>
+  </div>
+  <div id="goalModal" class="modal" aria-hidden="true">
+    <div class="modal-card goal-modal-card"><div class="modal-icon goal-icon">◎</div><h2>Set today’s target</h2><p>RouteHeat will track whether you’re ahead of pace and project your finish time.</p><label class="form-label">PACE GOAL <span>stops per hour</span><input id="paceGoalInput" type="number" inputmode="decimal" min="1" max="99" step="0.5" value="20"></label><label class="form-label">PLANNED STOPS <span>for finish projection</span><input id="plannedStopsInput" type="number" inputmode="numeric" min="1" max="999" step="1" value="100"></label><div class="modal-actions"><button id="cancelGoal" class="secondary-btn">Cancel</button><button id="confirmGoal" class="route-toggle">Start route</button></div></div>
+  </div>
+  <div id="routeModal" class="modal route-detail-modal" aria-hidden="true">
+    <div class="route-detail-card">
+      <div class="route-detail-head"><div><p class="eyebrow">SAVED ROUTE</p><h2 id="detailTitle">Route details</h2><p id="detailSubtitle"></p></div><div class="detail-head-actions"><button id="detailReplayBtn" class="replay-btn">▶ Replay</button><button id="closeRouteDetail" class="icon-btn close-btn" aria-label="Close route details">×</button></div></div>
+      <div id="historyMap" aria-label="Saved route map"></div>
+      <div class="replay-track"><i id="replayProgress"></i><span id="replayStatus">Full route</span></div>
+      <div class="detail-legend legend"><span><i class="fast"></i>Fast</span><span><i class="steady"></i>Steady</span><span><i class="slow"></i>Slow</span></div>
+      <div id="detailMetrics" class="detail-metrics"></div><div id="detailStops" class="detail-stops"></div>
+    </div>
+  </div>
+
+  <div id="reportModal" class="modal report-modal" aria-hidden="true">
+    <div class="report-sheet">
+      <div class="report-brand"><span class="brand-mark"><img src="assets/icon-192-v2.png" alt=""></span><span>RouteHeat</span><button id="closeReport" aria-label="Close report">×</button></div>
+      <div class="report-hero"><p>END OF DAY</p><h2 id="reportDate">Route report</h2><div class="report-score"><strong id="reportPace">—</strong><span>STOPS / HOUR</span></div><b id="reportGoal">Route complete</b></div>
+      <div id="reportMap"></div><div id="reportMetrics" class="report-metrics"></div><div id="reportHighlights" class="report-highlights"></div>
+      <div class="report-actions"><button id="shareReport" class="route-toggle">Share summary</button><button id="doneReport" class="secondary-btn">Done</button></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js" crossorigin=""></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
