@@ -7,6 +7,7 @@ RouteHeat is a mobile-first delivery performance tracker for iPhone and Android.
 ## Features
 
 - Live OpenStreetMap that follows the driver's GPS position
+- iPhone safe-area-aware status header with crisp logo, sync, and GPS indicators
 - GPS breadcrumb recording that traces the vehicle's driven street path
 - Focused Drive mode with a large stops-per-hour speedometer
 - Large sticky **Stop Complete** action and compact **New Tote** action
