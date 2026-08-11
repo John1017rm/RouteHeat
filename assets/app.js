@@ -81,7 +81,7 @@
   function askFinish(){ $('#confirmModal').classList.add('open'); $('#confirmModal').setAttribute('aria-hidden','false'); }
   function finishRoute(){
     if(route.pausedAt){route.pauses.push({startedAt:route.pausedAt,endedAt:Date.now()});route.pausedAt=null;}
-    route.endedAt=Date.now();compactTrack(route); const all=routes(); all.unshift(route); saveRoutes(all);
+    route.endedAt=Date.now();compactTrack(route); const all=routes(); all.unshift(route); saveRoutes(all);window.dispatchEvent(new CustomEvent('routeheat:route-saved',{detail:{route}}));
     if(watchId!==null) navigator.geolocation.clearWatch(watchId); clearInterval(timerId); watchId=null; timerId=null;
     route=null; $('#autoUndo').hidden=true; resetDetector(); if(routeLayer) routeLayer.clearLayers();
     $('#confirmModal').classList.remove('open'); $('#pauseBtn').hidden=true; $('#routeToggle').classList.remove('running'); $('#routeToggle').innerHTML='<span class="play">▶</span><span>Start route</span>';
@@ -174,10 +174,11 @@
   $('#heatRange').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;heatRange=b.dataset.range;document.querySelectorAll('#heatRange button').forEach(x=>x.classList.toggle('active',x===b));renderHeatMap();});
   $('#heatMode').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;heatMode=b.dataset.mode;document.querySelectorAll('#heatMode button').forEach(x=>x.classList.toggle('active',x===b));renderHeatMap();});
   $('#exportAll').addEventListener('click',()=>routes().length?exportCsv(routes()):toast('No routes to export yet'));
-  $('#historyList').addEventListener('click',e=>{const report=e.target.closest('.report-route'),view=e.target.closest('.view-route'),ex=e.target.closest('.export-one'),del=e.target.closest('.delete-one');if(report)showReport(report.dataset.id);if(view)showRouteDetail(view.dataset.id);if(ex){const r=routes().find(x=>x.id===ex.dataset.id);if(r)exportCsv([r]);}if(del){saveRoutes(routes().filter(x=>x.id!==del.dataset.id));renderHistory();toast('Route deleted');}});
+  $('#historyList').addEventListener('click',e=>{const report=e.target.closest('.report-route'),view=e.target.closest('.view-route'),ex=e.target.closest('.export-one'),del=e.target.closest('.delete-one');if(report)showReport(report.dataset.id);if(view)showRouteDetail(view.dataset.id);if(ex){const r=routes().find(x=>x.id===ex.dataset.id);if(r)exportCsv([r]);}if(del){const removed=routes().find(x=>x.id===del.dataset.id);saveRoutes(routes().filter(x=>x.id!==del.dataset.id));if(removed)window.dispatchEvent(new CustomEvent('routeheat:route-deleted',{detail:{route:removed}}));renderHistory();toast('Route deleted');}});
   $('#detailReplayBtn').addEventListener('click',toggleReplay);$('#closeRouteDetail').addEventListener('click',closeRouteDetail); $('#routeModal').addEventListener('click',e=>{if(e.target.id==='routeModal')closeRouteDetail();});
   $('#closeReport').addEventListener('click',closeReport);$('#doneReport').addEventListener('click',closeReport);$('#shareReport').addEventListener('click',shareReport);$('#reportModal').addEventListener('click',e=>{if(e.target.id==='reportModal')closeReport();});
   window.addEventListener('beforeunload',()=>{if(route)localStorage.setItem('routeheat.active',JSON.stringify(route));});
+  window.addEventListener('routeheat:cloud-merged',()=>{renderHistory();if($('#heatView').classList.contains('active'))renderHeatMap();});
   initMap(); renderLive(); renderHistory(); getPosition(false);
   if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 })();
