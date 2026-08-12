@@ -6,14 +6,14 @@ RouteHeat is a mobile-first delivery performance tracker for iPhone and Android.
 
 ## Features
 
-- RouteHeat 3.3 premium lifetime trophy case with 28 custom achievement designs, metallic rarity frames, collectible locked artwork, live progress, unlock shine, and full badge-detail views
+- RouteHeat 3.5 premium lifetime trophy case with 44 custom achievement designs, including a 100-to-2,000 completed-route ladder, a 1,000-to-250,000 lifetime-stop ladder, high-stop single-route trophies, and the legendary same-route 200 Stops / 300 Locations Club
 - Custom high-visibility bottom navigation with GPS radar, checkered flag, history clock, and heat-map globe icons
 - RouteHeat 3.0 Settings center with Dark, high-contrast Sunlight, and Automatic themes
 - Crash/reload-safe active-route recovery for stops, totes, multi-locations, and GPS traces
 - Configurable chime, bell, voice, and extra-loud stop confirmations with volume and vibration controls
 - Live GPS freshness, accuracy, battery availability, and local-storage health indicators
 - Route Load Index, comparable-route performance insights, and progress/lifetime milestones
-- Permanent Awards & Milestones center with 28 collectible badges, including 200-stop and 300-location routes, time-of-day achievements, locked-goal progress, delivery levels, lifetime XP, personal records, totals, closest goals, recent achievements, and sharing
+- Permanent Awards & Milestones center with 44 collectible badges, metallic rarity frames, locked-goal progress, delivery levels, lifetime XP, personal records, totals, closest goals, recent achievements, and sharing
 - Fast branded launch experience that preserves immediate access to route controls
 - Live OpenStreetMap that follows the driver's GPS position
 - iPhone safe-area-aware status header with crisp logo, sync, and GPS indicators
