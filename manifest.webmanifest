@@ -1,7 +1,7 @@
 {
   "name": "RouteHeat — Delivery Pace",
   "short_name": "RouteHeat",
-  "description": "GPS street-route recording, delivery pace tracking, route history, and lifetime coverage maps.",
+  "description": "GPS delivery pace tracking with route recovery, street maps, workload insights, milestones, and lifetime coverage.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

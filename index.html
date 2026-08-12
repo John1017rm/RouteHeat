@@ -8,6 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="RouteHeat">
   <meta name="description" content="GPS street-route recording, delivery pace tracking, route history, and lifetime coverage maps.">
+  <script>try{const p=localStorage.getItem('routeheat.theme')||'dark',light=matchMedia('(prefers-color-scheme:light)').matches;document.documentElement.dataset.theme=p==='auto'?(light?'sunlight':'dark'):p}catch(e){document.documentElement.dataset.theme='dark'}</script>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icon-192-v2.png">
   <link rel="apple-touch-icon" href="assets/icon-192-v2.png">
@@ -18,10 +19,11 @@
   <title>RouteHeat — Delivery Pace</title>
 </head>
 <body>
+  <div id="launchScreen" class="launch-screen" aria-hidden="true"><div class="launch-glow"></div><span class="launch-logo"><img src="assets/icon-192-v2.png" alt=""></span><strong>RouteHeat</strong><small>DELIVERY INTELLIGENCE</small><i></i></div>
   <div class="app-shell">
     <header class="topbar">
       <a class="brand" href="#" aria-label="RouteHeat home"><span class="brand-mark"><img src="assets/icon-192-v2.png" alt=""></span><span>RouteHeat</span></a>
-      <div class="top-actions"><button id="cloudBtn" class="status-chip cloud-chip" type="button" aria-label="Open cloud backup"><span id="cloudDot" class="status-dot"></span><span id="cloudText">Cloud off</span></button><div class="status-chip"><span id="gpsDot" class="status-dot"></span><span id="gpsStatus">GPS ready</span></div></div>
+      <div class="top-actions"><button id="cloudBtn" class="status-chip cloud-chip" type="button" aria-label="Open cloud backup"><span id="cloudDot" class="status-dot"></span><span id="cloudText">Cloud off</span></button><div class="status-chip"><span id="gpsDot" class="status-dot"></span><span id="gpsStatus">GPS ready</span></div><button id="settingsBtn" class="settings-btn" type="button" aria-label="Open RouteHeat settings">⚙</button></div>
     </header>
 
     <main>
@@ -68,6 +70,7 @@
 
       <section id="driveView" class="view drive-view">
         <div class="drive-top"><div><p class="eyebrow">DRIVE MODE</p><h1 id="driveState">Ready to start</h1></div><div id="driveGps" class="status-chip"><span class="status-dot"></span><span>GPS ready</span></div></div>
+        <div class="drive-health"><div id="gpsHealthCard"><span class="health-icon">⌖</span><div><small>GPS HEALTH</small><b id="driveGpsHealth">Waiting for signal</b></div></div><div id="batteryHealthCard"><span class="health-icon">ϟ</span><div><small>DEVICE POWER</small><b id="driveBatteryHealth">Checking device</b></div></div></div>
         <div class="speedometer"><div class="speed-ring"><span>OVERALL PACE</span><strong id="drivePace">—</strong><small>STOPS / HOUR</small></div><div id="driveGoal" class="drive-goal">Set a route goal to begin</div></div>
         <div id="driveProgress" class="drive-progress" role="progressbar" aria-label="Route stop progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="drive-progress-head"><span>ROUTE PROGRESS</span><strong id="driveProgressPercent">0%</strong></div><div class="drive-progress-track"><i id="driveProgressFill"></i></div><div class="drive-progress-copy"><b id="driveProgressCount">0 of 0 stops</b><span id="driveProgressLeft">Set your stop goal to begin</span></div></div>
         <div class="drive-stats"><div><span>STOPS / LOC.</span><b id="driveStops">0 / 0</b></div><div><span>ACTIVE TIME</span><b id="driveTime">00:00</b></div><div><span>LAST SEGMENT</span><b id="driveLast">—</b></div><div><span>FINISH</span><b id="driveFinish">—</b></div></div>
@@ -142,7 +145,7 @@
       <div class="replay-track"><i id="replayProgress"></i><span id="replayStatus">Full route</span></div>
       <div class="replay-speed-row"><span>REPLAY SPEED</span><div id="replaySpeed" class="replay-speed" role="group" aria-label="Route replay speed"><button type="button" data-speed="0.5" aria-pressed="false">0.5×</button><button type="button" data-speed="1" class="active" aria-pressed="true">1×</button><button type="button" data-speed="2" aria-pressed="false">2×</button><button type="button" data-speed="4" aria-pressed="false">4×</button></div></div>
       <div class="detail-legend legend"><span><i class="fast"></i>Fast</span><span><i class="steady"></i>Steady</span><span><i class="slow"></i>Slow</span><span><i class="multi-key"></i>Multi-location</span></div>
-      <div id="detailMetrics" class="detail-metrics"></div><div id="detailStops" class="detail-stops"></div>
+      <div id="detailMetrics" class="detail-metrics"></div><div id="detailComparison" class="route-comparison"></div><div id="detailStops" class="detail-stops"></div>
     </div>
   </div>
 
@@ -163,6 +166,23 @@
       <div class="report-actions"><button id="shareReport" class="route-toggle">Share summary</button><button id="doneReport" class="secondary-btn">Done</button></div>
     </div>
   </div>
+
+  <div id="settingsModal" class="modal settings-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="settings-sheet">
+      <div class="settings-head"><div><p class="eyebrow">ROUTEHEAT 3.0</p><h2 id="settingsTitle">Settings</h2><p>Make RouteHeat easier to see, hear, and use on the road.</p></div><button id="closeSettings" class="icon-btn close-btn" type="button" aria-label="Close settings">×</button></div>
+      <section class="settings-section"><div class="settings-section-title"><span class="settings-section-icon">☀</span><div><b>Appearance</b><small>Choose the best visibility for your environment.</small></div></div><div id="themeChoices" class="settings-choice three" role="group" aria-label="Color theme"><button type="button" data-theme="dark">Dark</button><button type="button" data-theme="sunlight">Sunlight</button><button type="button" data-theme="auto">Automatic</button></div></section>
+      <section class="settings-section"><div class="settings-section-title"><span class="settings-section-icon">♪</span><div><b>Stop feedback</b><small>Configure confirmation sound and vibration.</small></div></div><label class="settings-toggle"><span><b>Confirmation sound</b><small>Play after every completed stop</small></span><span class="switch"><input id="settingsSound" type="checkbox"><i></i></span></label><div id="soundChoices" class="settings-choice four" role="group" aria-label="Confirmation sound"><button type="button" data-sound="chime">Chime</button><button type="button" data-sound="bell">Bell</button><button type="button" data-sound="voice">Voice</button><button type="button" data-sound="loud">Extra loud</button></div><label class="volume-control"><span><b>Sound level</b><output id="soundVolumeValue">100%</output></span><input id="soundVolume" type="range" min="20" max="100" step="5" value="100"></label><button id="testSound" class="settings-test" type="button">Test confirmation</button><label class="settings-toggle"><span><b>Vibration feedback</b><small>Distinct patterns for stops, multis, and totes</small></span><span class="switch"><input id="settingsVibration" type="checkbox"><i></i></span></label></section>
+      <section class="settings-section"><div class="settings-section-title"><span class="settings-section-icon">⌖</span><div><b>Route behavior</b><small>Control automatic tracking preferences.</small></div></div><label class="settings-toggle"><span><b>Automatic stop detection</b><small>Experimental hands-free counting</small></span><span class="switch"><input id="settingsAutoDetect" type="checkbox"><i></i></span></label><label class="settings-toggle"><span><b>Follow vehicle on map</b><small>Keep the live map centered while routing</small></span><span class="switch"><input id="settingsMapFollow" type="checkbox"><i></i></span></label><div class="settings-row-label"><b>Distance units</b></div><div id="unitChoices" class="settings-choice two" role="group" aria-label="Distance units"><button type="button" data-units="miles">Miles</button><button type="button" data-units="kilometers">Kilometers</button></div></section>
+      <section class="settings-section"><div class="settings-section-title"><span class="settings-section-icon">◇</span><div><b>Device health</b><small>Route tracking readiness and local storage.</small></div></div><div class="settings-health"><div><span>GPS</span><b id="settingsGpsHealth">Waiting for signal</b></div><div><span>BATTERY</span><b id="settingsBatteryHealth">Checking device</b></div><div><span>LOCAL DATA</span><b id="settingsStorage">Calculating</b></div></div><div class="settings-actions"><button id="settingsCloud" class="secondary-btn" type="button">Cloud & account</button><button id="settingsExport" class="secondary-btn" type="button">Export all data</button></div></section>
+      <p class="settings-safety">◆ Only change settings while parked.</p>
+    </div>
+  </div>
+
+  <div id="recoveryModal" class="modal recovery-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="recoveryTitle">
+    <div class="modal-card recovery-card"><div class="recovery-pulse">↻</div><p class="eyebrow">ROUTE PROTECTED</p><h2 id="recoveryTitle">Resume your route?</h2><p>RouteHeat found an unfinished route saved on this device.</p><div id="recoverySummary" class="recovery-summary"></div><div class="recovery-actions"><button id="discardRecovery" class="secondary-btn" type="button">Discard draft</button><button id="resumeRecovery" class="route-toggle" type="button">Resume route</button></div></div>
+  </div>
+
+  <div id="milestoneBanner" class="milestone-banner" role="status" aria-live="polite"><span id="milestoneIcon">◆</span><div><b id="milestoneTitle">Route milestone</b><small id="milestoneDetail"></small></div></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js" crossorigin=""></script>

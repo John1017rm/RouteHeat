@@ -6,6 +6,12 @@ RouteHeat is a mobile-first delivery performance tracker for iPhone and Android.
 
 ## Features
 
+- RouteHeat 3.0 Settings center with Dark, Sunlight, and Automatic themes
+- Crash/reload-safe active-route recovery for stops, totes, multi-locations, and GPS traces
+- Configurable chime, bell, voice, and extra-loud stop confirmations with volume and vibration controls
+- Live GPS freshness, accuracy, battery availability, and local-storage health indicators
+- Route Load Index, comparable-route performance insights, and progress/lifetime milestones
+- Fast branded launch experience that preserves immediate access to route controls
 - Live OpenStreetMap that follows the driver's GPS position
 - iPhone safe-area-aware status header with crisp logo, sync, and GPS indicators
 - GPS breadcrumb recording that traces the vehicle's driven street path
@@ -54,6 +60,7 @@ Open the published site in Chrome, open the browser menu, and choose **Install a
 
 ## How route data works
 
+- While a route is running, RouteHeat continuously keeps a temporary recovery draft on the device. If the page reloads or the app closes unexpectedly, the next launch offers to resume or discard it. Finishing the route clears the draft and saves the completed route normally.
 - History remains cached in the installed app for offline use. After cloud sign-in, finished routes are also backed up to the signed-in Supabase account.
 - Existing local routes upload during the first successful cloud sync. A new device can restore cloud routes by signing in with the same email and password.
 - Complete the one-time instructions in `SUPABASE_SETUP.md` before using the Cloud button.
@@ -68,7 +75,7 @@ Open the published site in Chrome, open the browser menu, and choose **Install a
 ## Main files
 
 - `index.html` — application interface
-- `assets/styles.css` — responsive dark visual design
+- `assets/styles.css` — responsive Dark and Sunlight theme system
 - `assets/app.js` — GPS, route, history, analytics, report, and replay behavior
 - `assets/cloud.js` — secure authentication, automatic backup, offline retry, and restore behavior
 - `assets/supabase-config.js` — Supabase project URL and browser-safe publishable key
