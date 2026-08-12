@@ -83,6 +83,12 @@
       <section id="historyView" class="view history-view">
         <div class="page-head"><div><p class="eyebrow">YOUR PERFORMANCE</p><h1>Route history</h1></div><button id="exportAll" class="secondary-btn">Export all</button></div>
         <div id="historySummary" class="history-summary"></div>
+        <section id="awardsPreview" class="awards-preview" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="awardsModal">
+          <div class="awards-preview-top"><span class="awards-preview-emblem" aria-hidden="true">✦</span><div><p class="eyebrow">ACHIEVEMENT CENTER</p><h2 id="awardsPreviewTitle">Begin your legacy</h2><small id="awardsPreviewDetail">Complete a route to earn your first badge.</small></div><span id="awardsPreviewCount" class="awards-preview-count">0 / 20</span></div>
+          <div id="awardsPreviewBadges" class="awards-preview-badges" aria-label="Latest unlocked awards"></div>
+          <div class="awards-preview-progress"><div><span id="awardsPreviewLevel">LEVEL 1</span><b id="awardsPreviewNext">First Route is waiting</b></div><i><span id="awardsPreviewFill"></span></i></div>
+          <p>View badges, locked goals, lifetime totals, records, and what to chase next <span aria-hidden="true">›</span></p>
+        </section>
         <section id="toteAnalytics" class="analytics-card tote-analytics-trigger" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="toteAnalyticsModal"><div class="section-head"><div><p class="eyebrow">TOTE PERFORMANCE</p><h2>Tote analytics</h2></div><div class="tote-card-action"><span id="toteAnalyticsBadge" class="count-badge">0 tracked</span><span class="tote-card-arrow" aria-hidden="true">›</span></div></div><div id="toteMetrics" class="tote-metrics"></div><div id="toteRanking" class="tote-ranking"></div><p class="tote-tap-hint">Tap for complete tote history and performance</p></section>
         <div id="historyList" class="history-list"></div>
       </section>
@@ -164,6 +170,24 @@
       <div class="report-hero"><p>END OF DAY</p><h2 id="reportDate">Route report</h2><div class="report-score"><strong id="reportPace">—</strong><span>STOPS / HOUR</span></div><b id="reportGoal">Route complete</b></div>
       <div id="reportMap"></div><div id="reportMetrics" class="report-metrics"></div><div id="reportHighlights" class="report-highlights"></div>
       <div class="report-actions"><button id="shareReport" class="route-toggle">Share summary</button><button id="doneReport" class="secondary-btn">Done</button></div>
+    </div>
+  </div>
+
+  <div id="awardsModal" class="modal awards-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="awardsTitle">
+    <div class="awards-sheet">
+      <div class="awards-head"><div><p class="eyebrow">YOUR ROUTEHEAT LEGACY</p><h2 id="awardsTitle">Awards & milestones</h2><p>Every route builds your level and unlocks permanent achievements.</p></div><div class="awards-head-actions"><button id="shareAwards" class="awards-share" type="button">Share</button><button id="closeAwards" class="icon-btn close-btn" type="button" aria-label="Close awards and milestones">×</button></div></div>
+      <div class="awards-body">
+        <section class="awards-hero">
+          <div id="awardsLevelRing" class="awards-level-ring" style="--award-progress:0deg"><div><span>LEVEL</span><strong id="awardsLevelNumber">1</strong></div></div>
+          <div class="awards-level-copy"><p>DELIVERY RANK</p><h3 id="awardsLevelTitle">Route Starter</h3><span id="awardsLevelXP">0 lifetime XP</span><div class="awards-level-track"><i id="awardsLevelBar"></i></div><small id="awardsLevelNext">350 XP to Level 2</small></div>
+        </section>
+        <div id="awardsQuickStats" class="awards-quick-stats"></div>
+        <section class="awards-section awards-next-section"><div class="awards-section-head"><div><p class="eyebrow">NEXT UP</p><h3>Closest milestones</h3></div><span>KEEP GOING</span></div><div id="awardsNext" class="awards-next-list"></div></section>
+        <section class="awards-section"><div class="awards-section-head"><div><p class="eyebrow">THE COLLECTION</p><h3>Lifetime badges</h3></div><b id="awardsBadgeCount">0 of 20 unlocked</b></div><div id="awardFilters" class="awards-filters" role="group" aria-label="Filter awards"><button class="active" type="button" data-award-filter="all">All</button><button type="button" data-award-filter="unlocked">Unlocked</button><button type="button" data-award-filter="locked">Locked</button></div><div id="awardsBadges" class="awards-badge-grid"></div></section>
+        <section class="awards-section"><div class="awards-section-head"><div><p class="eyebrow">PERSONAL BESTS</p><h3>Record book</h3></div><span>ALL TIME</span></div><div id="awardsRecords" class="awards-records"></div></section>
+        <section class="awards-section"><div class="awards-section-head"><div><p class="eyebrow">MEMORY LANE</p><h3>Recent achievements</h3></div><span>NEWEST FIRST</span></div><div id="awardsRecent" class="awards-recent"></div></section>
+        <p class="awards-footnote">◆ Awards are calculated from your saved route history and follow your cloud-restored routes.</p>
+      </div>
     </div>
   </div>
 

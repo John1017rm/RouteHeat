@@ -11,6 +11,7 @@ RouteHeat is a mobile-first delivery performance tracker for iPhone and Android.
 - Configurable chime, bell, voice, and extra-loud stop confirmations with volume and vibration controls
 - Live GPS freshness, accuracy, battery availability, and local-storage health indicators
 - Route Load Index, comparable-route performance insights, and progress/lifetime milestones
+- Permanent Awards & Milestones center with 20 collectible badges, locked-goal progress, delivery levels, lifetime XP, personal records, totals, closest goals, recent achievements, and sharing
 - Fast branded launch experience that preserves immediate access to route controls
 - Live OpenStreetMap that follows the driver's GPS position
 - iPhone safe-area-aware status header with crisp logo, sync, and GPS indicators
