@@ -18,6 +18,9 @@ RouteHeat is a mobile-first delivery performance tracker for iPhone and Android.
 - Pace goal, planned stop count, and projected finish time
 - Pause and break tracking excluded from active pace
 - Numbered stop and tote markers on live and saved maps
+- Numbered New Tote confirmation with distinct purple visual feedback
+- Multi-location stop tracking that preserves Amazon stop pace while recording actual delivery locations
+- Orange-ring multi-stop markers, workload-aware density maps, reports, and CSV location counts
 - Saved route history with CSV export
 - Confirmed route deletion with an app-level local deletion ledger and legacy-cloud fingerprint cleanup
 - Animated chronological route replay along the recorded street path with 0.5×, 1×, 2×, and 4× speed controls

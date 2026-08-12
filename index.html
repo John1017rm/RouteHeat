@@ -39,7 +39,7 @@
             </div>
             <div class="route-actions"><button id="pauseBtn" class="route-toggle pause-toggle" hidden><span>Ⅱ</span><span>Pause</span></button><button id="routeToggle" class="route-toggle"><span class="play">▶</span><span>Start route</span></button></div>
           </div>
-          <div class="legend" aria-label="Map legend"><span><i class="fast"></i>Fast</span><span><i class="steady"></i>Steady</span><span><i class="slow"></i>Slow</span><span><i class="tote-key"></i>New tote</span></div>
+          <div class="legend" aria-label="Map legend"><span><i class="fast"></i>Fast</span><span><i class="steady"></i>Steady</span><span><i class="slow"></i>Slow</span><span><i class="multi-key"></i>Multi</span><span><i class="tote-key"></i>New tote</span></div>
         </div>
 
         <div class="dashboard">
@@ -54,6 +54,7 @@
 
           <div class="action-dock">
             <button id="stopBtn" class="stop-button" disabled><span class="stop-icon">✓</span><span><b>STOP COMPLETE</b><small id="stopButtonHint">Start your route first</small></span></button>
+            <button id="multiStopBtn" class="multi-stop-button" disabled aria-label="Complete a multi-location stop"><span class="multi-stop-icon">M</span><span><b>MULTI</b><small>2+ locations</small></span></button>
             <button id="toteBtn" class="tote-button" disabled aria-label="Open new tote"><span class="tote-button-icon">＋</span><span class="tote-label"><b>NEW TOTE</b><small id="toteButtonHint">Mark location</small></span></button>
           </div>
           <p class="safety-note"><span>◆</span> For safety, only use RouteHeat while parked.</p>
@@ -69,9 +70,9 @@
         <div class="drive-top"><div><p class="eyebrow">DRIVE MODE</p><h1 id="driveState">Ready to start</h1></div><div id="driveGps" class="status-chip"><span class="status-dot"></span><span>GPS ready</span></div></div>
         <div class="speedometer"><div class="speed-ring"><span>OVERALL PACE</span><strong id="drivePace">—</strong><small>STOPS / HOUR</small></div><div id="driveGoal" class="drive-goal">Set a route goal to begin</div></div>
         <div id="driveProgress" class="drive-progress" role="progressbar" aria-label="Route stop progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="drive-progress-head"><span>ROUTE PROGRESS</span><strong id="driveProgressPercent">0%</strong></div><div class="drive-progress-track"><i id="driveProgressFill"></i></div><div class="drive-progress-copy"><b id="driveProgressCount">0 of 0 stops</b><span id="driveProgressLeft">Set your stop goal to begin</span></div></div>
-        <div class="drive-stats"><div><span>STOPS</span><b id="driveStops">0</b></div><div><span>ACTIVE TIME</span><b id="driveTime">00:00</b></div><div><span>LAST SEGMENT</span><b id="driveLast">—</b></div><div><span>FINISH</span><b id="driveFinish">—</b></div></div>
+        <div class="drive-stats"><div><span>STOPS / LOC.</span><b id="driveStops">0 / 0</b></div><div><span>ACTIVE TIME</span><b id="driveTime">00:00</b></div><div><span>LAST SEGMENT</span><b id="driveLast">—</b></div><div><span>FINISH</span><b id="driveFinish">—</b></div></div>
         <button id="driveStartBtn" class="drive-start">Start route</button>
-        <div class="drive-actions"><button id="driveStopBtn" class="drive-stop" disabled><span>✓</span><b>STOP COMPLETE</b><small id="driveStopHint">Start your route first</small></button><button id="driveToteBtn" class="drive-tote" disabled><span>＋</span><b>NEW TOTE</b><small id="driveToteHint">Mark location</small></button></div>
+        <div class="drive-actions"><button id="driveStopBtn" class="drive-stop" disabled><span>✓</span><b>STOP COMPLETE</b><small id="driveStopHint">Start your route first</small></button><button id="driveMultiStopBtn" class="drive-multi" disabled><span>M</span><b>MULTI</b><small>2+ locations</small></button><button id="driveToteBtn" class="drive-tote" disabled><span>＋</span><b>NEW TOTE</b><small id="driveToteHint">Mark location</small></button></div>
         <div class="drive-controls"><button id="drivePauseBtn" disabled>Ⅱ Pause</button><button id="soundToggle">Sound on</button><button id="driveFinishBtn" disabled>Finish route</button></div>
         <p class="safety-note"><span>◆</span> Only interact with RouteHeat while parked.</p>
       </section>
@@ -102,6 +103,7 @@
 
   <div id="toast" class="toast" role="status"></div>
   <div id="stopConfirm" class="stop-confirm" role="status" aria-live="assertive"><div><span>✓</span><b id="confirmStopNumber">STOP SAVED</b><small id="confirmStopPace">Recorded successfully</small></div></div>
+  <div id="toteConfirm" class="stop-confirm tote-confirm" role="status" aria-live="assertive"><div><span>▣</span><b id="confirmToteNumber">NEW TOTE SAVED</b><small id="confirmToteDetail">Location marked on map</small></div></div>
   <div id="cloudModal" class="modal" aria-hidden="true">
     <div class="modal-card cloud-modal-card">
       <button id="closeCloud" class="cloud-close" type="button" aria-label="Close cloud backup">×</button>
@@ -130,13 +132,16 @@
   <div id="goalModal" class="modal" aria-hidden="true">
     <div class="modal-card goal-modal-card"><div class="modal-icon goal-icon">◎</div><h2>Set today’s target</h2><p>RouteHeat will track whether you’re ahead of pace and project your finish time.</p><label class="form-label">PACE GOAL <span>stops per hour</span><input id="paceGoalInput" type="number" inputmode="decimal" min="1" max="99" step="0.5" value="20"></label><label class="form-label">PLANNED STOPS <span>for finish projection</span><input id="plannedStopsInput" type="number" inputmode="numeric" min="1" max="999" step="1" value="100"></label><div class="modal-actions"><button id="cancelGoal" class="secondary-btn">Cancel</button><button id="confirmGoal" class="route-toggle">Start route</button></div></div>
   </div>
+  <div id="multiStopModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="multiStopTitle">
+    <div class="modal-card multi-stop-modal-card"><div class="modal-icon multi-stop-modal-icon">M</div><h2 id="multiStopTitle">Multi-location stop</h2><p>This remains one Amazon stop while RouteHeat records the actual delivery workload.</p><div class="multi-location-stepper"><button id="multiMinus" type="button" aria-label="Remove one location">−</button><div><strong id="multiLocationCount" aria-live="polite">2</strong><span>DELIVERY LOCATIONS</span></div><button id="multiPlus" type="button" aria-label="Add one location">＋</button></div><div class="modal-actions"><button id="cancelMultiStop" class="secondary-btn" type="button">Cancel</button><button id="confirmMultiStop" class="multi-save-btn" type="button">Save 2 locations</button></div></div>
+  </div>
   <div id="routeModal" class="modal route-detail-modal" aria-hidden="true">
     <div class="route-detail-card">
       <div class="route-detail-head"><div><p class="eyebrow">SAVED ROUTE</p><h2 id="detailTitle">Route details</h2><p id="detailSubtitle"></p></div><div class="detail-head-actions"><button id="detailReplayBtn" class="replay-btn">▶ Replay</button><button id="closeRouteDetail" class="icon-btn close-btn" aria-label="Close route details">×</button></div></div>
       <div id="historyMap" aria-label="Saved route map"></div>
       <div class="replay-track"><i id="replayProgress"></i><span id="replayStatus">Full route</span></div>
       <div class="replay-speed-row"><span>REPLAY SPEED</span><div id="replaySpeed" class="replay-speed" role="group" aria-label="Route replay speed"><button type="button" data-speed="0.5" aria-pressed="false">0.5×</button><button type="button" data-speed="1" class="active" aria-pressed="true">1×</button><button type="button" data-speed="2" aria-pressed="false">2×</button><button type="button" data-speed="4" aria-pressed="false">4×</button></div></div>
-      <div class="detail-legend legend"><span><i class="fast"></i>Fast</span><span><i class="steady"></i>Steady</span><span><i class="slow"></i>Slow</span></div>
+      <div class="detail-legend legend"><span><i class="fast"></i>Fast</span><span><i class="steady"></i>Steady</span><span><i class="slow"></i>Slow</span><span><i class="multi-key"></i>Multi-location</span></div>
       <div id="detailMetrics" class="detail-metrics"></div><div id="detailStops" class="detail-stops"></div>
     </div>
   </div>
