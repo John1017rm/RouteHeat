@@ -6,6 +6,7 @@ RouteHeat is a mobile-first delivery performance tracker for iPhone and Android.
 
 ## Features
 
+- Custom high-visibility bottom navigation with GPS radar, checkered flag, history clock, and heat-map globe icons
 - RouteHeat 3.0 Settings center with Dark, high-contrast Sunlight, and Automatic themes
 - Crash/reload-safe active-route recovery for stops, totes, multi-locations, and GPS traces
 - Configurable chime, bell, voice, and extra-loud stop confirmations with volume and vibration controls
