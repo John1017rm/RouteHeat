@@ -6,6 +6,7 @@ RouteHeat is a mobile-first delivery performance tracker for iPhone and Android.
 
 ## Features
 
+- RouteHeat 3.3 premium lifetime trophy case with 28 custom achievement designs, metallic rarity frames, collectible locked artwork, live progress, unlock shine, and full badge-detail views
 - Custom high-visibility bottom navigation with GPS radar, checkered flag, history clock, and heat-map globe icons
 - RouteHeat 3.0 Settings center with Dark, high-contrast Sunlight, and Automatic themes
 - Crash/reload-safe active-route recovery for stops, totes, multi-locations, and GPS traces
