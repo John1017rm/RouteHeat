@@ -10,9 +10,11 @@ RouteHeat is a mobile-first delivery performance tracker for iPhone and Android.
 - iPhone safe-area-aware status header with crisp logo, sync, and GPS indicators
 - GPS breadcrumb recording that traces the vehicle's driven street path
 - Focused Drive mode with a large stops-per-hour speedometer
+- Live Drive-mode stop-goal progress with percentage and stops remaining
 - Large sticky **Stop Complete** action and compact **New Tote** action
 - Manual and optional experimental automatic stop detection
 - Segment and overall stops-per-hour calculations
+- Louder three-note stop confirmation with visual and vibration feedback
 - Pace goal, planned stop count, and projected finish time
 - Pause and break tracking excluded from active pace
 - Numbered stop and tote markers on live and saved maps
@@ -21,8 +23,10 @@ RouteHeat is a mobile-first delivery performance tracker for iPhone and Android.
 - Animated chronological route replay along the recorded street path with 0.5×, 1×, 2×, and 4× speed controls
 - End-of-day report card with route highlights and sharing
 - Tote analytics including stops per tote, average tote time, and recent performance
+- Tappable full tote-performance history with per-tote time, stop range, and pace
 - Smooth delivery-density heat map with 7-day, 30-day, and all-time filters
 - Lifetime street-coverage map with recorded mileage and every mapped delivery
+- Full-screen lifetime street, density, and pace maps
 - Alternate neighborhood pace map
 - Secure Supabase cloud backup with email/password sign-in, automatic sync, offline retry, and new-device restore
 - Installable PWA shell and device-local history
