@@ -6,6 +6,7 @@ RouteHeat is a mobile-first delivery performance tracker for iPhone and Android.
 
 ## Features
 
+- RouteHeat 3.7.1 versioned app-shell assets that prevent an installed PWA from mixing a newly updated interface with older cached JavaScript
 - RouteHeat 3.7 tappable Delivery Rank roadmap with 100 uniquely named levels, preserved legacy Level 1–9 titles, exact total-XP requirements, live XP-to-rank distances, earned/current/locked states, and the Level 100 **RouteHeat GOAT** rank
 - RouteHeat 3.6 focused Drive mode with route progress first, the entire stops-per-hour circle as the protected Stop Complete action, spacious Multi-Location and New Tote controls, and no duplicate Drive-page GPS or device-power cards
 - Real-time achievement celebrations with trophy artwork, rewarding five-note sound, stronger haptics, animated confetti, 25-stop interval milestones, active-route award detection, and route-finish award detection
