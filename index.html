@@ -177,9 +177,9 @@
     <div class="awards-sheet">
       <div class="awards-head"><div><p class="eyebrow">YOUR ROUTEHEAT LEGACY</p><h2 id="awardsTitle">Awards & milestones</h2><p>Every route builds your level and unlocks permanent achievements.</p></div><div class="awards-head-actions"><button id="shareAwards" class="awards-share" type="button">Share</button><button id="closeAwards" class="icon-btn close-btn" type="button" aria-label="Close awards and milestones">×</button></div></div>
       <div class="awards-body">
-        <section class="awards-hero">
+        <section id="awardsRankTrigger" class="awards-hero awards-rank-trigger" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="rankRoadmapModal" aria-label="Open the complete delivery rank roadmap">
           <div id="awardsLevelRing" class="awards-level-ring" style="--award-progress:0deg"><div><span>LEVEL</span><strong id="awardsLevelNumber">1</strong></div></div>
-          <div class="awards-level-copy"><p>DELIVERY RANK</p><h3 id="awardsLevelTitle">Route Starter</h3><span id="awardsLevelXP">0 lifetime XP</span><div class="awards-level-track"><i id="awardsLevelBar"></i></div><small id="awardsLevelNext">350 XP to Level 2</small></div>
+          <div class="awards-level-copy"><p>DELIVERY RANK</p><h3 id="awardsLevelTitle">Route Starter</h3><span id="awardsLevelXP">0 lifetime XP</span><div class="awards-level-track"><i id="awardsLevelBar"></i></div><small id="awardsLevelNext">350 XP to Level 2</small><span class="awards-level-action">View all 100 ranks <b aria-hidden="true">›</b></span></div>
         </section>
         <div id="awardsQuickStats" class="awards-quick-stats"></div>
         <section class="awards-section awards-next-section"><div class="awards-section-head"><div><p class="eyebrow">NEXT UP</p><h3>Closest milestones</h3></div><span>KEEP GOING</span></div><div id="awardsNext" class="awards-next-list"></div></section>
@@ -187,6 +187,21 @@
         <section class="awards-section"><div class="awards-section-head"><div><p class="eyebrow">PERSONAL BESTS</p><h3>Record book</h3></div><span>ALL TIME</span></div><div id="awardsRecords" class="awards-records"></div></section>
         <section class="awards-section"><div class="awards-section-head"><div><p class="eyebrow">MEMORY LANE</p><h3>Recent achievements</h3></div><span>NEWEST FIRST</span></div><div id="awardsRecent" class="awards-recent"></div></section>
         <p class="awards-footnote">◆ Awards are calculated from your saved route history and follow your cloud-restored routes.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="rankRoadmapModal" class="modal rank-roadmap-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="rankRoadmapTitle">
+    <div class="rank-roadmap-sheet">
+      <header class="rank-roadmap-head"><div><p class="eyebrow">THE CLIMB TO GREATNESS</p><h2 id="rankRoadmapTitle">Delivery rank roadmap</h2><p>Every route, stop, location, tote, and goal adds lifetime XP.</p></div><button id="closeRankRoadmap" class="icon-btn close-btn" type="button" aria-label="Close delivery rank roadmap">&times;</button></header>
+      <div class="rank-roadmap-body">
+        <section class="rank-roadmap-summary">
+          <div class="rank-roadmap-current"><span id="rankRoadmapLevel">LEVEL 1</span><h3 id="rankRoadmapCurrent">Route Starter</h3><p id="rankRoadmapXP">0 lifetime XP</p></div>
+          <div class="rank-roadmap-goat"><span>LEVEL 100</span><strong>RH</strong><b>ROUTEHEAT GOAT</b></div>
+          <div class="rank-roadmap-progress"><i><span id="rankRoadmapProgress"></span></i><small id="rankRoadmapNext">350 XP to Street Scout</small></div>
+        </section>
+        <div class="rank-roadmap-key" aria-label="Rank status legend"><span><i class="earned"></i>Earned</span><span><i class="current"></i>Current</span><span><i class="locked"></i>Locked</span></div>
+        <ol id="rankRoadmapList" class="rank-roadmap-list" aria-label="All 100 RouteHeat delivery ranks"></ol>
       </div>
     </div>
   </div>
