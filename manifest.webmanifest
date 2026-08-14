@@ -1,7 +1,7 @@
 {
   "name": "RouteHeat — Delivery Pace",
   "short_name": "RouteHeat",
-  "description": "GPS delivery pace tracking with route recovery, street maps, workload insights, milestones, and lifetime coverage.",
+  "description": "GPS delivery pace tracking with Ghost Run, rescue phases, route corrections, historical pace trails, repeat-stop maps, milestones, and cloud backup.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
