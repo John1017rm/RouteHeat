@@ -41,6 +41,33 @@
       lastStop: timeKey(stops.at(-1)?.timestamp)
     };
   };
+  const versionNumber = value => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  };
+  const versionTime = value => {
+    if (value == null || value === '') return 0;
+    const parsed = typeof value === 'number' ? value : Date.parse(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  };
+  function routeVersion(route, cloudUpdatedAt = null) {
+    return {
+      schema: versionNumber(route?.schemaVersion ?? route?.schema),
+      revision: versionNumber(route?.revision),
+      updatedAt: versionTime(route?.updatedAt)
+        || versionTime(cloudUpdatedAt)
+        || versionTime(route?.endedAt)
+        || versionTime(route?.startedAt)
+    };
+  }
+  function compareRouteVersions(firstRoute, secondRoute, firstCloudUpdatedAt = null, secondCloudUpdatedAt = null) {
+    const first = routeVersion(firstRoute, firstCloudUpdatedAt);
+    const second = routeVersion(secondRoute, secondCloudUpdatedAt);
+    if (first.schema !== second.schema) return first.schema > second.schema ? 1 : -1;
+    if (first.revision !== second.revision) return first.revision > second.revision ? 1 : -1;
+    if (first.updatedAt !== second.updatedAt) return first.updatedAt > second.updatedAt ? 1 : -1;
+    return 0;
+  }
   function signaturesMatch(first, second) {
     if (!first || !second) return false;
     if (first.id && second.id && first.id === second.id) return true;
@@ -68,6 +95,7 @@
   }
 
   function routeRow(route, userId) {
+    const updatedAt = routeVersion(route).updatedAt;
     return {
       user_id: userId,
       route_id: String(route.id),
@@ -75,7 +103,7 @@
       ended_at: iso(route.endedAt),
       stop_count: Array.isArray(route.stops) ? route.stops.length : 0,
       route_data: route,
-      updated_at: new Date().toISOString(),
+      updated_at: updatedAt ? new Date(updatedAt).toISOString() : new Date().toISOString(),
       deleted_at: null
     };
   }
@@ -255,19 +283,53 @@
         }
       }
       const local = localRoutes().filter(saved => saved?.id != null && !isDeletedRoute(saved));
-      const rows = local.map(route => routeRow(route, userId));
+      const localById = new Map();
+      local.forEach(saved => {
+        const logicalId = routeIdOf(saved), current = localById.get(logicalId);
+        if (!current || compareRouteVersions(saved, current) >= 0) localById.set(logicalId, saved);
+      });
+      const remoteById = new Map();
+      (remoteRows || [])
+        .filter(row => !row.deleted_at && row.route_data?.id != null && !isDeletedRoute(row.route_data, row.route_id))
+        .forEach(row => {
+          const logicalId = routeIdOf(row.route_data), current = remoteById.get(logicalId);
+          const comparison = current
+            ? compareRouteVersions(row.route_data, current.route_data, row.updated_at, current.updated_at)
+            : 1;
+          const canonicalTie = comparison === 0
+            && String(row.route_id) === logicalId
+            && String(current?.route_id) !== logicalId;
+          if (!current || comparison > 0 || canonicalTie) remoteById.set(logicalId, row);
+        });
+
+      const merged = new Map();
+      const upload = [];
+      const logicalIds = new Set([...localById.keys(), ...remoteById.keys()]);
+      logicalIds.forEach(logicalId => {
+        const localRoute = localById.get(logicalId), remoteRow = remoteById.get(logicalId);
+        if (!localRoute) {
+          merged.set(logicalId, remoteRow.route_data);
+          return;
+        }
+        if (!remoteRow) {
+          merged.set(logicalId, localRoute);
+          upload.push(localRoute);
+          return;
+        }
+        const comparison = compareRouteVersions(localRoute, remoteRow.route_data, null, remoteRow.updated_at);
+        if (comparison >= 0) {
+          merged.set(logicalId, localRoute);
+          upload.push(localRoute);
+        } else {
+          merged.set(logicalId, remoteRow.route_data);
+        }
+      });
+
+      const rows = upload.map(route => routeRow(route, userId));
       for (const group of chunks(rows)) {
         const {error} = await client.from(TABLE).upsert(group, {onConflict: 'user_id,route_id'});
         if (error) throw error;
       }
-
-      const merged = new Map(local.map(route => [String(route.id), route]));
-      (remoteRows || [])
-        .filter(row => !row.deleted_at && row.route_data?.id != null && !isDeletedRoute(row.route_data, row.route_id))
-        .forEach(row => {
-          const logicalId = routeIdOf(row.route_data);
-          if (!merged.has(logicalId)) merged.set(logicalId, row.route_data);
-        });
       deletionQueue().forEach(item => {
         const deletedStart = timeKey(item.routeData?.startedAt);
         for (const [key, saved] of merged) {
