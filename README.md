@@ -1,8 +1,13 @@
-# RouteHeat 4.0
+# RouteHeat 4.0.2
 
 RouteHeat is a mobile-first delivery performance tracker for iPhone and Android. It combines large one-tap stop controls, GPS route maps, pace goals, tote tracking, rescue workdays, route history, personal comparisons, reports, replay, achievements, and long-term delivery analysis.
 
 > **Safety:** Only interact with RouteHeat while parked. Never use RouteHeat, Route Tools, Ghost Run details, or route-editing controls while driving.
+
+## RouteHeat 4.0.2 maintenance update
+
+- **Null Island fix:** Blank, malformed, out-of-range, and exact `(0,0)` GPS points are now ignored across live routes, saved maps, replay, and every All-time map mode. Stops recorded while GPS was unavailable still remain in route totals, reports, awards, and cloud history.
+- **Clearer History tab:** The old clock has been replaced with a crisp route-history icon that combines a return trail and map pin for better recognition at phone tab-bar size.
 
 ## RouteHeat 4.0 highlights
 
