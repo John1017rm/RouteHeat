@@ -3,6 +3,7 @@
   const $ = s => document.querySelector(s);
   const STORE = 'routeheat.routes.v2';
   const DELETED_ROUTES_STORE = 'routeheat.cloud.deletedRoutes.v1';
+  const CLOUD_DELETIONS_STORE = 'routeheat.cloud.deletions.v1';
   const ACTIVE_ROUTE_STORE = 'routeheat.active';
   let route = null, watchId = null, map = null, userMarker = null, routeLayer = null, liveTraceLine = null, timerId = null, historyMap = null, historyReplayLayer = null, zoneMap = null, reportMap = null, undoTimer = null, replayTimer = null, confirmTimer = null, toteConfirmTimer = null, milestoneTimer = null, achievementTimer = null, activeSaveTimer = null, audioContext = null, audioNeedsRecovery = false, batteryManager = null, pendingRecoveryRoute = null, lastStopAction = 0, lastGpsAt = 0, lastGpsAccuracy = null;
   let autoEnabled = localStorage.getItem('routeheat.autoDetect') === 'true', mapFollowEnabled = localStorage.getItem('routeheat.mapFollow') !== 'false', followMap = localStorage.getItem('routeheat.mapFollow') !== 'false';
@@ -10,6 +11,8 @@
   let heatRange = 'all', heatMode = 'streets', soundEnabled = localStorage.getItem('routeheat.sound') !== 'false', vibrationEnabled = localStorage.getItem('routeheat.vibration') !== 'false';
   let themePreference = localStorage.getItem('routeheat.theme') || 'dark', soundProfile = localStorage.getItem('routeheat.soundProfile') || 'loud', soundVolume = Math.max(20,Math.min(100,Number(localStorage.getItem('routeheat.soundVolume'))||100)), distanceUnits = localStorage.getItem('routeheat.units') || 'miles';
   let detailRoute = null, replayEvents = [], replayIndex = 0, reportText = '', reportRouteId = null, pendingDeleteId = null, pendingRescueRouteId = null, pendingMergeId = null, pendingMultiLocations = 2, awardFilter = 'all', ghostExpanded = false, replaySpeed = Number(localStorage.getItem('routeheat.replaySpeed')) || 1;
+  let cloudDeletedRoutes = [], recentlyDeletedCandidates = [], pendingRestoreCandidate = null, recentlyDeletedRequestTimer = null;
+  let recentlyDeletedCloudState = {status:'idle',message:''};
   const achievementQueue = [];
   if(![0.5,1,2,4].includes(replaySpeed))replaySpeed=1;
   if(!['dark','sunlight','auto'].includes(themePreference))themePreference='dark';
@@ -123,6 +126,158 @@
     ledger.push({deletedAt:new Date().toISOString(),signature,routeData:saved});
     localStorage.setItem(DELETED_ROUTES_STORE,JSON.stringify(ledger.slice(-500)));
   }
+  const storedArray = key => {
+    try { const value=JSON.parse(localStorage.getItem(key));return Array.isArray(value)?value:[]; }
+    catch { return []; }
+  };
+  const cloneRouteData = value => JSON.parse(JSON.stringify(value));
+  const recoveryEntryRoute = item => item?.routeData||item?.route_data||item?.route||item?.data||(Array.isArray(item?.stops)?item:null);
+  const recoveryEntrySignature = item => {
+    const data=recoveryEntryRoute(item), derived=localDeletionSignature(data), supplied=item?.signature||{};
+    return {
+      id:derived.id||String(item?.routeId??item?.route_id??supplied.id??''),
+      startedAt:derived.startedAt||deletionTimeKey(supplied.startedAt),
+      stopCount:Number.isFinite(Number(derived.stopCount))?derived.stopCount:Number(supplied.stopCount)||0,
+      firstStop:derived.firstStop||deletionTimeKey(supplied.firstStop),
+      lastStop:derived.lastStop||deletionTimeKey(supplied.lastStop)
+    };
+  };
+  const recoverySignaturesMatch = (first,second) => {
+    if(!first||!second)return false;
+    if(first.id&&second.id&&first.id===second.id)return true;
+    if(first.startedAt&&second.startedAt&&first.startedAt===second.startedAt){
+      if(first.stopCount&&second.stopCount&&first.stopCount!==second.stopCount)return false;
+      if(first.firstStop&&second.firstStop&&first.firstStop!==second.firstStop)return false;
+      if(first.lastStop&&second.lastStop&&first.lastStop!==second.lastStop)return false;
+      return true;
+    }
+    if(first.id&&second.id)return false;
+    return first.stopCount>0&&first.stopCount===second.stopCount&&first.firstStop&&first.lastStop
+      &&first.firstStop===second.firstStop&&first.lastStop===second.lastStop;
+  };
+  const deletedAtMs = value => {const parsed=typeof value==='number'?value:Date.parse(value);return Number.isFinite(parsed)?parsed:0;};
+  const isFinishedRecoveryRoute = saved => !!(saved&&typeof saved==='object'&&saved.id!=null
+    &&Number.isFinite(Number(saved.startedAt))&&Number.isFinite(Number(saved.endedAt))
+    &&Number(saved.endedAt)>=Number(saved.startedAt)&&Array.isArray(saved.stops));
+  function preferRecoveryRoute(next,current){
+    if(!current)return true;
+    const nextScore=[Number(next.revision)||0,deletedAtMs(next.updatedAt),next.stops?.length||0,next.track?.length||0];
+    const currentScore=[Number(current.revision)||0,deletedAtMs(current.updatedAt),current.stops?.length||0,current.track?.length||0];
+    for(let index=0;index<nextScore.length;index++){if(nextScore[index]!==currentScore[index])return nextScore[index]>currentScore[index];}
+    return false;
+  }
+  function collectRecentlyDeleted(){
+    const groups=[];
+    const add=(item,source)=>{
+      const routeData=recoveryEntryRoute(item);
+      if(!isFinishedRecoveryRoute(routeData))return;
+      const signature=recoveryEntrySignature(item),existing=groups.find(candidate=>recoverySignaturesMatch(candidate.signature,signature));
+      const deletedAt=item?.deletedAt??item?.deleted_at??null;
+      if(existing){
+        existing.sources.add(source);
+        if(deletedAtMs(deletedAt)>deletedAtMs(existing.deletedAt))existing.deletedAt=deletedAt;
+        if(preferRecoveryRoute(routeData,existing.routeData))existing.routeData=routeData;
+        return;
+      }
+      groups.push({signature,routeData,deletedAt,sources:new Set([source])});
+    };
+    deletionLedger().forEach(item=>add(item,'local'));
+    storedArray(CLOUD_DELETIONS_STORE).forEach(item=>add(item,'pending'));
+    cloudDeletedRoutes.forEach(item=>add(item,'cloud'));
+    const storedRoutes=storedArray(STORE),blocked=deletionLedger().map(item=>item.signature||localDeletionSignature(item.routeData));
+    const visibleStoredRoutes=storedRoutes.filter(saved=>!blocked.some(signature=>localDeletionMatch(localDeletionSignature(saved),signature)));
+    const mergedRouteIds=new Set(visibleStoredRoutes.flatMap(saved=>(saved?.corrections||[]).filter(correction=>correction?.type==='merge-rescue-route'&&correction.mergedRouteId!=null).map(correction=>String(correction.mergedRouteId))));
+    const restoredCopies=storedRoutes.filter(saved=>Number(saved?.restoredAt)>0);
+    return groups.filter(candidate=>!mergedRouteIds.has(candidate.signature.id)&&!restoredCopies.some(saved=>{
+      if(!recoverySignaturesMatch(localDeletionSignature(saved),candidate.signature))return false;
+      return Number(saved.restoredAt)>=deletedAtMs(candidate.deletedAt);
+    })).sort((first,second)=>deletedAtMs(second.deletedAt)-deletedAtMs(first.deletedAt)||Number(second.routeData.startedAt)-Number(first.routeData.startedAt));
+  }
+  function recoveryStatus(candidate){
+    if(candidate.sources.has('pending'))return{kind:'pending',label:'Cloud deletion pending',copy:'A complete device copy is ready. Restoring cancels the queued cloud deletion on this device.'};
+    if(candidate.sources.has('cloud')&&candidate.sources.has('local'))return{kind:'cloud',label:'Device + cloud copy',copy:'A complete recovery copy is available both here and in your private cloud history.'};
+    if(candidate.sources.has('cloud'))return{kind:'cloud',label:'Cloud recovery copy',copy:'This finished route is available from your private cloud history.'};
+    return{kind:'local',label:'Device recovery copy',copy:'A complete copy is saved on this device and can be returned to History now.'};
+  }
+  function deletedTimeLabel(value){
+    const time=deletedAtMs(value);
+    return time?new Intl.DateTimeFormat([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}).format(time):'Time unavailable';
+  }
+  function updateRecentlyDeletedSummary(){
+    const summary=$('#settingsRecentlyDeletedSummary');if(!summary)return;
+    const count=collectRecentlyDeleted().length;
+    summary.textContent=count?`${count} recoverable route${count===1?'':'s'} available`:'Check device and cloud recovery copies';
+  }
+  function renderRecentlyDeletedCloudStatus(){
+    const status=$('#recentlyDeletedCloudStatus');if(!status)return;
+    const state=recentlyDeletedCloudState.status||'idle',count=cloudDeletedRoutes.filter(item=>isFinishedRecoveryRoute(recoveryEntryRoute(item))).length;
+    const defaults={idle:'Device recovery copies are ready.',checking:'Checking private cloud recovery...',ready:count?`${count} cloud recovery cop${count===1?'y':'ies'} included.`:'Cloud checked - no additional recovery copies.',
+      'signed-out':'Sign in to check cloud recovery. Device copies remain available.',offline:'Cloud unavailable right now. Device copies remain available.',error:'Cloud recovery could not be checked. Device copies remain available.'};
+    status.className=`recently-deleted-cloud-status status-${state}`;
+    status.textContent=recentlyDeletedCloudState.message||defaults[state]||defaults.idle;
+  }
+  function renderRecentlyDeleted(){
+    recentlyDeletedCandidates=collectRecentlyDeleted();
+    const list=$('#recentlyDeletedList'),empty=$('#recentlyDeletedEmpty');if(!list||!empty)return;
+    list.innerHTML=recentlyDeletedCandidates.map((candidate,index)=>{
+      const saved=candidate.routeData,status=recoveryStatus(candidate),locations=(saved.stops||[]).reduce((total,stop)=>total+Math.max(1,Math.round(Number(stop?.locationCount)||1)),0);
+      return `<article class="recently-deleted-card"><div class="recently-deleted-card-top"><div><p class="recently-deleted-date">${dateLabel(Number(saved.startedAt))}</p><h3>${saved.stops.length} stops · ${locations} locations</h3><span class="recently-deleted-time">${timeLabel(Number(saved.startedAt))} - ${timeLabel(Number(saved.endedAt))}</span></div><span class="recently-deleted-status status-${status.kind}">${status.label}</span></div><div class="recently-deleted-metrics"><div><span>STOPS / LOC.</span><b>${saved.stops.length} / ${locations}</b></div><div><span>DELETED</span><b>${deletedTimeLabel(candidate.deletedAt)}</b></div></div><p class="recently-deleted-status-copy">${status.copy}</p><button class="recently-deleted-restore" data-restore-index="${index}" type="button">Restore</button></article>`;
+    }).join('');
+    empty.hidden=recentlyDeletedCandidates.length>0;
+    renderRecentlyDeletedCloudStatus();updateRecentlyDeletedSummary();
+  }
+  function openRecentlyDeleted(){
+    closeSettings();cloudDeletedRoutes=[];recentlyDeletedCloudState={status:'checking',message:''};renderRecentlyDeleted();
+    const modal=$('#recentlyDeletedModal');modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.classList.add('modal-scroll-locked');
+    setTimeout(()=>$('#closeRecentlyDeleted').focus(),0);
+    window.dispatchEvent(new CustomEvent('routeheat:request-deleted-routes'));
+    clearTimeout(recentlyDeletedRequestTimer);recentlyDeletedRequestTimer=setTimeout(()=>{if(recentlyDeletedCloudState.status==='checking'){recentlyDeletedCloudState={status:'offline',message:'Cloud did not respond. Device copies remain available.'};renderRecentlyDeletedCloudStatus();}},3000);
+  }
+  function closeRestoreRoute(restoreFocus=true){
+    const modal=$('#restoreRouteModal');modal.classList.remove('open');modal.setAttribute('aria-hidden','true');
+    pendingRestoreCandidate=null;
+    if(restoreFocus&&$('#recentlyDeletedModal').classList.contains('open'))setTimeout(()=>$('#closeRecentlyDeleted').focus(),0);
+  }
+  function closeRecentlyDeleted(){
+    clearTimeout(recentlyDeletedRequestTimer);closeRestoreRoute(false);pendingRestoreCandidate=null;
+    const modal=$('#recentlyDeletedModal');modal.classList.remove('open');modal.setAttribute('aria-hidden','true');document.body.classList.remove('modal-scroll-locked');
+    setTimeout(()=>$('#settingsBtn').focus(),0);
+  }
+  function openRestoreRoute(index){
+    const candidate=recentlyDeletedCandidates[Number(index)];if(!candidate)return;
+    pendingRestoreCandidate=candidate;
+    const saved=candidate.routeData,locations=(saved.stops||[]).reduce((total,stop)=>total+Math.max(1,Math.round(Number(stop?.locationCount)||1)),0);
+    $('#restoreRouteSummary').innerHTML=`<b>${dateLabel(Number(saved.startedAt))}</b><span>${timeLabel(Number(saved.startedAt))} - ${timeLabel(Number(saved.endedAt))}</span><small>${saved.stops.length} stops · ${locations} locations</small>`;
+    const modal=$('#restoreRouteModal');modal.classList.add('open');modal.setAttribute('aria-hidden','false');setTimeout(()=>$('#cancelRestoreRoute').focus(),0);
+  }
+  function restoreStorageSnapshot(snapshot){
+    Object.entries(snapshot).forEach(([key,value])=>{try{if(value==null)localStorage.removeItem(key);else localStorage.setItem(key,value);}catch{}});
+  }
+  function confirmRestoreRoute(){
+    const candidate=pendingRestoreCandidate;if(!candidate)return;
+    const target=candidate.signature,snapshot={[STORE]:localStorage.getItem(STORE),[DELETED_ROUTES_STORE]:localStorage.getItem(DELETED_ROUTES_STORE),[CLOUD_DELETIONS_STORE]:localStorage.getItem(CLOUD_DELETIONS_STORE)};
+    let restored;
+    try{
+      restored=normalizeRouteData(cloneRouteData(candidate.routeData));
+      const now=Math.max(Date.now(),deletedAtMs(candidate.deletedAt)+1);restored.restoredAt=now;restored.updatedAt=now;restored.schemaVersion=Math.max(4,Number(restored.schemaVersion)||0);restored.revision=Math.max(0,Math.round(Number(restored.revision)||0))+1;
+      const nextLedger=deletionLedger().filter(item=>!recoverySignaturesMatch(recoveryEntrySignature(item),target));
+      const nextQueue=storedArray(CLOUD_DELETIONS_STORE).filter(item=>!recoverySignaturesMatch(recoveryEntrySignature(item),target));
+      const rawRoutes=storedArray(STORE);let replaced=false;
+      const nextRoutes=rawRoutes.flatMap(saved=>{if(!recoverySignaturesMatch(localDeletionSignature(saved),target))return[saved];if(replaced)return[];replaced=true;return[restored];});
+      if(!replaced)nextRoutes.unshift(restored);
+      nextRoutes.sort((first,second)=>Number(second.startedAt)-Number(first.startedAt)||Number(second.endedAt)-Number(first.endedAt)||String(first.id).localeCompare(String(second.id)));
+      localStorage.setItem(STORE,JSON.stringify(nextRoutes));
+      localStorage.setItem(CLOUD_DELETIONS_STORE,JSON.stringify(nextQueue));
+      localStorage.setItem(DELETED_ROUTES_STORE,JSON.stringify(nextLedger));
+    }catch(error){
+      restoreStorageSnapshot(snapshot);toast('Could not restore route - no route data was changed');return;
+    }
+    cloudDeletedRoutes=cloudDeletedRoutes.filter(item=>!recoverySignaturesMatch(recoveryEntrySignature(item),target));
+    pendingRestoreCandidate=null;closeRestoreRoute(false);renderRecentlyDeleted();renderHistory();if($('#heatView').classList.contains('active'))renderHeatMap();
+    window.dispatchEvent(new CustomEvent('routeheat:route-restored',{detail:{route:restored}}));
+    const cloudAware=candidate.sources.has('cloud')||candidate.sources.has('pending')||recentlyDeletedCloudState.status==='ready';
+    toast(cloudAware?'Route restored · cloud sync pending':'Route restored on this device · cloud sync when available');
+  }
   function routes() {
     let saved;
     try { saved=JSON.parse(localStorage.getItem(STORE)) || []; } catch { saved=[]; }
@@ -208,7 +363,7 @@
   async function initBatteryHealth(){if(!navigator.getBattery){renderHealth();return;}try{batteryManager=await navigator.getBattery();['levelchange','chargingchange'].forEach(event=>batteryManager.addEventListener(event,renderHealth));}catch(error){}renderHealth();}
   function syncSettingsUi(){applyTheme();$('#settingsSound').checked=soundEnabled;$('#settingsVibration').checked=vibrationEnabled;$('#settingsAutoDetect').checked=autoEnabled;$('#settingsMapFollow').checked=mapFollowEnabled;$('#soundVolume').value=String(soundVolume);$('#soundVolumeValue').textContent=`${soundVolume}%`;document.querySelectorAll('#soundChoices button').forEach(button=>button.classList.toggle('active',button.dataset.sound===soundProfile));document.querySelectorAll('#unitChoices button').forEach(button=>button.classList.toggle('active',button.dataset.units===distanceUnits));renderHealth();}
   async function updateStorageEstimate(){let localBytes=0;try{for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i),value=localStorage.getItem(key)||'';localBytes+=(key.length+value.length)*2;}}catch(error){}let label=localBytes<1048576?`${Math.max(1,Math.round(localBytes/1024))} KB local`:`${(localBytes/1048576).toFixed(1)} MB local`;if(navigator.storage?.estimate){try{const estimate=await navigator.storage.estimate();if(estimate.usage)label=estimate.usage<1048576?`${Math.max(1,Math.round(estimate.usage/1024))} KB used`:`${(estimate.usage/1048576).toFixed(1)} MB used`;}catch(error){}}$('#settingsStorage').textContent=label;}
-  function openSettings(){syncSettingsUi();updateStorageEstimate();$('#settingsModal').classList.add('open');$('#settingsModal').setAttribute('aria-hidden','false');document.body.classList.add('modal-scroll-locked');setTimeout(()=>$('#closeSettings').focus(),0);}
+  function openSettings(){syncSettingsUi();updateStorageEstimate();updateRecentlyDeletedSummary();$('#settingsModal').classList.add('open');$('#settingsModal').setAttribute('aria-hidden','false');document.body.classList.add('modal-scroll-locked');setTimeout(()=>$('#closeSettings').focus(),0);}
   function closeSettings(){$('#settingsModal').classList.remove('open');$('#settingsModal').setAttribute('aria-hidden','true');document.body.classList.remove('modal-scroll-locked');$('#settingsBtn').focus();}
 
   function getPosition(center=false) {
@@ -331,7 +486,7 @@
 
   function openDeleteConfirmation(id){const saved=routes().find(r=>String(r.id)===String(id));if(!saved)return;pendingDeleteId=String(id);$('#deleteRouteSummary').textContent=`${dateLabel(saved.startedAt)} · ${saved.stops.length} stop${saved.stops.length===1?'':'s'}`;$('#deleteModal').classList.add('open');$('#deleteModal').setAttribute('aria-hidden','false');setTimeout(()=>$('#cancelDelete').focus(),0);}
   function closeDeleteConfirmation(){pendingDeleteId=null;$('#deleteModal').classList.remove('open');$('#deleteModal').setAttribute('aria-hidden','true');}
-  function confirmDeleteRoute(){if(!pendingDeleteId)return;const id=pendingDeleteId,all=routes(),removed=all.find(r=>String(r.id)===id);if(removed)rememberLocalDeletion(removed);saveRoutes(all.filter(r=>String(r.id)!==id));closeDeleteConfirmation();if(removed)window.dispatchEvent(new CustomEvent('routeheat:route-deleted',{detail:{route:removed}}));renderHistory();toast('Route permanently removed from this phone');}
+  function confirmDeleteRoute(){if(!pendingDeleteId)return;const id=pendingDeleteId,all=routes(),removed=all.find(r=>String(r.id)===id);if(removed)rememberLocalDeletion(removed);saveRoutes(all.filter(r=>String(r.id)!==id));closeDeleteConfirmation();if(removed)window.dispatchEvent(new CustomEvent('routeheat:route-deleted',{detail:{route:removed}}));renderHistory();toast('Route moved to Recently Deleted');}
   function awardSnapshot(all=routes()){
     const chronological=all.slice().sort((a,b)=>a.startedAt-b.startedAt),routeEnd=saved=>saved.endedAt||saved.startedAt,totalRoutes=chronological.length,totalStops=chronological.reduce((n,saved)=>n+(saved.stops||[]).length,0),totalLocations=chronological.reduce((n,saved)=>n+routeLocations(saved),0),totalMs=chronological.reduce((n,saved)=>n+activeMs(saved,saved.endedAt||Date.now()),0),totalDistance=chronological.reduce((n,saved)=>n+trackDistance(saved),0),distanceMiles=totalDistance/1609.344,totalTotes=chronological.reduce((n,saved)=>n+(saved.totes||[]).length,0),multiStops=chronological.reduce((n,saved)=>n+(saved.stops||[]).filter(stop=>stopLocations(stop)>1).length,0),autoStops=chronological.reduce((n,saved)=>n+(saved.stops||[]).filter(stop=>stop.source==='auto').length,0),goalHits=chronological.filter(saved=>Number(saved.plannedStops)>0&&(saved.stops||[]).length>=Number(saved.plannedStops)).length;
     const routePace=saved=>{const duration=activeMs(saved,saved.endedAt||Date.now());return saved.stops?.length&&duration?pace(duration/saved.stops.length):0;},bestRoute=chronological.reduce((best,saved)=>routePace(saved)>routePace(best||{stops:[]})?saved:best,null),biggestRoute=chronological.reduce((best,saved)=>routeLocations(saved)>routeLocations(best)?saved:best,null),longestRoute=chronological.reduce((best,saved)=>trackDistance(saved)>trackDistance(best||{track:[]})?saved:best,null),mostStopsRoute=chronological.reduce((best,saved)=>(saved.stops?.length||0)>(best?.stops?.length||0)?saved:best,null),heaviestRoute=chronological.reduce((best,saved)=>!best||workloadScore(saved).score>workloadScore(best).score?saved:best,null),longestActiveRoute=chronological.reduce((best,saved)=>activeMs(saved,saved.endedAt||Date.now())>activeMs(best||{startedAt:0,pauses:[]},0)?saved:best,null);
@@ -539,6 +694,8 @@
   $('#detailReplayBtn').addEventListener('click',toggleReplay);$('#detailMergeBtn').addEventListener('click',()=>detailRoute&&openMergeModal(detailRoute.id));$('#replaySpeed').addEventListener('click',e=>{const button=e.target.closest('button[data-speed]');if(button)setReplaySpeed(button.dataset.speed);});$('#closeRouteDetail').addEventListener('click',closeRouteDetail); $('#routeModal').addEventListener('click',e=>{if(e.target.id==='routeModal')closeRouteDetail();});
   $('#closeReport').addEventListener('click',closeReport);$('#doneReport').addEventListener('click',closeReport);$('#shareReport').addEventListener('click',shareReport);$('#reportRescue').addEventListener('click',()=>reportRouteId&&openRescueModal(reportRouteId));$('#reportModal').addEventListener('click',e=>{if(e.target.id==='reportModal')closeReport();});
   $('#settingsBtn').addEventListener('click',openSettings);$('#closeSettings').addEventListener('click',closeSettings);$('#settingsModal').addEventListener('click',event=>{if(event.target.id==='settingsModal')closeSettings();});
+  $('#settingsRecentlyDeleted').addEventListener('click',openRecentlyDeleted);$('#closeRecentlyDeleted').addEventListener('click',closeRecentlyDeleted);$('#recentlyDeletedModal').addEventListener('click',event=>{if(event.target.id==='recentlyDeletedModal')closeRecentlyDeleted();});
+  $('#recentlyDeletedList').addEventListener('click',event=>{const button=event.target.closest('.recently-deleted-restore');if(button)openRestoreRoute(button.dataset.restoreIndex);});$('#cancelRestoreRoute').addEventListener('click',()=>closeRestoreRoute());$('#confirmRestoreRoute').addEventListener('click',confirmRestoreRoute);$('#restoreRouteModal').addEventListener('click',event=>{if(event.target.id==='restoreRouteModal')closeRestoreRoute();});
   $('#themeChoices').addEventListener('click',event=>{const button=event.target.closest('button[data-theme]');if(!button)return;themePreference=button.dataset.theme;localStorage.setItem('routeheat.theme',themePreference);applyTheme();setTimeout(()=>{map?.invalidateSize();zoneMap?.invalidateSize();historyMap?.invalidateSize();},60);});
   $('#soundChoices').addEventListener('click',event=>{const button=event.target.closest('button[data-sound]');if(!button)return;soundProfile=button.dataset.sound;localStorage.setItem('routeheat.soundProfile',soundProfile);syncSettingsUi();if(soundEnabled)playStopSound(null,true);});
   $('#unitChoices').addEventListener('click',event=>{const button=event.target.closest('button[data-units]');if(!button)return;distanceUnits=button.dataset.units;localStorage.setItem('routeheat.units',distanceUnits);syncSettingsUi();renderHistory();if($('#heatView').classList.contains('active'))renderHeatMap();});
@@ -548,10 +705,20 @@
   $('#settingsCloud').addEventListener('click',()=>{closeSettings();setTimeout(()=>$('#cloudBtn').click(),80);});$('#settingsExport').addEventListener('click',()=>routes().length?exportCsv(routes()):toast('No finished routes to export yet'));
   $('#resumeRecovery').addEventListener('click',resumeRecoveredRoute);$('#discardRecovery').addEventListener('click',discardRecoveredRoute);
   $('#achievementCelebration').addEventListener('click',hideAchievementCelebration);
-  document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;if($('#heatMapCard').classList.contains('map-fullscreen'))toggleHeatFullscreen(false);else if($('#mergeModal').classList.contains('open'))closeMergeModal();else if($('#rescueModal').classList.contains('open'))closeRescueModal();else if($('#routeToolsModal').classList.contains('open'))closeRouteTools();else if($('#rankRoadmapModal').classList.contains('open'))closeRankRoadmap();else if($('#awardDetailModal').classList.contains('open'))closeAwardDetail();else if($('#awardsModal').classList.contains('open'))closeAwards();else if($('#settingsModal').classList.contains('open'))closeSettings();else if($('#toteAnalyticsModal').classList.contains('open'))closeToteAnalytics();else if($('#multiStopModal').classList.contains('open'))closeMultiStop();});
+  document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;if($('#heatMapCard').classList.contains('map-fullscreen'))toggleHeatFullscreen(false);else if($('#restoreRouteModal').classList.contains('open'))closeRestoreRoute();else if($('#recentlyDeletedModal').classList.contains('open'))closeRecentlyDeleted();else if($('#mergeModal').classList.contains('open'))closeMergeModal();else if($('#rescueModal').classList.contains('open'))closeRescueModal();else if($('#routeToolsModal').classList.contains('open'))closeRouteTools();else if($('#rankRoadmapModal').classList.contains('open'))closeRankRoadmap();else if($('#awardDetailModal').classList.contains('open'))closeAwardDetail();else if($('#awardsModal').classList.contains('open'))closeAwards();else if($('#settingsModal').classList.contains('open'))closeSettings();else if($('#toteAnalyticsModal').classList.contains('open'))closeToteAnalytics();else if($('#multiStopModal').classList.contains('open'))closeMultiStop();});
   window.addEventListener('beforeunload',()=>saveActiveRoute(true));
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){audioNeedsRecovery=true;return;}recoverAudio(false);});window.addEventListener('pagehide',()=>{audioNeedsRecovery=true;});window.addEventListener('pageshow',()=>recoverAudio(false));window.addEventListener('blur',()=>{audioNeedsRecovery=true;});window.addEventListener('focus',()=>recoverAudio(false));document.addEventListener('pointerdown',()=>{if(audioNeedsRecovery)recoverAudio(true);},{capture:true});
   window.addEventListener('routeheat:cloud-merged',()=>{renderHistory();if($('#heatView').classList.contains('active'))renderHeatMap();});
+  window.addEventListener('routeheat:cloud-deleted-routes',event=>{
+    const detail=event.detail&&typeof event.detail==='object'?event.detail:{},payload=detail.payload??detail;
+    const list=Array.isArray(payload)?payload:Array.isArray(payload?.routes)?payload.routes:Array.isArray(payload?.items)?payload.items:Array.isArray(payload?.candidates)?payload.candidates:null;
+    if(list)cloudDeletedRoutes=list;
+    const rawStatus=String(detail.status??payload?.status??'ready').replace(/([a-z])([A-Z])/g,'$1-$2').replace(/_/g,'-').toLowerCase();
+    const allowed=new Set(['checking','ready','signed-out','offline','error']),status=allowed.has(rawStatus)?rawStatus:'ready',message=detail.message??payload?.message??'';
+    recentlyDeletedCloudState={status,message:typeof message==='string'?message:''};
+    if(status!=='checking')clearTimeout(recentlyDeletedRequestTimer);
+    if($('#recentlyDeletedModal').classList.contains('open'))renderRecentlyDeleted();else updateRecentlyDeletedSummary();
+  });
   const colorScheme=matchMedia('(prefers-color-scheme:light)');if(colorScheme.addEventListener)colorScheme.addEventListener('change',()=>{if(themePreference==='auto')applyTheme();});
   applyTheme();syncSettingsUi();initMap();renderLive();renderHistory();renderHealth();initBatteryHealth();getPosition(false);offerRouteRecovery();setInterval(renderHealth,5000);setTimeout(()=>$('#launchScreen').classList.add('hide'),620);setTimeout(()=>$('#launchScreen').remove(),1100);
   if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));

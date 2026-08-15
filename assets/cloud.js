@@ -7,6 +7,7 @@
   const OWNER_KEY = 'routeheat.cloud.owner.v1';
   const DELETIONS_KEY = 'routeheat.cloud.deletions.v1';
   const BLOCKLIST_KEY = 'routeheat.cloud.deletedRoutes.v1';
+  const RESTORES_KEY = 'routeheat.cloud.restores.v1';
   const LAST_SYNC_KEY = 'routeheat.cloud.lastSync.v1';
   const $ = selector => document.querySelector(selector);
   let client = null;
@@ -21,8 +22,10 @@
   const localRoutes = () => readJson(ROUTES_KEY, []);
   const deletionQueue = () => readJson(DELETIONS_KEY, []);
   const deletionBlocklist = () => readJson(BLOCKLIST_KEY, []);
+  const restoreQueue = () => readJson(RESTORES_KEY, []);
   const saveDeletions = items => localStorage.setItem(DELETIONS_KEY, JSON.stringify(items));
   const saveBlocklist = items => localStorage.setItem(BLOCKLIST_KEY, JSON.stringify(items.slice(-500)));
+  const saveRestores = items => localStorage.setItem(RESTORES_KEY, JSON.stringify(items.slice(-500)));
   const iso = value => value ? new Date(value).toISOString() : null;
   const routeIdOf = route => route?.id == null ? '' : String(route.id);
   const timeKey = value => {
@@ -78,6 +81,70 @@
     return first.stopCount > 0
       && Number.isFinite(startA) && Number.isFinite(startB) && Math.abs(startA - startB) <= 300000
       && Number.isFinite(endA) && Number.isFinite(endB) && Math.abs(endA - endB) <= 300000;
+  }
+  function exactRouteContentMatch(first, second) {
+    if (!first || !second || !first.startedAt || first.startedAt !== second.startedAt) return false;
+    return first.stopCount === second.stopCount
+      && first.firstStop === second.firstStop
+      && first.lastStop === second.lastStop;
+  }
+  function remoteRowMatchesRoute(row, route) {
+    if (!row || !route) return false;
+    const routeId = routeIdOf(route), payloadId = routeIdOf(row.route_data), rowId = row.route_id == null ? '' : String(row.route_id);
+    if (routeId && (routeId === rowId || routeId === payloadId)) return true;
+    const target = routeSignature(route), candidate = routeSignature(row.route_data);
+    if (!candidate.startedAt && row.started_at) candidate.startedAt = timeKey(row.started_at);
+    return exactRouteContentMatch(target, candidate);
+  }
+  function remoteRowsMatch(first, second) {
+    if (!first || !second) return false;
+    const firstRowId = first.route_id == null ? '' : String(first.route_id), secondRowId = second.route_id == null ? '' : String(second.route_id);
+    const firstPayloadId = routeIdOf(first.route_data), secondPayloadId = routeIdOf(second.route_data);
+    if (firstRowId && (firstRowId === secondRowId || firstRowId === secondPayloadId)) return true;
+    if (firstPayloadId && (firstPayloadId === secondRowId || firstPayloadId === secondPayloadId)) return true;
+    const firstSignature = routeSignature(first.route_data), secondSignature = routeSignature(second.route_data);
+    if (!firstSignature.startedAt && first.started_at) firstSignature.startedAt = timeKey(first.started_at);
+    if (!secondSignature.startedAt && second.started_at) secondSignature.startedAt = timeKey(second.started_at);
+    return exactRouteContentMatch(firstSignature, secondSignature);
+  }
+  const deletionTime = item => versionTime(item?.deletedAt ?? item?.deleted_at);
+  const restoredTime = value => versionTime(value?.restoredAt ?? value?.routeData?.restoredAt ?? value?.route_data?.restoredAt);
+  function deletionMatchesRoute(item, route) {
+    if (!item || !route) return false;
+    const itemRoute = item.routeData || item.route_data;
+    const itemId = String(item.routeId ?? item.route_id ?? routeIdOf(itemRoute));
+    const routeId = routeIdOf(route);
+    if (itemId && routeId && itemId === routeId) return true;
+    const signature = item.signature || routeSignature(itemRoute);
+    return exactRouteContentMatch({...signature, id: ''}, {...routeSignature(route), id: ''});
+  }
+  function winningRestoredRows(rows) {
+    return (rows || []).filter(row => {
+      if (row.deleted_at) return false;
+      const restoreAt = restoredTime(row.route_data);
+      if (!restoreAt) return false;
+      const latestDelete = Math.max(0, ...(rows || [])
+        .filter(candidate => candidate.deleted_at && remoteRowsMatch(row, candidate))
+        .map(candidate => versionTime(candidate.deleted_at)));
+      return restoreAt > latestDelete;
+    });
+  }
+  async function matchingRemoteRows(userId, route) {
+    const columns = 'route_id,route_data,started_at,updated_at,deleted_at', queries = [], routeId = routeIdOf(route), startedAt = versionTime(route?.startedAt);
+    if (routeId) {
+      queries.push(client.from(TABLE).select(columns).eq('user_id', userId).eq('route_id', routeId));
+      queries.push(client.from(TABLE).select(columns).eq('user_id', userId).contains('route_data', {id: route.id}));
+    }
+    if (startedAt) queries.push(client.from(TABLE).select(columns).eq('user_id', userId).eq('started_at', new Date(startedAt).toISOString()));
+    const results = await Promise.all(queries);
+    const rows = new Map();
+    results.forEach(({data, error}) => {
+      if (error) throw error;
+      (data || []).forEach(row => {
+        if (remoteRowMatchesRoute(row, route)) rows.set(String(row.route_id), row);
+      });
+    });
+    return [...rows.values()];
   }
   const chunks = (items, size = 5) => Array.from(
     {length: Math.ceil(items.length / size)},
@@ -181,18 +248,81 @@
     localStorage.setItem(OWNER_KEY, userId);
   }
 
+  function rememberRestore(route) {
+    if (route?.id == null) return;
+    const restoreAt = restoredTime(route);
+    if (!restoreAt) return;
+    const newerQueued = restoreQueue().find(item => deletionMatchesRoute(item, route) && restoredTime(item) > restoreAt);
+    if (!newerQueued) {
+      const items = restoreQueue().filter(item => !deletionMatchesRoute(item, route));
+      items.push({routeId: routeIdOf(route), restoredAt: restoreAt, routeData: route});
+      saveRestores(items);
+    }
+    saveDeletions(deletionQueue().filter(item => !deletionMatchesRoute(item, route) || deletionTime(item) >= restoreAt));
+    saveBlocklist(deletionBlocklist().filter(item => !deletionMatchesRoute(item, route) || deletionTime(item) >= restoreAt));
+  }
+
   function rememberDeletion(route) {
     if (route?.id == null) return;
     const routeId = routeIdOf(route);
     const startedAt = timeKey(route.startedAt);
     const items = deletionQueue().filter(item => item.routeId !== routeId && (!startedAt || timeKey(item.routeData?.startedAt) !== startedAt));
     const deletedAt = new Date().toISOString();
+    const deletedTime = Date.parse(deletedAt);
+    saveRestores(restoreQueue().filter(item => !deletionMatchesRoute(item, route) || restoredTime(item) > deletedTime));
     items.push({routeId, deletedAt, routeData: route});
     saveDeletions(items);
     const signature = routeSignature(route);
     const blocked = deletionBlocklist().filter(item => !signaturesMatch(item.signature || routeSignature(item.routeData), signature));
     blocked.push({deletedAt, signature, routeData: route});
     saveBlocklist(blocked);
+  }
+
+  async function flushRestores(userId) {
+    const pending = restoreQueue();
+    if (!pending.length) return;
+    for (const item of pending) {
+      const routeData = item.routeData;
+      const restoreAt = restoredTime(item);
+      if (!routeData || routeData.id == null || !restoreAt) {
+        saveRestores(restoreQueue().filter(queued => String(queued.routeId ?? '') !== String(item.routeId ?? '') || restoredTime(queued) !== restoreAt));
+        continue;
+      }
+      const matches = await matchingRemoteRows(userId, routeData);
+      const latestRemoteRestore = Math.max(0, ...matches.filter(row => !row.deleted_at).map(row => restoredTime(row.route_data)));
+      const latestRemoteDeletion = Math.max(0, ...matches.filter(row => row.deleted_at).map(row => versionTime(row.deleted_at)));
+      if (latestRemoteRestore > restoreAt || latestRemoteDeletion > restoreAt) {
+        saveRestores(restoreQueue().filter(queued => !deletionMatchesRoute(queued, routeData) || restoredTime(queued) > restoreAt));
+        continue;
+      }
+      const restoredRoute = {
+        ...routeData,
+        restoredAt: restoreAt,
+        updatedAt: Math.max(restoreAt, versionTime(routeData.updatedAt))
+      };
+      const canonical = routeRow(restoredRoute, userId);
+      canonical.route_id = routeIdOf(restoredRoute);
+      canonical.updated_at = new Date(restoredRoute.updatedAt).toISOString();
+      canonical.deleted_at = null;
+      const {data, error} = await client
+        .from(TABLE)
+        .upsert(canonical, {onConflict: 'user_id,route_id'})
+        .select('route_id,route_data,updated_at,deleted_at');
+      if (error) throw error;
+      const confirmed = (data || []).some(row => String(row.route_id) === canonical.route_id && !row.deleted_at && restoredTime(row.route_data) >= restoreAt);
+      if (!confirmed) throw new Error('Cloud restore could not be confirmed.');
+      const aliasDeletedAt = new Date(Math.max(1, restoreAt - 1)).toISOString();
+      for (const alias of matches) {
+        if (String(alias.route_id) === canonical.route_id) continue;
+        const {error: aliasError} = await client
+          .from(TABLE)
+          .update({deleted_at: aliasDeletedAt, updated_at: aliasDeletedAt})
+          .eq('user_id', userId)
+          .eq('route_id', alias.route_id);
+        if (aliasError) throw aliasError;
+      }
+      saveRestores(restoreQueue().filter(queued => !deletionMatchesRoute(queued, restoredRoute) || restoredTime(queued) > restoreAt));
+    }
   }
 
   async function flushDeletions(userId) {
@@ -202,6 +332,14 @@
       const routeData = item.routeData
         || localRoutes().find(route => String(route.id) === item.routeId)
         || {id: item.routeId, startedAt: Date.parse(item.deletedAt) || Date.now(), endedAt: Date.parse(item.deletedAt) || Date.now(), stops: [], totes: [], track: []};
+      const itemDeletedAt = deletionTime(item);
+      const matchingRows = await matchingRemoteRows(userId, routeData);
+      const winningRestore = Math.max(0, ...winningRestoredRows(matchingRows).map(row => restoredTime(row.route_data)));
+      if (winningRestore > itemDeletedAt) {
+        saveDeletions(deletionQueue().filter(queued => !deletionMatchesRoute(queued, routeData) || deletionTime(queued) > itemDeletedAt));
+        saveBlocklist(deletionBlocklist().filter(blocked => !deletionMatchesRoute(blocked, routeData) || deletionTime(blocked) >= winningRestore));
+        continue;
+      }
       const tombstone = routeRow(routeData, userId);
       tombstone.route_id = item.routeId;
       tombstone.updated_at = item.deletedAt;
@@ -221,7 +359,7 @@
           .eq('started_at', iso(routeData.startedAt));
         if (legacyError) throw legacyError;
       }
-      saveDeletions(deletionQueue().filter(queued => queued.routeId !== item.routeId));
+      saveDeletions(deletionQueue().filter(queued => queued.routeId !== item.routeId || deletionTime(queued) > itemDeletedAt));
     }
   }
 
@@ -240,6 +378,7 @@
     try {
       const userId = session.user.id;
       ensureOwner(userId);
+      await flushRestores(userId);
       await flushDeletions(userId);
 
       const {data: remoteRows, error: remoteError} = await client
@@ -250,7 +389,19 @@
         .limit(1000);
       if (remoteError) throw remoteError;
 
-      const deletedRows = (remoteRows || []).filter(row => row.deleted_at);
+      const restoredWinners = winningRestoredRows(remoteRows || []);
+      if (restoredWinners.length) {
+        const staleDeletion = item => {
+          const routeData = item.routeData || item.route_data || {id: item.routeId ?? item.route_id};
+          return restoredWinners.some(row => remoteRowMatchesRoute(row, routeData) && restoredTime(row.route_data) > deletionTime(item));
+        };
+        const queuedItems = deletionQueue(), blockedItems = deletionBlocklist();
+        const currentQueue = queuedItems.filter(item => !staleDeletion(item));
+        const currentBlocklist = blockedItems.filter(item => !staleDeletion(item));
+        if (currentQueue.length !== queuedItems.length) saveDeletions(currentQueue);
+        if (currentBlocklist.length !== blockedItems.length) saveBlocklist(currentBlocklist);
+      }
+      const deletedRows = (remoteRows || []).filter(row => row.deleted_at && !restoredWinners.some(restored => remoteRowsMatch(restored, row) && restoredTime(restored.route_data) > versionTime(row.deleted_at)));
       const deleted = new Set(deletedRows.map(row => String(row.route_id)));
       const deletedDataIds = new Set(deletedRows.map(row => routeIdOf(row.route_data)).filter(Boolean));
       const deletedStarts = new Set(deletedRows.map(row => timeKey(row.route_data?.startedAt)).filter(Boolean));
@@ -362,6 +513,63 @@
     }
   }
 
+  function dispatchDeletedRoutes(status, routes = [], message = '') {
+    window.dispatchEvent(new CustomEvent('routeheat:cloud-deleted-routes', {
+      detail: {status, routes, ...(message ? {message} : {})}
+    }));
+  }
+
+  async function requestDeletedRoutes() {
+    if (!client) {
+      dispatchDeletedRoutes('error', [], 'Cloud backup is unavailable on this device.');
+      return;
+    }
+    if (!session?.user) {
+      dispatchDeletedRoutes('signed-out', [], 'Sign in to check cloud recovery.');
+      return;
+    }
+    if (!navigator.onLine) {
+      dispatchDeletedRoutes('offline', [], 'Connect to the internet to check cloud recovery.');
+      return;
+    }
+    dispatchDeletedRoutes('checking', [], 'Checking cloud recovery...');
+    try {
+      const columns = 'route_id,route_data,started_at,updated_at,deleted_at';
+      const [{data, error}, {data: liveRows, error: liveError}] = await Promise.all([
+        client.from(TABLE).select(columns).eq('user_id', session.user.id).not('deleted_at', 'is', null).order('deleted_at', {ascending: false}).limit(1000),
+        client.from(TABLE).select(columns).eq('user_id', session.user.id).is('deleted_at', null).limit(1000)
+      ]);
+      if (error) throw error;
+      if (liveError) throw liveError;
+      const restoredWinners = winningRestoredRows([...(data || []), ...(liveRows || [])]);
+      const deletedRows = (data || []).filter(row => !restoredWinners.some(restored => remoteRowsMatch(restored, row) && restoredTime(restored.route_data) > versionTime(row.deleted_at)));
+      const byRoute = new Map();
+      deletedRows.forEach(row => {
+        const routeData = row.route_data;
+        if (!row.deleted_at || !routeData || typeof routeData !== 'object' || routeData.id == null || !routeData.endedAt || !Array.isArray(routeData.stops)) return;
+        const key = routeIdOf(routeData) || `${timeKey(routeData.startedAt)}:${routeData.stops.length}`;
+        const candidate = {routeId: String(row.route_id), deletedAt: row.deleted_at, routeData};
+        const current = byRoute.get(key);
+        if (!current) {
+          byRoute.set(key, {...candidate, updatedAt: row.updated_at});
+          return;
+        }
+        const newestDeletedAt = versionTime(row.deleted_at) > versionTime(current.deletedAt) ? row.deleted_at : current.deletedAt;
+        const comparison = compareRouteVersions(routeData, current.routeData, row.updated_at, current.updatedAt);
+        const richer = routeData.stops.length > current.routeData.stops.length;
+        const canonical = comparison === 0 && String(row.route_id) === routeIdOf(routeData) && current.routeId !== routeIdOf(current.routeData);
+        if (comparison > 0 || (comparison === 0 && richer) || canonical) byRoute.set(key, {...candidate, deletedAt: newestDeletedAt, updatedAt: row.updated_at});
+        else if (newestDeletedAt !== current.deletedAt) byRoute.set(key, {...current, deletedAt: newestDeletedAt});
+      });
+      const routes = [...byRoute.values()]
+        .sort((first, second) => versionTime(second.deletedAt) - versionTime(first.deletedAt))
+        .map(({updatedAt, ...candidate}) => candidate);
+      dispatchDeletedRoutes('ready', routes, routes.length ? `${routes.length} deleted route${routes.length === 1 ? '' : 's'} found in cloud.` : 'No deleted cloud routes found.');
+    } catch (error) {
+      dispatchDeletedRoutes('error', [], friendlyError(error));
+    }
+  }
+
   function credentials() {
     const email = $('#cloudEmail').value.trim().toLowerCase();
     const password = $('#cloudPassword').value;
@@ -453,6 +661,13 @@
     window.addEventListener('routeheat:route-deleted', event => {
       rememberDeletion(event.detail?.route);
       syncNow();
+    });
+    window.addEventListener('routeheat:route-restored', event => {
+      rememberRestore(event.detail?.route);
+      syncNow();
+    });
+    window.addEventListener('routeheat:request-deleted-routes', () => {
+      requestDeletedRoutes();
     });
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') syncNow();
