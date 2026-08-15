@@ -1,15 +1,16 @@
-# RouteHeat 4.0.3
+# RouteHeat 4.0.4
 
 RouteHeat is a mobile-first delivery performance tracker for iPhone and Android. It combines large one-tap stop controls, GPS route maps, pace goals, tote tracking, rescue workdays, route history, personal comparisons, reports, replay, achievements, and long-term delivery analysis.
 
 > **Safety:** Only interact with RouteHeat while parked. Never use RouteHeat, Route Tools, Ghost Run details, or route-editing controls while driving.
 
-## RouteHeat 4.0.3 recovery update
+## RouteHeat 4.0.4 restore reliability update
 
-- **Recently Deleted:** Finished routes removed or retired from History can appear under **Settings -> Recently Deleted** when a complete recovery copy remains. Compact status labels distinguish a deletion still waiting for cloud sync, a cloud-backed recovery copy, and a copy available only on this device.
-- **Safe offline restore:** A complete local recovery copy can return to History immediately while offline or signed out. Cloud reactivation remains pending until the next authenticated online sync, so do not clear website data or remove/reinstall RouteHeat before that sync succeeds.
-- **Stale-device protection:** Restoring removes the exact matching deletion queue/tombstone, advances the route's revision and update time, and queues the restored route for sync. Revision-aware conflict handling prevents an older phone or stale cloud copy from winning and deleting the recovered route again.
-- **No countdown:** RouteHeat 4.0.3 does not apply a time-based Recently Deleted purge. It can list only tombstones that still contain a complete finished-route recovery copy; the on-device safety ledger retains the newest 500 deletion records.
+- **Persistent restore receipts:** Restoring writes the complete route and a durable recovery receipt before clearing deletion records. If a stale sync snapshot removes the visible copy, RouteHeat immediately rehydrates it from that receipt instead of losing it from History.
+- **Legacy alias consolidation:** Old cloud rows with different IDs but the same exact route start are combined into one recovery candidate. RouteHeat carries forward the newest tombstone time and richest route data, including the Aug. 13 203-stop case, so restoring an older alias cannot be reversed by a newer alias.
+- **Repair instead of re-delete:** A late unmarked tombstone from an older RouteHeat version is treated as stale, rebased, and repaired. A deliberate deletion made in 4.0.4 receives an explicit deletion marker and still wins normally.
+- **Safe offline restore:** A complete local recovery copy can return to History immediately while offline or signed out. Cloud repair remains pending until the next authenticated online sync, so do not clear website data or remove/reinstall RouteHeat before that sync succeeds.
+- **No countdown:** RouteHeat 4.0.4 does not apply a time-based Recently Deleted purge. It can list only tombstones that still contain a complete finished-route recovery copy; the on-device safety ledger retains the newest 500 deletion records.
 
 ### Also included from 4.0.2
 
@@ -27,7 +28,7 @@ RouteHeat is a mobile-first delivery performance tracker for iPhone and Android.
 - **Historical Pace Trails:** The All-time map's **Pace trails** mode colors recorded road sections by historical delivery pace relative to the selected range's personal average. Repeated samples receive stronger solid trails; preliminary sections appear as faded dashes.
 - **Repeat-stop visits:** The All-time map's **Repeat stops** mode groups delivery points from different saved routes within approximately 32 meters. Numbered markers show visit frequency; tap one for route/day counts, first and latest visit, locations, and average segment pace. These are GPS-area estimates, not address matches.
 - **Foreground audio recovery:** RouteHeat now detects backgrounding, page changes, and return-to-foreground events, then resumes or recreates browser audio. Mobile operating systems may still require the next parked tap to unlock sound, but confirmation audio should no longer remain disabled for the rest of the route.
-- **Safer cloud conflict handling:** Supabase synchronization compares route schema version, revision, route update time, and cloud update time. Deletion tombstones remain authoritative against stale copies until an explicit 4.0.3 recovery clears the exact tombstone and creates a newer route revision.
+- **Safer cloud conflict handling:** Supabase synchronization compares route schema version, revision, route update time, cloud update time, durable restore receipts, and explicit 4.0.4 deletion intent so stale aliases cannot silently reverse a recovery.
 
 ## Core features
 
@@ -94,7 +95,7 @@ The status explains where the complete recovery copy came from:
 - **Cloud protected** means a private Supabase tombstone, or its cached device copy, contains the finished route.
 - **On this device** means recovery currently depends on this installation's local copy.
 
-Offline or signed-out recovery returns an eligible route to local History immediately. Keep RouteHeat installed and preserve its website data until an authenticated **Sync now** completes; only then is cloud reactivation confirmed. CSV exports are useful private archives, but RouteHeat does not import CSV, so a CSV alone cannot rebuild History.
+Offline or signed-out recovery returns an eligible route to local History immediately. Keep RouteHeat installed and preserve its website data until an authenticated **Sync now** completes; only then is cloud reactivation confirmed. Close any other open RouteHeat tabs and update older installations to 4.0.4 before using them again. CSV exports are useful private archives, but RouteHeat does not import CSV, so a CSV alone cannot rebuild History.
 
 A restored route receives newer revision metadata and its matching deletion records are cleared. That lets newer clients reject stale data from an older device. A future intentional deletion still works normally.
 
@@ -111,7 +112,7 @@ CSV export still includes stops, tote changes, rescue starts, route starts, and 
 
 Latitude, longitude, GPS accuracy, location count, event time, segment duration, and segment pace remain available where applicable.
 
-CSV is an analysis/archive format, not an app backup format. RouteHeat 4.0.3 does not include CSV or JSON import.
+CSV is an analysis/archive format, not an app backup format. RouteHeat 4.0.4 does not include CSV or JSON import.
 
 ## Publish on GitHub Pages
 
