@@ -4,6 +4,7 @@
   const STORE = 'routeheat.routes.v2';
   const DELETED_ROUTES_STORE = 'routeheat.cloud.deletedRoutes.v1';
   const CLOUD_DELETIONS_STORE = 'routeheat.cloud.deletions.v1';
+  const CLOUD_RESTORES_STORE = 'routeheat.cloud.restores.v1';
   const ACTIVE_ROUTE_STORE = 'routeheat.active';
   let route = null, watchId = null, map = null, userMarker = null, routeLayer = null, liveTraceLine = null, timerId = null, historyMap = null, historyReplayLayer = null, zoneMap = null, reportMap = null, undoTimer = null, replayTimer = null, confirmTimer = null, toteConfirmTimer = null, milestoneTimer = null, achievementTimer = null, activeSaveTimer = null, audioContext = null, audioNeedsRecovery = false, batteryManager = null, pendingRecoveryRoute = null, lastStopAction = 0, lastGpsAt = 0, lastGpsAccuracy = null;
   let autoEnabled = localStorage.getItem('routeheat.autoDetect') === 'true', mapFollowEnabled = localStorage.getItem('routeheat.mapFollow') !== 'false', followMap = localStorage.getItem('routeheat.mapFollow') !== 'false';
@@ -122,9 +123,14 @@
   };
   function rememberLocalDeletion(saved) {
     if (!saved) return;
-    const signature=localDeletionSignature(saved), ledger=deletionLedger().filter(item=>!localDeletionMatch(item.signature||localDeletionSignature(item.routeData),signature));
-    ledger.push({deletedAt:new Date().toISOString(),signature,routeData:saved});
+    const signature=localDeletionSignature(saved),receipts=storedArray(CLOUD_RESTORES_STORE),matchingReceipts=receipts.filter(item=>localDeletionMatch(recoveryEntrySignature(item),signature)),deleteTime=Math.max(Date.now(),...matchingReceipts.map(item=>recoveryRestoreTime(item)+1)),deletedAt=new Date(deleteTime).toISOString(),ledger=deletionLedger().filter(item=>!localDeletionMatch(item.signature||localDeletionSignature(item.routeData),signature));
+    ledger.push({deletedAt,signature,routeData:saved});
     localStorage.setItem(DELETED_ROUTES_STORE,JSON.stringify(ledger.slice(-500)));
+    const remainingReceipts=receipts.filter(item=>{
+      const matches=localDeletionMatch(recoveryEntrySignature(item),signature),restoreTime=recoveryRestoreTime(item);
+      return !matches||restoreTime>deleteTime;
+    });
+    if(remainingReceipts.length!==receipts.length)localStorage.setItem(CLOUD_RESTORES_STORE,JSON.stringify(remainingReceipts));
   }
   const storedArray = key => {
     try { const value=JSON.parse(localStorage.getItem(key));return Array.isArray(value)?value:[]; }
@@ -137,7 +143,7 @@
     return {
       id:derived.id||String(item?.routeId??item?.route_id??supplied.id??''),
       startedAt:derived.startedAt||deletionTimeKey(supplied.startedAt),
-      stopCount:Number.isFinite(Number(derived.stopCount))?derived.stopCount:Number(supplied.stopCount)||0,
+      stopCount:Number(derived.stopCount)||Number(supplied.stopCount)||0,
       firstStop:derived.firstStop||deletionTimeKey(supplied.firstStop),
       lastStop:derived.lastStop||deletionTimeKey(supplied.lastStop)
     };
@@ -156,6 +162,9 @@
       &&first.firstStop===second.firstStop&&first.lastStop===second.lastStop;
   };
   const deletedAtMs = value => {const parsed=typeof value==='number'?value:Date.parse(value);return Number.isFinite(parsed)?parsed:0;};
+  const recoveryDeletionTime = item => deletedAtMs(item?.deletedAt??item?.deleted_at);
+  const recoveryDeletionIntentTime = item => deletedAtMs(item?.deletionIntentAt??recoveryEntryRoute(item)?.deletionIntentAt);
+  const recoveryRestoreTime = item => deletedAtMs(item?.restoredAt??recoveryEntryRoute(item)?.restoredAt);
   const isFinishedRecoveryRoute = saved => !!(saved&&typeof saved==='object'&&saved.id!=null
     &&Number.isFinite(Number(saved.startedAt))&&Number.isFinite(Number(saved.endedAt))
     &&Number(saved.endedAt)>=Number(saved.startedAt)&&Array.isArray(saved.stops));
@@ -166,12 +175,47 @@
     for(let index=0;index<nextScore.length;index++){if(nextScore[index]!==currentScore[index])return nextScore[index]>currentScore[index];}
     return false;
   }
+  const recoveryLogicalMatch = (first,second) => recoverySignaturesMatch(first,second)||localDeletionMatch(first,second);
+  const routeSupersedesDeletion = (saved,item) => {
+    const restoreTime=deletedAtMs(saved?.restoredAt),intentTime=recoveryDeletionIntentTime(item);
+    return restoreTime>0&&(!intentTime||restoreTime>intentTime)&&recoveryLogicalMatch(localDeletionSignature(saved),recoveryEntrySignature(item));
+  };
+  function routeFromRestoreReceipt(item){
+    const data=recoveryEntryRoute(item),restoreTime=recoveryRestoreTime(item);
+    if(!restoreTime||!isFinishedRecoveryRoute(data))return null;
+    const restored=normalizeRouteData(cloneRouteData(data));
+    delete restored.deletionIntentAt;
+    restored.restoredAt=Math.max(restoreTime,deletedAtMs(restored.restoredAt));
+    restored.updatedAt=Math.max(restored.restoredAt,deletedAtMs(restored.updatedAt));
+    restored.schemaVersion=Math.max(4,Number(restored.schemaVersion)||0);
+    return restored;
+  }
+  function hydratePendingRestores(saved,ledger,queue){
+    const hydrated=saved.slice(),deletions=[...ledger,...queue];
+    storedArray(CLOUD_RESTORES_STORE).forEach(item=>{
+      const restored=routeFromRestoreReceipt(item);if(!restored)return;
+      const signature=localDeletionSignature(restored),latestIntentionalDeletion=Math.max(0,...deletions.filter(entry=>recoveryLogicalMatch(recoveryEntrySignature(entry),signature)).map(recoveryDeletionIntentTime));
+      if(Number(restored.restoredAt)<=latestIntentionalDeletion)return;
+      const index=hydrated.findIndex(existing=>recoveryLogicalMatch(localDeletionSignature(existing),signature));
+      if(index<0)hydrated.push(restored);else if(preferRecoveryRoute(restored,hydrated[index]))hydrated[index]=restored;
+    });
+    return hydrated;
+  }
+  function pruneSupersededLocalDeletions(saved,ledger,queue){
+    const restored=saved.filter(item=>deletedAtMs(item?.restoredAt)>0),isSuperseded=item=>restored.some(route=>routeSupersedesDeletion(route,item));
+    const nextLedger=ledger.filter(item=>!isSuperseded(item)),nextQueue=queue.filter(item=>!isSuperseded(item));
+    try{
+      if(nextLedger.length!==ledger.length)localStorage.setItem(DELETED_ROUTES_STORE,JSON.stringify(nextLedger));
+      if(nextQueue.length!==queue.length)localStorage.setItem(CLOUD_DELETIONS_STORE,JSON.stringify(nextQueue));
+    }catch{}
+    return{ledger:nextLedger,queue:nextQueue};
+  }
   function collectRecentlyDeleted(){
     const groups=[];
     const add=(item,source)=>{
       const routeData=recoveryEntryRoute(item);
       if(!isFinishedRecoveryRoute(routeData))return;
-      const signature=recoveryEntrySignature(item),existing=groups.find(candidate=>recoverySignaturesMatch(candidate.signature,signature));
+      const signature=recoveryEntrySignature(item),existing=groups.find(candidate=>recoveryLogicalMatch(candidate.signature,signature));
       const deletedAt=item?.deletedAt??item?.deleted_at??null;
       if(existing){
         existing.sources.add(source);
@@ -187,10 +231,10 @@
     const storedRoutes=storedArray(STORE),blocked=deletionLedger().map(item=>item.signature||localDeletionSignature(item.routeData));
     const visibleStoredRoutes=storedRoutes.filter(saved=>!blocked.some(signature=>localDeletionMatch(localDeletionSignature(saved),signature)));
     const mergedRouteIds=new Set(visibleStoredRoutes.flatMap(saved=>(saved?.corrections||[]).filter(correction=>correction?.type==='merge-rescue-route'&&correction.mergedRouteId!=null).map(correction=>String(correction.mergedRouteId))));
-    const restoredCopies=storedRoutes.filter(saved=>Number(saved?.restoredAt)>0);
+    const restoredCopies=[...storedRoutes.filter(saved=>Number(saved?.restoredAt)>0),...storedArray(CLOUD_RESTORES_STORE).map(routeFromRestoreReceipt).filter(Boolean)];
     return groups.filter(candidate=>!mergedRouteIds.has(candidate.signature.id)&&!restoredCopies.some(saved=>{
-      if(!recoverySignaturesMatch(localDeletionSignature(saved),candidate.signature))return false;
-      return Number(saved.restoredAt)>=deletedAtMs(candidate.deletedAt);
+      if(!recoveryLogicalMatch(localDeletionSignature(saved),candidate.signature))return false;
+      return routeSupersedesDeletion(saved,candidate);
     })).sort((first,second)=>deletedAtMs(second.deletedAt)-deletedAtMs(first.deletedAt)||Number(second.routeData.startedAt)-Number(first.routeData.startedAt));
   }
   function recoveryStatus(candidate){
@@ -253,26 +297,40 @@
   function restoreStorageSnapshot(snapshot){
     Object.entries(snapshot).forEach(([key,value])=>{try{if(value==null)localStorage.removeItem(key);else localStorage.setItem(key,value);}catch{}});
   }
-  function confirmRestoreRoute(){
-    const candidate=pendingRestoreCandidate;if(!candidate)return;
-    const target=candidate.signature,snapshot={[STORE]:localStorage.getItem(STORE),[DELETED_ROUTES_STORE]:localStorage.getItem(DELETED_ROUTES_STORE),[CLOUD_DELETIONS_STORE]:localStorage.getItem(CLOUD_DELETIONS_STORE)};
-    let restored;
+  function persistRecoveredRoute(candidate){
+    if(!candidate?.routeData)throw new Error('Recovery route is unavailable');
+    const target=candidate.signature||localDeletionSignature(candidate.routeData),snapshot={[STORE]:localStorage.getItem(STORE),[DELETED_ROUTES_STORE]:localStorage.getItem(DELETED_ROUTES_STORE),[CLOUD_DELETIONS_STORE]:localStorage.getItem(CLOUD_DELETIONS_STORE),[CLOUD_RESTORES_STORE]:localStorage.getItem(CLOUD_RESTORES_STORE)};
     try{
-      restored=normalizeRouteData(cloneRouteData(candidate.routeData));
-      const now=Math.max(Date.now(),deletedAtMs(candidate.deletedAt)+1);restored.restoredAt=now;restored.updatedAt=now;restored.schemaVersion=Math.max(4,Number(restored.schemaVersion)||0);restored.revision=Math.max(0,Math.round(Number(restored.revision)||0))+1;
-      const nextLedger=deletionLedger().filter(item=>!recoverySignaturesMatch(recoveryEntrySignature(item),target));
-      const nextQueue=storedArray(CLOUD_DELETIONS_STORE).filter(item=>!recoverySignaturesMatch(recoveryEntrySignature(item),target));
-      const rawRoutes=storedArray(STORE);let replaced=false;
-      const nextRoutes=rawRoutes.flatMap(saved=>{if(!recoverySignaturesMatch(localDeletionSignature(saved),target))return[saved];if(replaced)return[];replaced=true;return[restored];});
+      const ledger=deletionLedger(),queue=storedArray(CLOUD_DELETIONS_STORE),receipts=storedArray(CLOUD_RESTORES_STORE),rawRoutes=storedArray(STORE);
+      const matchesTarget=signature=>recoveryLogicalMatch(signature,target),matchingReceipts=receipts.filter(item=>matchesTarget(recoveryEntrySignature(item))),matchingStored=rawRoutes.filter(saved=>matchesTarget(localDeletionSignature(saved)));
+      const sourceRoutes=[candidate.routeData,...matchingReceipts.map(recoveryEntryRoute),...matchingStored].filter(Boolean);let source=sourceRoutes[0];
+      sourceRoutes.slice(1).forEach(saved=>{if(preferRecoveryRoute(saved,source))source=saved;});
+      const restored=normalizeRouteData(cloneRouteData(source)),latestDeletion=Math.max(deletedAtMs(candidate.deletedAt),...ledger.filter(item=>matchesTarget(recoveryEntrySignature(item))).map(recoveryDeletionTime),...queue.filter(item=>matchesTarget(recoveryEntrySignature(item))).map(recoveryDeletionTime)),latestRestore=Math.max(0,...matchingReceipts.map(recoveryRestoreTime),...matchingStored.map(saved=>deletedAtMs(saved.restoredAt)));
+      const now=Math.max(Date.now(),latestDeletion+1,latestRestore+1),maxRevision=Math.max(0,...sourceRoutes.map(saved=>Math.round(Number(saved?.revision)||0)),Math.round(Number(restored.revision)||0)),maxSchema=Math.max(4,...sourceRoutes.map(saved=>Number(saved?.schemaVersion)||0));
+      delete restored.deletionIntentAt;
+      restored.restoredAt=now;restored.updatedAt=now;restored.schemaVersion=maxSchema;restored.revision=maxRevision+1;
+      const restoredSignature=localDeletionSignature(restored),matchesRestored=signature=>matchesTarget(signature)||recoveryLogicalMatch(signature,restoredSignature);
+      const nextLedger=ledger.filter(item=>!matchesRestored(recoveryEntrySignature(item))),nextQueue=queue.filter(item=>!matchesRestored(recoveryEntrySignature(item))),nextReceipts=receipts.filter(item=>!matchesRestored(recoveryEntrySignature(item)));
+      nextReceipts.push({routeId:String(restored.id),restoredAt:now,routeData:restored});
+      let replaced=false;
+      const nextRoutes=rawRoutes.flatMap(saved=>{if(!matchesRestored(localDeletionSignature(saved)))return[saved];if(replaced)return[];replaced=true;return[restored];});
       if(!replaced)nextRoutes.unshift(restored);
       nextRoutes.sort((first,second)=>Number(second.startedAt)-Number(first.startedAt)||Number(second.endedAt)-Number(first.endedAt)||String(first.id).localeCompare(String(second.id)));
       localStorage.setItem(STORE,JSON.stringify(nextRoutes));
+      localStorage.setItem(CLOUD_RESTORES_STORE,JSON.stringify(nextReceipts.slice(-500)));
       localStorage.setItem(CLOUD_DELETIONS_STORE,JSON.stringify(nextQueue));
       localStorage.setItem(DELETED_ROUTES_STORE,JSON.stringify(nextLedger));
+      return{restored,target:restoredSignature};
     }catch(error){
-      restoreStorageSnapshot(snapshot);toast('Could not restore route - no route data was changed');return;
+      restoreStorageSnapshot(snapshot);throw error;
     }
-    cloudDeletedRoutes=cloudDeletedRoutes.filter(item=>!recoverySignaturesMatch(recoveryEntrySignature(item),target));
+  }
+  function confirmRestoreRoute(){
+    const candidate=pendingRestoreCandidate;if(!candidate)return;
+    let result;
+    try{result=persistRecoveredRoute(candidate);}catch(error){toast('Could not restore route - no route data was changed');return;}
+    const {restored,target}=result;
+    cloudDeletedRoutes=cloudDeletedRoutes.filter(item=>!recoveryLogicalMatch(recoveryEntrySignature(item),target));
     pendingRestoreCandidate=null;closeRestoreRoute(false);renderRecentlyDeleted();renderHistory();if($('#heatView').classList.contains('active'))renderHeatMap();
     window.dispatchEvent(new CustomEvent('routeheat:route-restored',{detail:{route:restored}}));
     const cloudAware=candidate.sources.has('cloud')||candidate.sources.has('pending')||recentlyDeletedCloudState.status==='ready';
@@ -282,12 +340,16 @@
     let saved;
     try { saved=JSON.parse(localStorage.getItem(STORE)) || []; } catch { saved=[]; }
     if (!Array.isArray(saved)) saved=[];
-    const blocked=deletionLedger().map(item=>item.signature||localDeletionSignature(item.routeData));
+    let ledger=deletionLedger(),queue=storedArray(CLOUD_DELETIONS_STORE);
     const reopenedCheckpointId=route?.reopenedForRescue&&route.id!=null?String(route.id):null;
     const withoutReopenedCheckpoint=items=>reopenedCheckpointId?items.filter(item=>String(item.id)!==reopenedCheckpointId):items;
     saved=saved.map(normalizeRouteData).filter(Boolean);
+    const beforeHydration=JSON.stringify(saved);saved=hydratePendingRestores(saved,ledger,queue);
+    if(JSON.stringify(saved)!==beforeHydration)try{localStorage.setItem(STORE,JSON.stringify(saved));}catch{}
+    ({ledger,queue}=pruneSupersededLocalDeletions(saved,ledger,queue));
+    const blocked=[...ledger,...queue].map(recoveryEntrySignature);
     if (!blocked.length) return withoutReopenedCheckpoint(saved);
-    const visible=saved.filter(item=>!blocked.some(signature=>localDeletionMatch(localDeletionSignature(item),signature)));
+    const visible=saved.filter(item=>!blocked.some(signature=>recoveryLogicalMatch(localDeletionSignature(item),signature)));
     if (visible.length !== saved.length) localStorage.setItem(STORE,JSON.stringify(visible));
     return withoutReopenedCheckpoint(visible);
   }

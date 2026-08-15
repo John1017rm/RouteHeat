@@ -94,7 +94,7 @@
     if (routeId && (routeId === rowId || routeId === payloadId)) return true;
     const target = routeSignature(route), candidate = routeSignature(row.route_data);
     if (!candidate.startedAt && row.started_at) candidate.startedAt = timeKey(row.started_at);
-    return exactRouteContentMatch(target, candidate);
+    return signaturesMatch(target, candidate);
   }
   function remoteRowsMatch(first, second) {
     if (!first || !second) return false;
@@ -105,9 +105,14 @@
     const firstSignature = routeSignature(first.route_data), secondSignature = routeSignature(second.route_data);
     if (!firstSignature.startedAt && first.started_at) firstSignature.startedAt = timeKey(first.started_at);
     if (!secondSignature.startedAt && second.started_at) secondSignature.startedAt = timeKey(second.started_at);
-    return exactRouteContentMatch(firstSignature, secondSignature);
+    return signaturesMatch(firstSignature, secondSignature);
   }
   const deletionTime = item => versionTime(item?.deletedAt ?? item?.deleted_at);
+  const deletionIntentTime = item => versionTime(item?.deletionIntentAt ?? item?.routeData?.deletionIntentAt ?? item?.route_data?.deletionIntentAt);
+  const explicitDeletionTime = item => {
+    const intent = deletionIntentTime(item), deleted = deletionTime(item);
+    return intent && deleted && Math.abs(intent - deleted) <= 1000 ? intent : 0;
+  };
   const restoredTime = value => versionTime(value?.restoredAt ?? value?.routeData?.restoredAt ?? value?.route_data?.restoredAt);
   function deletionMatchesRoute(item, route) {
     if (!item || !route) return false;
@@ -116,17 +121,17 @@
     const routeId = routeIdOf(route);
     if (itemId && routeId && itemId === routeId) return true;
     const signature = item.signature || routeSignature(itemRoute);
-    return exactRouteContentMatch({...signature, id: ''}, {...routeSignature(route), id: ''});
+    return signaturesMatch({...signature, id: ''}, {...routeSignature(route), id: ''});
   }
   function winningRestoredRows(rows) {
     return (rows || []).filter(row => {
       if (row.deleted_at) return false;
       const restoreAt = restoredTime(row.route_data);
       if (!restoreAt) return false;
-      const latestDelete = Math.max(0, ...(rows || [])
+      const latestExplicitDelete = Math.max(0, ...(rows || [])
         .filter(candidate => candidate.deleted_at && remoteRowsMatch(row, candidate))
-        .map(candidate => versionTime(candidate.deleted_at)));
-      return restoreAt > latestDelete;
+        .map(explicitDeletionTime));
+      return restoreAt > latestExplicitDelete;
     });
   }
   async function matchingRemoteRows(userId, route) {
@@ -250,16 +255,18 @@
 
   function rememberRestore(route) {
     if (route?.id == null) return;
-    const restoreAt = restoredTime(route);
+    const restoredRoute = {...route};
+    delete restoredRoute.deletionIntentAt;
+    const restoreAt = restoredTime(restoredRoute);
     if (!restoreAt) return;
-    const newerQueued = restoreQueue().find(item => deletionMatchesRoute(item, route) && restoredTime(item) > restoreAt);
+    const newerQueued = restoreQueue().find(item => deletionMatchesRoute(item, restoredRoute) && restoredTime(item) > restoreAt);
     if (!newerQueued) {
-      const items = restoreQueue().filter(item => !deletionMatchesRoute(item, route));
-      items.push({routeId: routeIdOf(route), restoredAt: restoreAt, routeData: route});
+      const items = restoreQueue().filter(item => !deletionMatchesRoute(item, restoredRoute));
+      items.push({routeId: routeIdOf(restoredRoute), restoredAt: restoreAt, routeData: restoredRoute});
       saveRestores(items);
     }
-    saveDeletions(deletionQueue().filter(item => !deletionMatchesRoute(item, route) || deletionTime(item) >= restoreAt));
-    saveBlocklist(deletionBlocklist().filter(item => !deletionMatchesRoute(item, route) || deletionTime(item) >= restoreAt));
+    saveDeletions(deletionQueue().filter(item => !deletionMatchesRoute(item, restoredRoute) || explicitDeletionTime(item) >= restoreAt));
+    saveBlocklist(deletionBlocklist().filter(item => !deletionMatchesRoute(item, restoredRoute) || explicitDeletionTime(item) >= restoreAt));
   }
 
   function rememberDeletion(route) {
@@ -267,14 +274,17 @@
     const routeId = routeIdOf(route);
     const startedAt = timeKey(route.startedAt);
     const items = deletionQueue().filter(item => item.routeId !== routeId && (!startedAt || timeKey(item.routeData?.startedAt) !== startedAt));
-    const deletedAt = new Date().toISOString();
-    const deletedTime = Date.parse(deletedAt);
-    saveRestores(restoreQueue().filter(item => !deletionMatchesRoute(item, route) || restoredTime(item) > deletedTime));
-    items.push({routeId, deletedAt, routeData: route});
+    const queuedRestores = restoreQueue();
+    const latestRestore = Math.max(0, restoredTime(route), ...queuedRestores.filter(item => deletionMatchesRoute(item, route)).map(restoredTime));
+    const deletedTime = Math.max(Date.now(), latestRestore + 1);
+    const deletedAt = new Date(deletedTime).toISOString();
+    const deletedRoute = {...route, deletionIntentAt: deletedTime};
+    saveRestores(queuedRestores.filter(item => !deletionMatchesRoute(item, route) || restoredTime(item) > deletedTime));
+    items.push({routeId, deletedAt, deletionIntentAt: deletedTime, routeData: deletedRoute});
     saveDeletions(items);
     const signature = routeSignature(route);
     const blocked = deletionBlocklist().filter(item => !signaturesMatch(item.signature || routeSignature(item.routeData), signature));
-    blocked.push({deletedAt, signature, routeData: route});
+    blocked.push({deletedAt, deletionIntentAt: deletedTime, signature, routeData: deletedRoute});
     saveBlocklist(blocked);
   }
 
@@ -282,17 +292,37 @@
     const pending = restoreQueue();
     if (!pending.length) return;
     for (const item of pending) {
-      const routeData = item.routeData;
-      const restoreAt = restoredTime(item);
+      let routeData = item.routeData;
+      let restoreAt = restoredTime(item);
       if (!routeData || routeData.id == null || !restoreAt) {
         saveRestores(restoreQueue().filter(queued => String(queued.routeId ?? '') !== String(item.routeId ?? '') || restoredTime(queued) !== restoreAt));
         continue;
       }
       const matches = await matchingRemoteRows(userId, routeData);
-      const latestRemoteRestore = Math.max(0, ...matches.filter(row => !row.deleted_at).map(row => restoredTime(row.route_data)));
+      const remoteRestores = matches.filter(row => !row.deleted_at && restoredTime(row.route_data));
+      const newestRemoteRestore = remoteRestores.reduce((newest, row) => restoredTime(row.route_data) > restoredTime(newest?.route_data) ? row : newest, null);
+      const latestRemoteRestore = restoredTime(newestRemoteRestore?.route_data);
       const latestRemoteDeletion = Math.max(0, ...matches.filter(row => row.deleted_at).map(row => versionTime(row.deleted_at)));
-      if (latestRemoteRestore > restoreAt || latestRemoteDeletion > restoreAt) {
+      const latestExplicitDeletion = Math.max(0, ...matches.filter(row => row.deleted_at).map(explicitDeletionTime));
+      if (latestRemoteRestore >= restoreAt && latestRemoteRestore > latestRemoteDeletion) {
+        rememberRestore(newestRemoteRestore.route_data);
+        continue;
+      }
+      if (latestExplicitDeletion > restoreAt && latestExplicitDeletion >= latestRemoteRestore) {
         saveRestores(restoreQueue().filter(queued => !deletionMatchesRoute(queued, routeData) || restoredTime(queued) > restoreAt));
+        continue;
+      }
+      if (latestRemoteDeletion >= restoreAt) {
+        const revisionCeiling = Math.max(Number(routeData.revision) || 0, ...matches.map(row => Number(row.route_data?.revision) || 0));
+        restoreAt = Math.max(Date.now(), latestRemoteDeletion + 1, latestRemoteRestore + 1);
+        routeData = {...routeData, restoredAt: restoreAt, updatedAt: restoreAt, revision: revisionCeiling + 1};
+        delete routeData.deletionIntentAt;
+        rememberRestore(routeData);
+      }
+      const confirmedRow = remoteRestores.find(row => String(row.route_id) === routeIdOf(routeData)
+        && restoredTime(row.route_data) >= restoreAt && restoredTime(row.route_data) > latestRemoteDeletion);
+      if (confirmedRow) {
+        rememberRestore(confirmedRow.route_data);
         continue;
       }
       const restoredRoute = {
@@ -300,6 +330,7 @@
         restoredAt: restoreAt,
         updatedAt: Math.max(restoreAt, versionTime(routeData.updatedAt))
       };
+      delete restoredRoute.deletionIntentAt;
       const canonical = routeRow(restoredRoute, userId);
       canonical.route_id = routeIdOf(restoredRoute);
       canonical.updated_at = new Date(restoredRoute.updatedAt).toISOString();
@@ -321,7 +352,7 @@
           .eq('route_id', alias.route_id);
         if (aliasError) throw aliasError;
       }
-      saveRestores(restoreQueue().filter(queued => !deletionMatchesRoute(queued, restoredRoute) || restoredTime(queued) > restoreAt));
+      rememberRestore(restoredRoute);
     }
   }
 
@@ -333,11 +364,17 @@
         || localRoutes().find(route => String(route.id) === item.routeId)
         || {id: item.routeId, startedAt: Date.parse(item.deletedAt) || Date.now(), endedAt: Date.parse(item.deletedAt) || Date.now(), stops: [], totes: [], track: []};
       const itemDeletedAt = deletionTime(item);
+      const itemIntentAt = explicitDeletionTime(item);
       const matchingRows = await matchingRemoteRows(userId, routeData);
       const winningRestore = Math.max(0, ...winningRestoredRows(matchingRows).map(row => restoredTime(row.route_data)));
-      if (winningRestore > itemDeletedAt) {
-        saveDeletions(deletionQueue().filter(queued => !deletionMatchesRoute(queued, routeData) || deletionTime(queued) > itemDeletedAt));
-        saveBlocklist(deletionBlocklist().filter(blocked => !deletionMatchesRoute(blocked, routeData) || deletionTime(blocked) >= winningRestore));
+      if (winningRestore && (!itemIntentAt || winningRestore > itemIntentAt)) {
+        const deletionStillWins = candidate => {
+          if (!deletionMatchesRoute(candidate, routeData)) return true;
+          const intentAt = explicitDeletionTime(candidate);
+          return intentAt && intentAt >= winningRestore;
+        };
+        saveDeletions(deletionQueue().filter(deletionStillWins));
+        saveBlocklist(deletionBlocklist().filter(deletionStillWins));
         continue;
       }
       const tombstone = routeRow(routeData, userId);
@@ -393,7 +430,9 @@
       if (restoredWinners.length) {
         const staleDeletion = item => {
           const routeData = item.routeData || item.route_data || {id: item.routeId ?? item.route_id};
-          return restoredWinners.some(row => remoteRowMatchesRoute(row, routeData) && restoredTime(row.route_data) > deletionTime(item));
+          const intentAt = explicitDeletionTime(item);
+          return restoredWinners.some(row => remoteRowMatchesRoute(row, routeData)
+            && (!intentAt || restoredTime(row.route_data) > intentAt));
         };
         const queuedItems = deletionQueue(), blockedItems = deletionBlocklist();
         const currentQueue = queuedItems.filter(item => !staleDeletion(item));
@@ -401,7 +440,10 @@
         if (currentQueue.length !== queuedItems.length) saveDeletions(currentQueue);
         if (currentBlocklist.length !== blockedItems.length) saveBlocklist(currentBlocklist);
       }
-      const deletedRows = (remoteRows || []).filter(row => row.deleted_at && !restoredWinners.some(restored => remoteRowsMatch(restored, row) && restoredTime(restored.route_data) > versionTime(row.deleted_at)));
+      const deletedRows = (remoteRows || []).filter(row => row.deleted_at && !restoredWinners.some(restored => {
+        const intentAt = explicitDeletionTime(row);
+        return remoteRowsMatch(restored, row) && (!intentAt || restoredTime(restored.route_data) > intentAt);
+      }));
       const deleted = new Set(deletedRows.map(row => String(row.route_id)));
       const deletedDataIds = new Set(deletedRows.map(row => routeIdOf(row.route_data)).filter(Boolean));
       const deletedStarts = new Set(deletedRows.map(row => timeKey(row.route_data?.startedAt)).filter(Boolean));
@@ -421,13 +463,24 @@
           || (startedAt && (deletedStarts.has(startedAt) || queuedStarts.has(startedAt)))
           || blockedSignatures.some(signature => signaturesMatch(routeSignature(saved), signature));
       };
+      const deletionSources = [
+        ...deletionBlocklist(),
+        ...queuedItems,
+        ...deletedRows
+      ];
       const liveAliases = (remoteRows || []).filter(row => !row.deleted_at && row.route_data && isDeletedRoute(row.route_data, row.route_id));
       if (liveAliases.length) {
-        const aliasDeletedAt = new Date().toISOString();
         for (const alias of liveAliases) {
+          const source = deletionSources
+            .filter(item => deletionMatchesRoute(item, alias.route_data))
+            .sort((first, second) => deletionTime(second) - deletionTime(first))[0];
+          const aliasDeletedMs = deletionTime(source) || Date.now();
+          const aliasDeletedAt = new Date(aliasDeletedMs).toISOString();
+          const intentTime = explicitDeletionTime(source);
+          const aliasRouteData = intentTime ? {...alias.route_data, deletionIntentAt: intentTime} : alias.route_data;
           const {error: aliasError} = await client
             .from(TABLE)
-            .update({deleted_at: aliasDeletedAt, updated_at: aliasDeletedAt})
+            .update({route_data: aliasRouteData, deleted_at: aliasDeletedAt, updated_at: aliasDeletedAt})
             .eq('user_id', userId)
             .eq('route_id', alias.route_id);
           if (aliasError) throw aliasError;
@@ -542,14 +595,21 @@
       if (error) throw error;
       if (liveError) throw liveError;
       const restoredWinners = winningRestoredRows([...(data || []), ...(liveRows || [])]);
-      const deletedRows = (data || []).filter(row => !restoredWinners.some(restored => remoteRowsMatch(restored, row) && restoredTime(restored.route_data) > versionTime(row.deleted_at)));
+      const deletedRows = (data || []).filter(row => !restoredWinners.some(restored => {
+        const intentAt = explicitDeletionTime(row);
+        return remoteRowsMatch(restored, row) && (!intentAt || restoredTime(restored.route_data) > intentAt);
+      }));
       const byRoute = new Map();
       deletedRows.forEach(row => {
         const routeData = row.route_data;
         if (!row.deleted_at || !routeData || typeof routeData !== 'object' || routeData.id == null || !routeData.endedAt || !Array.isArray(routeData.stops)) return;
-        const key = routeIdOf(routeData) || `${timeKey(routeData.startedAt)}:${routeData.stops.length}`;
         const candidate = {routeId: String(row.route_id), deletedAt: row.deleted_at, routeData};
-        const current = byRoute.get(key);
+        const signature = routeSignature(routeData), existing = [...byRoute.entries()].find(([, saved]) => {
+          const savedId = routeIdOf(saved.routeData), candidateId = routeIdOf(routeData);
+          return (savedId && candidateId && savedId === candidateId) || signaturesMatch(routeSignature(saved.routeData), signature);
+        });
+        const key = existing?.[0] || routeIdOf(routeData) || `${signature.startedAt}:${signature.stopCount}:${signature.firstStop}:${signature.lastStop}`;
+        const current = existing?.[1];
         if (!current) {
           byRoute.set(key, {...candidate, updatedAt: row.updated_at});
           return;
