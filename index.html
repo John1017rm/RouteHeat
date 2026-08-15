@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://unpkg.com">
   <link rel="preconnect" href="https://tile.openstreetmap.org">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-  <link rel="stylesheet" href="assets/styles.css?v=4.0.2">
+  <link rel="stylesheet" href="assets/styles.css?v=4.0.3">
   <title>RouteHeat — Delivery Pace</title>
 </head>
 <body>
@@ -137,7 +137,7 @@
     <div class="modal-card"><div class="modal-icon">■</div><h2>Finish this route?</h2><p>Save the full workday, or keep this route open and begin a rescue.</p><div class="modal-actions finish-actions"><button id="cancelFinish" class="secondary-btn">Keep going</button><button id="finishToRescue" class="rescue-btn">Start rescue</button><button id="confirmFinish" class="danger-btn">Finish day</button></div></div>
   </div>
   <div id="deleteModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle">
-    <div class="modal-card"><div class="modal-icon delete-icon">×</div><h2 id="deleteModalTitle">Delete this route?</h2><p id="deleteRouteSummary">This saved route will be removed.</p><p class="delete-warning">It will be deleted from this device and your cloud history. This cannot be undone.</p><div class="modal-actions"><button id="cancelDelete" class="secondary-btn" type="button">Keep route</button><button id="confirmDelete" class="danger-btn" type="button">Delete route</button></div></div>
+    <div class="modal-card"><div class="modal-icon delete-icon">×</div><h2 id="deleteModalTitle">Delete this route?</h2><p id="deleteRouteSummary">This saved route will be removed.</p><p class="delete-warning">It will be removed from History and your cloud route list. You can recover it from Settings → Recently Deleted while a complete recovery copy remains.</p><div class="modal-actions"><button id="cancelDelete" class="secondary-btn" type="button">Keep route</button><button id="confirmDelete" class="danger-btn" type="button">Delete route</button></div></div>
   </div>
   <div id="goalModal" class="modal" aria-hidden="true">
     <div class="modal-card goal-modal-card"><div class="modal-icon goal-icon">◎</div><h2>Set today’s target</h2><p>RouteHeat will track whether you’re ahead of pace and project your finish time.</p><label class="form-label">PACE GOAL <span>stops per hour</span><input id="paceGoalInput" type="number" inputmode="decimal" min="1" max="99" step="0.5" value="20"></label><label class="form-label">PLANNED STOPS <span>for finish projection</span><input id="plannedStopsInput" type="number" inputmode="numeric" min="1" max="999" step="1" value="100"></label><div class="modal-actions"><button id="cancelGoal" class="secondary-btn">Cancel</button><button id="confirmGoal" class="route-toggle">Start route</button></div></div>
@@ -236,13 +236,30 @@
 
   <div id="settingsModal" class="modal settings-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <div class="settings-sheet">
-      <div class="settings-head"><div><p class="eyebrow">ROUTEHEAT 4.0.2</p><h2 id="settingsTitle">Settings</h2><p>Make RouteHeat easier to see, hear, and use on the road.</p></div><button id="closeSettings" class="icon-btn close-btn" type="button" aria-label="Close settings">×</button></div>
+      <div class="settings-head"><div><p class="eyebrow">ROUTEHEAT 4.0.3</p><h2 id="settingsTitle">Settings</h2><p>Make RouteHeat easier to see, hear, and use on the road.</p></div><button id="closeSettings" class="icon-btn close-btn" type="button" aria-label="Close settings">×</button></div>
       <section class="settings-section"><div class="settings-section-title"><span class="settings-section-icon">☀</span><div><b>Appearance</b><small>Choose the best visibility for your environment.</small></div></div><div id="themeChoices" class="settings-choice three" role="group" aria-label="Color theme"><button type="button" data-theme="dark">Dark</button><button type="button" data-theme="sunlight">Sunlight</button><button type="button" data-theme="auto">Automatic</button></div></section>
       <section class="settings-section"><div class="settings-section-title"><span class="settings-section-icon">♪</span><div><b>Stop feedback</b><small>Configure confirmation sound and vibration.</small></div></div><label class="settings-toggle"><span><b>Confirmation sound</b><small>Play after every completed stop</small></span><span class="switch"><input id="settingsSound" type="checkbox"><i></i></span></label><div id="soundChoices" class="settings-choice four" role="group" aria-label="Confirmation sound"><button type="button" data-sound="chime">Chime</button><button type="button" data-sound="bell">Bell</button><button type="button" data-sound="voice">Voice</button><button type="button" data-sound="loud">Extra loud</button></div><label class="volume-control"><span><b>Sound level</b><output id="soundVolumeValue">100%</output></span><input id="soundVolume" type="range" min="20" max="100" step="5" value="100"></label><button id="testSound" class="settings-test" type="button">Test confirmation</button><label class="settings-toggle"><span><b>Vibration feedback</b><small>Distinct patterns for stops, multis, and totes</small></span><span class="switch"><input id="settingsVibration" type="checkbox"><i></i></span></label></section>
       <section class="settings-section"><div class="settings-section-title"><span class="settings-section-icon">⌖</span><div><b>Route behavior</b><small>Control automatic tracking preferences.</small></div></div><label class="settings-toggle"><span><b>Automatic stop detection</b><small>Experimental hands-free counting</small></span><span class="switch"><input id="settingsAutoDetect" type="checkbox"><i></i></span></label><label class="settings-toggle"><span><b>Follow vehicle on map</b><small>Keep the live map centered while routing</small></span><span class="switch"><input id="settingsMapFollow" type="checkbox"><i></i></span></label><div class="settings-row-label"><b>Distance units</b></div><div id="unitChoices" class="settings-choice two" role="group" aria-label="Distance units"><button type="button" data-units="miles">Miles</button><button type="button" data-units="kilometers">Kilometers</button></div></section>
       <section class="settings-section"><div class="settings-section-title"><span class="settings-section-icon">◇</span><div><b>Device health</b><small>Route tracking readiness and local storage.</small></div></div><div class="settings-health"><div><span>GPS</span><b id="settingsGpsHealth">Waiting for signal</b></div><div><span>BATTERY</span><b id="settingsBatteryHealth">Checking device</b></div><div><span>LOCAL DATA</span><b id="settingsStorage">Calculating</b></div></div><div class="settings-actions"><button id="settingsCloud" class="secondary-btn" type="button">Cloud & account</button><button id="settingsExport" class="secondary-btn" type="button">Export all data</button></div></section>
+      <section class="settings-section settings-recovery-section"><div class="settings-section-title"><span class="settings-section-icon" aria-hidden="true">↶</span><div><b>Route recovery</b><small>Bring a recently deleted finished route back to History.</small></div></div><button id="settingsRecentlyDeleted" class="recently-deleted-settings-button" type="button"><span class="recently-deleted-settings-copy"><b>Recently Deleted</b><small id="settingsRecentlyDeletedSummary">Check device and cloud recovery copies</small></span><span class="recently-deleted-settings-chevron" aria-hidden="true">›</span></button></section>
       <p class="settings-safety">◆ Only change settings while parked.</p>
     </div>
+  </div>
+
+  <div id="recentlyDeletedModal" class="modal recently-deleted-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="recentlyDeletedTitle">
+    <div class="recently-deleted-sheet">
+      <div class="recently-deleted-head"><div><p class="eyebrow">ROUTE RECOVERY</p><h2 id="recentlyDeletedTitle">Recently Deleted</h2><p>Finished routes with a complete recovery copy.</p></div><button id="closeRecentlyDeleted" class="icon-btn close-btn" type="button" aria-label="Close recently deleted routes">&times;</button></div>
+      <div class="recently-deleted-body">
+        <div id="recentlyDeletedCloudStatus" class="recently-deleted-cloud-status status-idle" role="status" aria-live="polite">Device recovery copies are ready.</div>
+        <p class="recently-deleted-safety"><span aria-hidden="true">◆</span> Review and restore routes only while parked. Restoring one route never changes unrelated routes.</p>
+        <div id="recentlyDeletedList" class="recently-deleted-list"></div>
+        <div id="recentlyDeletedEmpty" class="recently-deleted-empty" hidden><div class="recently-deleted-empty-icon" aria-hidden="true">↶</div><h3>No recoverable routes</h3><p>Deleted routes with a complete recovery copy will appear here.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="restoreRouteModal" class="modal restore-route-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="restoreRouteTitle">
+    <div class="modal-card restore-route-card"><div class="restore-route-icon" aria-hidden="true">↶</div><p class="eyebrow">FINAL CHECK</p><h2 id="restoreRouteTitle">Restore this route?</h2><div id="restoreRouteSummary" class="restore-route-summary"></div><p class="restore-route-warning">It will return to History on this device now. Private cloud restoration may finish after your next successful sync.</p><div class="modal-actions"><button id="cancelRestoreRoute" class="secondary-btn" type="button">Cancel</button><button id="confirmRestoreRoute" class="route-toggle restore-route-confirm" type="button">Restore route</button></div></div>
   </div>
 
   <div id="recoveryModal" class="modal recovery-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="recoveryTitle">
@@ -254,8 +271,8 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="assets/supabase-config.js?v=4.0.2"></script>
-  <script src="assets/app.js?v=4.0.2"></script>
-  <script src="assets/cloud.js?v=4.0.2"></script>
+  <script src="assets/supabase-config.js?v=4.0.3"></script>
+  <script src="assets/app.js?v=4.0.3"></script>
+  <script src="assets/cloud.js?v=4.0.3"></script>
 </body>
 </html>

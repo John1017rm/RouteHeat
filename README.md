@@ -1,10 +1,17 @@
-# RouteHeat 4.0.2
+# RouteHeat 4.0.3
 
 RouteHeat is a mobile-first delivery performance tracker for iPhone and Android. It combines large one-tap stop controls, GPS route maps, pace goals, tote tracking, rescue workdays, route history, personal comparisons, reports, replay, achievements, and long-term delivery analysis.
 
 > **Safety:** Only interact with RouteHeat while parked. Never use RouteHeat, Route Tools, Ghost Run details, or route-editing controls while driving.
 
-## RouteHeat 4.0.2 maintenance update
+## RouteHeat 4.0.3 recovery update
+
+- **Recently Deleted:** Finished routes removed or retired from History can appear under **Settings -> Recently Deleted** when a complete recovery copy remains. Compact status labels distinguish a deletion still waiting for cloud sync, a cloud-backed recovery copy, and a copy available only on this device.
+- **Safe offline restore:** A complete local recovery copy can return to History immediately while offline or signed out. Cloud reactivation remains pending until the next authenticated online sync, so do not clear website data or remove/reinstall RouteHeat before that sync succeeds.
+- **Stale-device protection:** Restoring removes the exact matching deletion queue/tombstone, advances the route's revision and update time, and queues the restored route for sync. Revision-aware conflict handling prevents an older phone or stale cloud copy from winning and deleting the recovered route again.
+- **No countdown:** RouteHeat 4.0.3 does not apply a time-based Recently Deleted purge. It can list only tombstones that still contain a complete finished-route recovery copy; the on-device safety ledger retains the newest 500 deletion records.
+
+### Also included from 4.0.2
 
 - **Null Island fix:** Blank, malformed, out-of-range, and exact `(0,0)` GPS points are now ignored across live routes, saved maps, replay, and every All-time map mode. Stops recorded while GPS was unavailable still remain in route totals, reports, awards, and cloud history.
 - **Clearer History tab:** The old clock has been replaced with a crisp route-history icon that combines a return trail and map pin for better recognition at phone tab-bar size.
@@ -20,7 +27,7 @@ RouteHeat is a mobile-first delivery performance tracker for iPhone and Android.
 - **Historical Pace Trails:** The All-time map's **Pace trails** mode colors recorded road sections by historical delivery pace relative to the selected range's personal average. Repeated samples receive stronger solid trails; preliminary sections appear as faded dashes.
 - **Repeat-stop visits:** The All-time map's **Repeat stops** mode groups delivery points from different saved routes within approximately 32 meters. Numbered markers show visit frequency; tap one for route/day counts, first and latest visit, locations, and average segment pace. These are GPS-area estimates, not address matches.
 - **Foreground audio recovery:** RouteHeat now detects backgrounding, page changes, and return-to-foreground events, then resumes or recreates browser audio. Mobile operating systems may still require the next parked tap to unlock sound, but confirmation audio should no longer remain disabled for the rest of the route.
-- **Safer cloud conflict handling:** Supabase synchronization compares route schema version, revision, route update time, and cloud update time. The newer route wins, while confirmed deletions and tombstones remain authoritative so stale devices cannot restore deleted or merged copies.
+- **Safer cloud conflict handling:** Supabase synchronization compares route schema version, revision, route update time, and cloud update time. Deletion tombstones remain authoritative against stale copies until an explicit 4.0.3 recovery clears the exact tombstone and creates a newer route revision.
 
 ## Core features
 
@@ -38,6 +45,7 @@ RouteHeat is a mobile-first delivery performance tracker for iPhone and Android.
 - Route Load Index, comparable-route insights, tote analytics, full-screen lifetime maps, and smooth density rendering
 - Awards & Milestones center with 44 custom achievement designs, lifetime XP, 100 delivery ranks, records, progress, and the Level 100 **RouteHeat GOAT** rank
 - Secure Supabase email/password backup, offline retry, and new-device restore
+- Recently Deleted recovery for complete finished-route copies, with local/cloud status and restore confirmation
 - Installable static PWA shell suitable for GitHub Pages
 
 ## Using the new 4.0 tools
@@ -72,7 +80,23 @@ Use this only when two same-day routes should have been one workday, such as a s
 2. Choose **Merge** and select the other saved route from that day.
 3. Review the warning and confirm.
 
-The merge replaces two saved records with one, so route-count totals, XP, rank, and achievements can recalculate. Export first if you want a separate archival copy. A cloud-synced merge may not be reversible because the second route is intentionally tombstoned to prevent restoration.
+The merge replaces two saved records with one, so route-count totals, XP, rank, and achievements can recalculate. Export first if you want a separate archival copy. RouteHeat hides the retired second record from Recently Deleted while its merged survivor remains in History, preventing accidental double-counting. If that survivor is later removed and a complete recovery copy still exists, the retired record can be restored as a separate route; this does not split or undo the merge.
+
+### Recover a deleted route
+
+1. Park safely and open **Settings -> Recently Deleted**.
+2. Review the route date, metrics, deletion time, and recovery status.
+3. Choose **Restore route**, review the warning, and confirm.
+
+The status explains where the complete recovery copy came from:
+
+- **Cloud pending** means deletion is queued on this device and has not finished syncing to cloud.
+- **Cloud protected** means a private Supabase tombstone, or its cached device copy, contains the finished route.
+- **On this device** means recovery currently depends on this installation's local copy.
+
+Offline or signed-out recovery returns an eligible route to local History immediately. Keep RouteHeat installed and preserve its website data until an authenticated **Sync now** completes; only then is cloud reactivation confirmed. CSV exports are useful private archives, but RouteHeat does not import CSV, so a CSV alone cannot rebuild History.
+
+A restored route receives newer revision metadata and its matching deletion records are cleared. That lets newer clients reject stale data from an older device. A future intentional deletion still works normally.
 
 ## CSV export in 4.0
 
@@ -86,6 +110,8 @@ CSV export still includes stops, tote changes, rescue starts, route starts, and 
 - `after_completed_stop`
 
 Latitude, longitude, GPS accuracy, location count, event time, segment duration, and segment pace remain available where applicable.
+
+CSV is an analysis/archive format, not an app backup format. RouteHeat 4.0.3 does not include CSV or JSON import.
 
 ## Publish on GitHub Pages
 
@@ -107,11 +133,11 @@ GitHub displays the public site address after deployment. GPS access requires HT
 5. Open the published URL in Safari or Chrome once so the new app shell can install.
 6. Completely close and reopen the Home Screen app.
 
-You do not need to remove the existing Home Screen shortcut for a normal update. Keeping the complete versioned app shell together prevents a new interface from loading with older cached JavaScript.
+You do not need to remove the existing Home Screen shortcut for a normal update. Do not delete/reinstall the Home Screen app or clear its website data to force an update: either action can destroy local routes, Recently Deleted recovery copies, settings, and an unfinished-route draft. Keeping the complete versioned app shell together prevents a new interface from loading with older cached JavaScript.
 
 ## Install on iPhone
 
-Open the published site in Safari, tap **Share**, choose **Add to Home Screen**, and allow precise location access when prompted. Keep RouteHeat in the foreground during a route for the most reliable GPS and audio behavior.
+Open the published site in Safari, tap **Share**, choose **Add to Home Screen**, and allow precise location access when prompted. Keep RouteHeat in the foreground during a route for the most reliable GPS and audio behavior. Before changing phones, clearing website data, or removing the Home Screen app, finish the active route, sign in, choose **Sync now**, verify that sync succeeds, and save a CSV as a secondary archive. Reinstalling can restore cloud-synced finished routes after sign-in, but it cannot recover an unfinished local draft or device-only Recently Deleted entry.
 
 ## Install on Android
 
@@ -121,9 +147,11 @@ Open the published site in Chrome, open the browser menu, and choose **Install a
 
 - While a route is running, RouteHeat continuously stores a temporary recovery draft on the device. Finishing saves the completed workday and clears the draft.
 - Finished history remains cached locally for offline use. After cloud sign-in, finished routes are also backed up to the user's private Supabase account.
+- Removing or retiring a finished route keeps a recoverable full-data entry when one is available. Recently Deleted can combine the newest local recovery records with private Supabase tombstones after sign-in.
+- Restoring while offline or signed out succeeds locally and waits for the next authenticated online sync. Until that sync finishes, clearing storage or reinstalling can still erase the only restored copy.
 - Existing RouteHeat routes remain compatible. Missing 4.0 fields are normalized when loaded; older routes cannot recreate GPS paths or visit coordinates that were never recorded.
 - Each edited or merged route keeps the same logical route ID and receives schema/revision/update metadata. During sync, the newer logical version wins instead of blindly overwriting a correction with a stale device copy.
-- Deletion ledgers and Supabase tombstones take priority over live copies. This also prevents the retired half of a same-day merge from being restored.
+- Deletion ledgers and Supabase tombstones take priority over stale live copies. A confirmed recovery removes its exact deletion records and advances the route revision before cloud reactivation, preventing an older device from undoing that recovery.
 - Complete the one-time instructions in `SUPABASE_SETUP.md` before using Cloud backup.
 - For best street history, keep RouteHeat open with precise location enabled. Mobile browsers may reduce or pause GPS updates when the screen is locked or the app is backgrounded.
 - The recorded route follows GPS breadcrumbs rather than an external road-snapping service. Weak reception can create drift or gaps.
@@ -142,7 +170,7 @@ Open the published site in Chrome, open the browser menu, and choose **Install a
 - `index.html` - application interface
 - `assets/styles.css` - responsive Dark and Sunlight theme system
 - `assets/app.js` - GPS, routes, corrections, rescues, Ghost Run, maps, analytics, reports, and replay
-- `assets/cloud.js` - authentication, revision-aware backup, deletion protection, offline retry, and restore
+- `assets/cloud.js` - authentication, revision-aware backup, recoverable tombstones, stale-deletion protection, offline retry, and restore
 - `assets/supabase-config.js` - Supabase project URL and browser-safe publishable key
 - `manifest.webmanifest` - installable app metadata
 - `sw.js` - offline application-shell caching
