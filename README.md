@@ -1,8 +1,19 @@
-# RouteHeat 4.0.4
+# RouteHeat 4.1.0
 
 RouteHeat is a mobile-first delivery performance tracker for iPhone and Android. It combines large one-tap stop controls, GPS route maps, pace goals, tote tracking, rescue workdays, route history, personal comparisons, reports, replay, achievements, and long-term delivery analysis.
 
 > **Safety:** Only interact with RouteHeat while parked. Never use RouteHeat, Route Tools, Ghost Run details, or route-editing controls while driving.
+
+## RouteHeat 4.1 Route Story & Workload update
+
+- **Animated Ghost Run studio:** The compact Drive card opens a parked-only comparison with a gained/lost delta chart, moving current and ghost markers, strongest-gain and toughest-stretch insights, and an accessible text summary. It compares only the overlapping stop count when routes differ in size.
+- **Package workload totals:** Route setup can record the optional package total alongside planned stops and pace goal. RouteHeat reports packages per stop, per location, and per active hour without pretending to know how many packages were delivered at each address.
+- **Smarter History sorting:** Saved routes can be sorted by date, stops, locations, packages, Route Load, active time, recorded distance, pace, median completion interval, or rescue count. Missing legacy values stay at the bottom instead of being treated as zero.
+- **Finish celebration and review:** Finishing a workday opens an animated, skippable route celebration with the day's pace, workload, packages, timing, Ghost result, records, and newly earned awards before settling into the complete report.
+- **Street-following replay:** Route replay now animates the recorded GPS breadcrumb trail, moves along the driven street path, respects GPS gaps and route breaks, pauses at meaningful events, and keeps the existing 0.5x–4x speed controls. Legacy routes without a breadcrumb trail use a clearly identified approximate fallback.
+- **Manual stop map placement:** Open a saved route, choose **Edit map** on a stop, pan the full-screen map under the fixed crosshair, and save the corrected location. RouteHeat keeps the original GPS point and a correction audit while using the new point on detail, replay, and lifetime maps.
+- **Stop timing intelligence:** Route details and reports show average and median time between completed stops within the same work phase. When the recorded GPS samples are reliable, RouteHeat also shows a clearly labeled GPS dwell estimate and its coverage.
+- **Correct rescue anchors:** A rescue marker is placed on the first completed stop of that rescue, not at the last position of the original route. The marker keeps the true rescue-start time in its details.
 
 ## RouteHeat 4.0.4 restore reliability update
 
@@ -19,7 +30,7 @@ RouteHeat is a mobile-first delivery performance tracker for iPhone and Android.
 
 ## RouteHeat 4.0 highlights
 
-- **Personal Ghost Run:** When enough history exists, RouteHeat automatically selects a similar saved route and compares today's completed stops with that personal baseline. The compact Drive card reports stops and time ahead or behind; tap it while parked to expand the gold-versus-purple progress chart. Break time is excluded from both routes.
+- **Personal Ghost Run:** When enough history exists, RouteHeat automatically selects a similar saved route and compares today's completed stops with that personal baseline. The compact Drive card reports stops and time ahead or behind; tap it while parked to open the full gained/lost comparison. Break time is excluded from both routes.
 - **Parked Route Tools:** The Drive screen now opens a dedicated tools sheet for setting Amazon's next stop number, correcting the current tote number, adding a missed stop, or beginning a rescue phase.
 - **Corrected missed stops:** Enter the Amazon stop number, how many minutes ago it occurred, and its location count. RouteHeat inserts a clearly marked corrected stop, repairs the completed sequence and surrounding timing, and uses a nearby recorded GPS point when one is available. Any reconstructed location is approximate.
 - **Separate stop numbering:** RouteHeat keeps its completed-stop sequence separate from Amazon's displayed stop number. Pace, progress, achievements, and totals use actual completed stops, while confirmations, saved maps, details, and replay can show the matching Amazon number. This supports routes that begin at Amazon Stop 2 or 3 without falsely counting extra deliveries.
@@ -39,10 +50,11 @@ RouteHeat is a mobile-first delivery performance tracker for iPhone and Android.
 - Manual and optional experimental automatic stop detection
 - Multi-location stops that preserve one Amazon stop while recording the actual delivery workload
 - Segment and overall stops-per-hour calculations, pace goals, finish projections, pauses, and break tracking
+- Optional route package totals plus packages-per-stop, packages-per-location, and packages-per-hour workload ratios
 - Numbered stop, tote, correction, and rescue markers on live and saved maps
 - Configurable chime, bell, voice, and extra-loud confirmations with volume and vibration controls
 - Crash/reload-safe active-route recovery for stops, totes, corrections, rescue phases, and GPS traces
-- Saved route history, end-of-day reports, sharing, and chronological map replay at 0.5x, 1x, 2x, or 4x
+- Sortable saved route history, animated end-of-day review, sharing, and breadcrumb street replay at 0.5x, 1x, 2x, or 4x
 - Route Load Index, comparable-route insights, tote analytics, full-screen lifetime maps, and smooth density rendering
 - Awards & Milestones center with 44 custom achievement designs, lifetime XP, 100 delivery ranks, records, progress, and the Level 100 **RouteHeat GOAT** rank
 - Secure Supabase email/password backup, offline retry, and new-device restore
@@ -53,7 +65,7 @@ RouteHeat is a mobile-first delivery performance tracker for iPhone and Android.
 
 ### Personal Ghost Run
 
-Start a route normally. If RouteHeat finds a comparable saved route with at least five stops, the Personal Ghost card appears on Drive mode. The saved comparison is selected using planned-stop similarity, start time, recency, and rescue history. Tap the card only while parked to expand or collapse its chart.
+Start a route normally. If RouteHeat finds a comparable saved route with at least five stops, the Personal Ghost card appears on Drive mode. The saved comparison is selected using planned-stop similarity, start time, recency, and rescue history. Tap the card only while parked to open its gained/lost chart, race markers, and strongest/toughest stretch details.
 
 Ghost Run is a private comparison against your own saved history. It is not a public leaderboard and does not share another user's data.
 
@@ -99,7 +111,7 @@ Offline or signed-out recovery returns an eligible route to local History immedi
 
 A restored route receives newer revision metadata and its matching deletion records are cleared. That lets newer clients reject stale data from an older device. A future intentional deletion still works normally.
 
-## CSV export in 4.0
+## CSV export in 4.1
 
 CSV export still includes stops, tote changes, rescue starts, route starts, and GPS track points. RouteHeat 4.0 adds fields that preserve corrections and workday structure:
 
@@ -109,10 +121,15 @@ CSV export still includes stops, tote changes, rescue starts, route starts, and 
 - `tote_number`
 - `stop_source` and `corrected`
 - `after_completed_stop`
+- `total_packages` and `package_count_complete`
+- `phase_packages_added`, `packages_per_stop`, and `packages_per_location`
+- `average_stop_interval_seconds` and `median_stop_interval_seconds`
+- `service_estimate_seconds`, `service_estimate_source`, and `service_estimate_confidence`
+- `location_source`, `manual_original_latitude`, and `manual_original_longitude`
 
 Latitude, longitude, GPS accuracy, location count, event time, segment duration, and segment pace remain available where applicable.
 
-CSV is an analysis/archive format, not an app backup format. RouteHeat 4.0.4 does not include CSV or JSON import.
+CSV is an analysis/archive format, not an app backup format. RouteHeat 4.1.0 does not include CSV or JSON import.
 
 ## Publish on GitHub Pages
 
@@ -142,7 +159,7 @@ Open the published site in Safari, tap **Share**, choose **Add to Home Screen**,
 
 ## Install on Android
 
-Open the published site in Chrome, open the browser menu, and choose **Install app** or **Add to Home screen**. A separate Android Studio project mirrors the same RouteHeat 4.0 interface and can be used to build an APK.
+Open the published site in Chrome, open the browser menu, and choose **Install app** or **Add to Home screen**. A separate Android Studio project mirrors the same RouteHeat 4.1 interface and can be used to build an APK.
 
 ## Route data, cloud sync, and compatibility
 

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#07110f">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://unpkg.com">
   <link rel="preconnect" href="https://tile.openstreetmap.org">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-  <link rel="stylesheet" href="assets/styles.css?v=4.0.4">
+  <link rel="stylesheet" href="assets/styles.css?v=4.1.0">
   <title>RouteHeat — Delivery Pace</title>
 </head>
 <body>
@@ -71,7 +71,7 @@
       <section id="driveView" class="view drive-view">
         <div class="drive-top"><div><p class="eyebrow">DRIVE MODE</p><h1 id="driveState">Ready to start</h1></div><button id="driveToolsBtn" class="drive-tools-btn" type="button" disabled aria-haspopup="dialog" aria-controls="routeToolsModal"><span>•••</span> Route tools</button></div>
         <div id="driveProgress" class="drive-progress" role="progressbar" aria-label="Route stop progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="drive-progress-head"><span>ROUTE PROGRESS</span><strong id="driveProgressPercent">0%</strong></div><div class="drive-progress-track"><i id="driveProgressFill"></i></div><div class="drive-progress-copy"><b id="driveProgressCount">0 of 0 stops</b><span id="driveProgressLeft">Set your stop goal to begin</span></div></div>
-        <section id="ghostCard" class="ghost-card" hidden><button id="ghostToggle" type="button" aria-expanded="false"><span class="ghost-emblem">G</span><span><small id="ghostLabel">PERSONAL GHOST RUN</small><strong id="ghostHeadline">Running with a past route</strong><em id="ghostSubline">Tap for the live comparison</em></span><b aria-hidden="true">›</b></button><div id="ghostDetails" class="ghost-details"><div id="ghostChart" class="ghost-chart" role="img" aria-label="Current route compared with a similar past route"></div><div id="ghostMetrics" class="ghost-metrics"></div><p>Gold is today. Purple is your saved ghost. Break time is excluded.</p></div></section>
+        <section id="ghostCard" class="ghost-card" hidden><button id="ghostToggle" type="button" aria-expanded="false" aria-haspopup="dialog" aria-controls="ghostRunModal"><span class="ghost-emblem" aria-hidden="true">G</span><span><small id="ghostLabel">PERSONAL GHOST RUN</small><strong id="ghostHeadline">Running with a past route</strong><em id="ghostSubline">Tap for the live comparison</em></span><b aria-hidden="true">›</b></button></section>
         <div class="speedometer"><button id="driveStopBtn" class="speed-ring drive-speed-stop" type="button" disabled aria-label="Stop complete. Start a route first."><span class="drive-speed-label">OVERALL PACE</span><strong id="drivePace">—</strong><small class="drive-speed-unit">STOPS / HOUR</small><span class="drive-speed-action"><i>✓</i><b>STOP COMPLETE</b></span><small id="driveStopHint" class="drive-speed-hint">Start your route first</small></button><div id="driveGoal" class="drive-goal">Set a route goal to begin</div></div>
         <button id="driveStartBtn" class="drive-start">Start route</button>
         <div class="drive-actions"><button id="driveMultiStopBtn" class="drive-multi" disabled><span>M</span><b>MULTI-LOCATION</b><small>2+ delivery locations</small></button><button id="driveToteBtn" class="drive-tote" disabled><span>＋</span><b>NEW TOTE</b><small id="driveToteHint">Mark location</small></button></div>
@@ -90,6 +90,10 @@
           <p>View badges, locked goals, lifetime totals, records, and what to chase next <span aria-hidden="true">›</span></p>
         </section>
         <section id="toteAnalytics" class="analytics-card tote-analytics-trigger" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="toteAnalyticsModal"><div class="section-head"><div><p class="eyebrow">TOTE PERFORMANCE</p><h2>Tote analytics</h2></div><div class="tote-card-action"><span id="toteAnalyticsBadge" class="count-badge">0 tracked</span><span class="tote-card-arrow" aria-hidden="true">›</span></div></div><div id="toteMetrics" class="tote-metrics"></div><div id="toteRanking" class="tote-ranking"></div><p class="tote-tap-hint">Tap for complete tote history and performance</p></section>
+        <div class="history-toolbar" role="group" aria-label="Route history sorting">
+          <div class="history-toolbar-copy"><span>Saved workdays</span><b id="historyResultCount" role="status" aria-live="polite">0 saved routes</b></div>
+          <label class="history-sort-control" for="historySort"><span>Sort routes</span><select id="historySort" aria-describedby="historyResultCount"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="stops">Most stops</option><option value="locations">Most locations</option><option value="packages">Most packages</option><option value="load">Highest load</option><option value="active">Longest active time</option><option value="distance">Longest distance</option><option value="fastest">Fastest pace</option><option value="slowest">Slowest pace</option><option value="interval">Fastest stop interval</option><option value="rescues">Most rescues</option></select></label>
+        </div>
         <div id="historyList" class="history-list"></div>
       </section>
 
@@ -114,10 +118,10 @@
   <div id="stopConfirm" class="stop-confirm" role="status" aria-live="assertive"><div><span>✓</span><b id="confirmStopNumber">STOP SAVED</b><small id="confirmStopPace">Recorded successfully</small></div></div>
   <div id="toteConfirm" class="stop-confirm tote-confirm" role="status" aria-live="assertive"><div><span>▣</span><b id="confirmToteNumber">NEW TOTE SAVED</b><small id="confirmToteDetail">Location marked on map</small></div></div>
   <div id="achievementCelebration" class="achievement-celebration" role="status" aria-live="assertive" aria-hidden="true"><div class="achievement-celebration-card"><div class="achievement-rays" aria-hidden="true"></div><div class="achievement-confetti" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div id="achievementCelebrationArt" class="achievement-celebration-art"></div><p id="achievementCelebrationKicker">ACHIEVEMENT UNLOCKED</p><h2 id="achievementCelebrationTitle">Route milestone</h2><p id="achievementCelebrationDetail"></p><small>Saved to your lifetime trophy case</small></div></div>
-  <div id="cloudModal" class="modal" aria-hidden="true">
+  <div id="cloudModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="cloudModalTitle">
     <div class="modal-card cloud-modal-card">
       <button id="closeCloud" class="cloud-close" type="button" aria-label="Close cloud backup">×</button>
-      <div class="modal-icon cloud-icon">☁</div><h2>Cloud backup</h2><p>Securely back up routes and restore them on another device.</p>
+      <div class="modal-icon cloud-icon">☁</div><h2 id="cloudModalTitle">Cloud backup</h2><p>Securely back up routes and restore them on another device.</p>
       <div id="cloudSignedOut" class="cloud-section">
         <label class="form-label cloud-label">EMAIL ADDRESS<input id="cloudEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com"></label>
         <label class="form-label cloud-label">PASSWORD<input id="cloudPassword" type="password" autocomplete="current-password" minlength="8" placeholder="At least 8 characters"></label>
@@ -133,14 +137,14 @@
       <p class="cloud-privacy">Your GPS history is private to your signed-in account. Local copies remain available offline.</p>
     </div>
   </div>
-  <div id="confirmModal" class="modal" aria-hidden="true">
-    <div class="modal-card"><div class="modal-icon">■</div><h2>Finish this route?</h2><p>Save the full workday, or keep this route open and begin a rescue.</p><div class="modal-actions finish-actions"><button id="cancelFinish" class="secondary-btn">Keep going</button><button id="finishToRescue" class="rescue-btn">Start rescue</button><button id="confirmFinish" class="danger-btn">Finish day</button></div></div>
+  <div id="confirmModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
+    <div class="modal-card"><div class="modal-icon">■</div><h2 id="confirmModalTitle">Finish this route?</h2><p>Save the full workday, or keep this route open and begin a rescue.</p><div class="modal-actions finish-actions"><button id="cancelFinish" class="secondary-btn">Keep going</button><button id="finishToRescue" class="rescue-btn">Start rescue</button><button id="confirmFinish" class="danger-btn">Finish day</button></div></div>
   </div>
   <div id="deleteModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle">
     <div class="modal-card"><div class="modal-icon delete-icon">×</div><h2 id="deleteModalTitle">Delete this route?</h2><p id="deleteRouteSummary">This saved route will be removed.</p><p class="delete-warning">It will be removed from History and your cloud route list. You can recover it from Settings → Recently Deleted while a complete recovery copy remains.</p><div class="modal-actions"><button id="cancelDelete" class="secondary-btn" type="button">Keep route</button><button id="confirmDelete" class="danger-btn" type="button">Delete route</button></div></div>
   </div>
-  <div id="goalModal" class="modal" aria-hidden="true">
-    <div class="modal-card goal-modal-card"><div class="modal-icon goal-icon">◎</div><h2>Set today’s target</h2><p>RouteHeat will track whether you’re ahead of pace and project your finish time.</p><label class="form-label">PACE GOAL <span>stops per hour</span><input id="paceGoalInput" type="number" inputmode="decimal" min="1" max="99" step="0.5" value="20"></label><label class="form-label">PLANNED STOPS <span>for finish projection</span><input id="plannedStopsInput" type="number" inputmode="numeric" min="1" max="999" step="1" value="100"></label><div class="modal-actions"><button id="cancelGoal" class="secondary-btn">Cancel</button><button id="confirmGoal" class="route-toggle">Start route</button></div></div>
+  <div id="goalModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="goalModalTitle">
+    <div class="modal-card goal-modal-card"><div class="modal-icon goal-icon">◎</div><h2 id="goalModalTitle">Set today’s target</h2><p>RouteHeat will track whether you’re ahead of pace and project your finish time.</p><label class="form-label">PACE GOAL <span>stops per hour</span><input id="paceGoalInput" type="number" inputmode="decimal" min="1" max="99" step="0.5" value="20"></label><div class="goal-input-grid"><label class="form-label">PLANNED STOPS <span>for finish projection</span><input id="plannedStopsInput" type="number" inputmode="numeric" min="1" max="999" step="1" value="100"></label><label class="form-label">TOTAL PACKAGES <span>optional</span><input id="totalPackagesInput" type="number" inputmode="numeric" min="0" max="9999" step="1" placeholder="Optional"></label></div><div class="modal-actions"><button id="cancelGoal" class="secondary-btn">Cancel</button><button id="confirmGoal" class="route-toggle">Start route</button></div></div>
   </div>
   <div id="multiStopModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="multiStopTitle">
     <div class="modal-card multi-stop-modal-card"><div class="modal-icon multi-stop-modal-icon">M</div><h2 id="multiStopTitle">Multi-location stop</h2><p>This remains one Amazon stop while RouteHeat records the actual delivery workload.</p><div class="multi-location-stepper"><button id="multiMinus" type="button" aria-label="Remove one location">−</button><div><strong id="multiLocationCount" aria-live="polite">2</strong><span>DELIVERY LOCATIONS</span></div><button id="multiPlus" type="button" aria-label="Add one location">＋</button></div><div class="modal-actions"><button id="cancelMultiStop" class="secondary-btn" type="button">Cancel</button><button id="confirmMultiStop" class="multi-save-btn" type="button">Save 2 locations</button></div></div>
@@ -153,20 +157,51 @@
       <p class="route-tools-safety">◆ Only make corrections while parked.</p>
     </div></div>
   </div>
+  <div id="ghostRunModal" class="modal ghost-run-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="ghostRunTitle" aria-describedby="ghostRunDescription">
+    <div class="ghost-run-sheet" tabindex="-1">
+      <header class="ghost-run-head"><div><p class="eyebrow">LIVE ROUTE COMPARISON</p><h2 id="ghostRunTitle">Personal Ghost Run</h2><p id="ghostRunDescription">See where today has gained or lost time against a comparable saved route.</p></div><button id="closeGhostRun" class="icon-btn close-btn" type="button" aria-label="Close Ghost Run comparison">&times;</button></header>
+      <div class="ghost-run-body">
+        <div id="ghostDetails" class="ghost-details">
+          <div class="ghost-chart-head"><div><span>DELTA TIME</span><b>Today versus your saved ghost</b></div><small>Break time excluded</small></div>
+          <div id="ghostChart" class="ghost-chart ghost-delta-chart" role="img" aria-label="Current route delta time compared with a similar saved route"></div>
+          <div class="ghost-delta-legend" aria-label="Ghost chart legend"><span><i class="today"></i>Today</span><span><i class="saved"></i>Ghost</span><span><i class="gained"></i>Time gained</span><span><i class="lost"></i>Time lost</span></div>
+          <div id="ghostMetrics" class="ghost-metrics"></div>
+          <p class="ghost-chart-note">Gold is today. Purple is your saved ghost. Green and red show where time was gained or lost.</p>
+        </div>
+        <p class="ghost-run-safety"><span aria-hidden="true">◆</span> Review the expanded comparison only while parked.</p>
+      </div>
+    </div>
+  </div>
   <div id="rescueModal" class="modal rescue-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="rescueTitle">
     <div class="modal-card rescue-card"><div class="modal-icon rescue-icon">R</div><p class="eyebrow">EXTEND THE WORKDAY</p><h2 id="rescueTitle">Start Rescue 1?</h2><p id="rescueSummary">Your original-route totals stay intact and new stops continue the same count.</p><label class="form-label">ADDED PLANNED STOPS <span>optional estimate</span><input id="rescueStopsInput" type="number" inputmode="numeric" min="0" max="999" value="25"></label><div class="modal-actions"><button id="cancelRescue" class="secondary-btn" type="button">Cancel</button><button id="confirmRescue" class="rescue-btn" type="button">Begin rescue</button></div></div>
   </div>
   <div id="mergeModal" class="modal merge-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="mergeTitle">
     <div class="modal-card merge-card"><div class="modal-icon rescue-icon">⇄</div><p class="eyebrow">RESCUE ROUTE REPAIR</p><h2 id="mergeTitle">Combine saved routes</h2><p id="mergeSummary">The later route will become a rescue phase of the earlier route.</p><label class="form-label">COMBINE WITH<select id="mergeCandidate"></select></label><p class="merge-warning">This replaces the two saved routes with one workday and recalculates totals, XP, and achievements.</p><div class="modal-actions"><button id="cancelMerge" class="secondary-btn" type="button">Cancel</button><button id="confirmMerge" class="rescue-btn" type="button">Combine routes</button></div></div>
   </div>
-  <div id="routeModal" class="modal route-detail-modal" aria-hidden="true">
+  <div id="routeModal" class="modal route-detail-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="detailTitle" aria-describedby="detailSubtitle">
     <div class="route-detail-card">
       <div class="route-detail-head"><div><p class="eyebrow">SAVED ROUTE</p><h2 id="detailTitle">Route details</h2><p id="detailSubtitle"></p></div><div class="detail-head-actions"><button id="detailMergeBtn" class="replay-btn" type="button">⇄ Merge</button><button id="detailReplayBtn" class="replay-btn">▶ Replay</button><button id="closeRouteDetail" class="icon-btn close-btn" aria-label="Close route details">×</button></div></div>
       <div id="historyMap" aria-label="Saved route map"></div>
-      <div class="replay-track"><i id="replayProgress"></i><span id="replayStatus">Full route</span></div>
+      <div id="replayProgressbar" class="replay-track" role="progressbar" aria-label="Route replay progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="replayProgress"></i><span id="replayStatus" aria-live="polite">Full route</span></div>
       <div class="replay-speed-row"><span>REPLAY SPEED</span><div id="replaySpeed" class="replay-speed" role="group" aria-label="Route replay speed"><button type="button" data-speed="0.5" aria-pressed="false">0.5×</button><button type="button" data-speed="1" class="active" aria-pressed="true">1×</button><button type="button" data-speed="2" aria-pressed="false">2×</button><button type="button" data-speed="4" aria-pressed="false">4×</button></div></div>
       <div class="detail-legend legend"><span><i class="fast"></i>Fast</span><span><i class="steady"></i>Steady</span><span><i class="slow"></i>Slow</span><span><i class="multi-key"></i>Multi-location</span></div>
       <div id="detailMetrics" class="detail-metrics"></div><div id="detailComparison" class="route-comparison"></div><div id="detailStops" class="detail-stops"></div>
+    </div>
+  </div>
+
+  <div id="stopLocationModal" class="modal stop-location-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="stopLocationTitle" aria-describedby="stopLocationSummary">
+    <div class="stop-location-sheet" tabindex="-1">
+      <header class="stop-location-head"><div><p class="eyebrow">EDIT STOP LOCATION</p><h2 id="stopLocationTitle">Place stop on map</h2><p id="stopLocationSummary">Move the map until the crosshair is over the delivery location.</p></div><button id="closeStopLocation" class="icon-btn close-btn" type="button" aria-label="Cancel editing stop location">&times;</button></header>
+      <div class="stop-location-map-wrap">
+        <div id="stopLocationMap" aria-label="Map for choosing a corrected stop location"></div>
+        <div class="stop-location-crosshair" aria-hidden="true"><i></i></div>
+        <div id="stopLocationSource" class="stop-location-source" role="status" aria-live="polite">Original recorded location</div>
+      </div>
+      <footer class="stop-location-footer">
+        <div class="stop-location-secondary-actions"><button id="useTrackLocation" class="stop-location-tool" type="button">Use track suggestion</button><button id="restoreOriginalLocation" class="stop-location-tool" type="button">Restore original</button></div>
+        <div class="stop-location-primary-actions"><button id="cancelStopLocation" class="secondary-btn" type="button">Cancel</button><button id="confirmStopLocation" class="route-toggle" type="button">Use this location</button></div>
+        <p class="stop-location-safety"><span aria-hidden="true">◆</span> Edit stop locations only while parked.</p>
+      </footer>
     </div>
   </div>
 
@@ -179,12 +214,22 @@
     </div>
   </div>
 
-  <div id="reportModal" class="modal report-modal" aria-hidden="true">
-    <div class="report-sheet">
-      <div class="report-brand"><span class="brand-mark"><img src="assets/icon-192-v2.png" alt=""></span><span>RouteHeat</span><button id="closeReport" aria-label="Close report">×</button></div>
-      <div class="report-hero"><p>END OF DAY</p><h2 id="reportDate">Route report</h2><div class="report-score"><strong id="reportPace">—</strong><span>STOPS / HOUR</span></div><b id="reportGoal">Route complete</b></div>
-      <div id="reportMap"></div><div id="reportMetrics" class="report-metrics"></div><div id="reportHighlights" class="report-highlights"></div>
-      <div class="report-actions"><button id="reportRescue" class="rescue-btn">Continue with rescue</button><button id="shareReport" class="route-toggle">Share summary</button><button id="doneReport" class="secondary-btn">Done</button></div>
+  <div id="reportModal" class="modal report-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="reportDate">
+    <div class="report-sheet" tabindex="-1">
+      <div class="report-brand"><span class="brand-mark"><img src="assets/icon-192-v2.png" alt=""></span><span>RouteHeat</span><div class="report-brand-actions"><button id="skipFinishReview" type="button" hidden>Skip intro</button><button id="closeReport" type="button" aria-label="Close report">×</button></div></div>
+      <section id="finishReviewIntro" class="finish-review-intro" aria-hidden="true" hidden>
+        <div class="finish-review-rays" aria-hidden="true"></div><div class="finish-review-confetti" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="finish-review-mark" aria-hidden="true">✓</div><p class="eyebrow">WORKDAY COMPLETE</p><h2 id="finishReviewTitle">Route complete</h2><p id="finishReviewStatus" role="status" aria-live="polite">Building your end-of-route review…</p>
+      </section>
+      <div id="finishReviewContent" class="finish-review-content">
+        <div class="report-hero"><p>END OF DAY</p><h2 id="reportDate">Route report</h2><div class="report-score"><strong id="reportPace">—</strong><span>STOPS / HOUR</span></div><b id="reportGoal">Route complete</b></div>
+        <div id="reportMap"></div><div id="reportMetrics" class="report-metrics"></div>
+        <section id="reportGhostResult" class="report-review-section report-ghost-result" hidden></section>
+        <section id="reportRecords" class="report-review-section report-records" hidden></section>
+        <section id="reportAwards" class="report-review-section report-awards" hidden></section>
+        <div id="reportHighlights" class="report-highlights"></div>
+      </div>
+      <div class="report-actions"><button id="reportRescue" class="rescue-btn" type="button">Continue with rescue</button><button id="shareReport" class="route-toggle" type="button">Share summary</button><button id="doneReport" class="secondary-btn" type="button">Done</button></div>
     </div>
   </div>
 
@@ -236,7 +281,7 @@
 
   <div id="settingsModal" class="modal settings-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <div class="settings-sheet">
-      <div class="settings-head"><div><p class="eyebrow">ROUTEHEAT 4.0.4</p><h2 id="settingsTitle">Settings</h2><p>Make RouteHeat easier to see, hear, and use on the road.</p></div><button id="closeSettings" class="icon-btn close-btn" type="button" aria-label="Close settings">×</button></div>
+      <div class="settings-head"><div><p class="eyebrow">ROUTEHEAT 4.1.0</p><h2 id="settingsTitle">Settings</h2><p>Make RouteHeat easier to see, hear, and use on the road.</p></div><button id="closeSettings" class="icon-btn close-btn" type="button" aria-label="Close settings">×</button></div>
       <section class="settings-section"><div class="settings-section-title"><span class="settings-section-icon">☀</span><div><b>Appearance</b><small>Choose the best visibility for your environment.</small></div></div><div id="themeChoices" class="settings-choice three" role="group" aria-label="Color theme"><button type="button" data-theme="dark">Dark</button><button type="button" data-theme="sunlight">Sunlight</button><button type="button" data-theme="auto">Automatic</button></div></section>
       <section class="settings-section"><div class="settings-section-title"><span class="settings-section-icon">♪</span><div><b>Stop feedback</b><small>Configure confirmation sound and vibration.</small></div></div><label class="settings-toggle"><span><b>Confirmation sound</b><small>Play after every completed stop</small></span><span class="switch"><input id="settingsSound" type="checkbox"><i></i></span></label><div id="soundChoices" class="settings-choice four" role="group" aria-label="Confirmation sound"><button type="button" data-sound="chime">Chime</button><button type="button" data-sound="bell">Bell</button><button type="button" data-sound="voice">Voice</button><button type="button" data-sound="loud">Extra loud</button></div><label class="volume-control"><span><b>Sound level</b><output id="soundVolumeValue">100%</output></span><input id="soundVolume" type="range" min="20" max="100" step="5" value="100"></label><button id="testSound" class="settings-test" type="button">Test confirmation</button><label class="settings-toggle"><span><b>Vibration feedback</b><small>Distinct patterns for stops, multis, and totes</small></span><span class="switch"><input id="settingsVibration" type="checkbox"><i></i></span></label></section>
       <section class="settings-section"><div class="settings-section-title"><span class="settings-section-icon">⌖</span><div><b>Route behavior</b><small>Control automatic tracking preferences.</small></div></div><label class="settings-toggle"><span><b>Automatic stop detection</b><small>Experimental hands-free counting</small></span><span class="switch"><input id="settingsAutoDetect" type="checkbox"><i></i></span></label><label class="settings-toggle"><span><b>Follow vehicle on map</b><small>Keep the live map centered while routing</small></span><span class="switch"><input id="settingsMapFollow" type="checkbox"><i></i></span></label><div class="settings-row-label"><b>Distance units</b></div><div id="unitChoices" class="settings-choice two" role="group" aria-label="Distance units"><button type="button" data-units="miles">Miles</button><button type="button" data-units="kilometers">Kilometers</button></div></section>
@@ -271,8 +316,8 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="assets/supabase-config.js?v=4.0.4"></script>
-  <script src="assets/app.js?v=4.0.4"></script>
-  <script src="assets/cloud.js?v=4.0.4"></script>
+  <script src="assets/supabase-config.js?v=4.1.0"></script>
+  <script src="assets/app.js?v=4.1.0"></script>
+  <script src="assets/cloud.js?v=4.1.0"></script>
 </body>
 </html>
