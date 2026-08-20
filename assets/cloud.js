@@ -14,6 +14,7 @@
   let session = null;
   let syncing = false;
   let syncRequested = false;
+  let cloudModalReturnFocus = null;
 
   const readJson = (key, fallback) => {
     try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
@@ -235,13 +236,21 @@
 
   function openModal() {
     renderAccount();
-    $('#cloudModal').classList.add('open');
-    $('#cloudModal').setAttribute('aria-hidden', 'false');
+    const modal = $('#cloudModal');
+    if (!modal.classList.contains('open')) cloudModalReturnFocus = document.activeElement;
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    setTimeout(() => (session ? $('#cloudSyncNow') : $('#cloudEmail'))?.focus(), 0);
   }
 
   function closeModal() {
-    $('#cloudModal').classList.remove('open');
-    $('#cloudModal').setAttribute('aria-hidden', 'true');
+    const modal = $('#cloudModal');
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+    const focus = cloudModalReturnFocus;
+    cloudModalReturnFocus = null;
+    if (focus?.isConnected && focus.getClientRects().length) setTimeout(() => focus.focus(), 0);
+    else setTimeout(() => $('#cloudBtn')?.focus(), 0);
   }
 
   function ensureOwner(userId) {
