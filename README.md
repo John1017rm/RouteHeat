@@ -1,8 +1,21 @@
-# RouteHeat 4.1.0
+# RouteHeat 5.0.0
 
-RouteHeat is a mobile-first delivery performance tracker for iPhone and Android. It combines large one-tap stop controls, GPS route maps, pace goals, tote tracking, rescue workdays, route history, personal comparisons, reports, replay, achievements, and long-term delivery analysis.
+RouteHeat is a mobile-first delivery intelligence tracker for iPhone and Android. It combines large one-tap stop controls, GPS route maps, pace goals, tote tracking, rescue workdays, private Route Families, selectable Ghost comparisons, finish forecasting, coaching, route history, reports, replay, achievements, and long-term delivery analysis.
 
 > **Safety:** Only interact with RouteHeat while parked. Never use RouteHeat, Route Tools, Ghost Run details, or route-editing controls while driving.
+
+## RouteHeat 5.0 Smarter Routes & History Studio update
+
+- **Private Route Families:** RouteHeat groups geographically similar workdays using saved delivery GPS patterns, gives each family a stable friendly name, and shows an honest low/medium/high confidence level. You can privately rename a detected family without changing its history or cloud identity. Existing routes are classified on demand; raw grid coordinates are never shown as family names.
+- **Selectable Ghost challenge:** Route setup now lets you enable or disable Ghost Run and choose Adaptive, Cruise, Standard, Expert, or Personal Best. Every level selects a real saved comparable route—RouteHeat never manufactures a faster or slower Ghost with an artificial multiplier. Same-family history is preferred even when only one credible family match exists.
+- **High-contrast Ghost status:** The Drive card uses a dedicated arrow-and-text chip for ahead, behind, and even states, with strong Dark and Sunlight contrast. The expanded chart keeps gained/lost segments, moving markers, and a clear statement of the selected family, difficulty, and comparable stop count.
+- **Smarter finish forecast:** Projected finish is now a realistic time range with low, medium, or high confidence. It blends recent stop intervals, overall pace, remaining planned stops, pace goal, and comparable Route Family history instead of presenting a falsely precise time.
+- **Smart Route Coach:** Live and Drive views surface one concise personal observation at a time, such as momentum changes, Ghost recovery, pace stability, or forecast status. Coaching is descriptive rather than competitive and keeps the primary Stop Complete flow uncluttered.
+- **Rescue workload planning:** Starting or reopening a rescue asks for both added planned stops and added packages. Known package totals are combined across phases; skipped counts remain visibly partial instead of being silently treated as zero.
+- **Advanced All-time filters:** Filter private map history by recency or date range, Route Family, original/rescue phase, individual weekday or weekday/weekend, time of day, pace band, GPS/manual location source, and minimum repeat visits. Filters project a temporary view and never rewrite saved routes.
+- **History Studio replay:** Replay follows recorded GPS breadcrumbs, marks saved breaks and GPS gaps, offers a draggable timeline, and builds chapters for totes, rescues, fast/slow stretches, and route finish. A live panel updates stops, active time, pace, and phase; an optional Ghost overlay shows the historical time delta. Legacy routes retain a clearly dashed approximate fallback.
+- **Weekly recaps:** History now builds private 7-day and 30-day summaries with stops, locations, pace, packages and coverage, active time, recorded roads, rescues, busiest weekday, fastest recent route, and most-active Route Family. Sharing excludes maps, coordinates, addresses, route IDs, exact workday times, and private family names.
+- **Backward-compatible data and exports:** RouteHeat 5.0 keeps schema 4 for these additive fields, so older finished routes, restored routes, rescue merges, and current Supabase JSON rows remain usable. CSV retains its original 37-column order and appends seven 5.0 fields.
 
 ## RouteHeat 4.1 Route Story & Workload update
 
@@ -61,7 +74,38 @@ RouteHeat is a mobile-first delivery performance tracker for iPhone and Android.
 - Recently Deleted recovery for complete finished-route copies, with local/cloud status and restore confirmation
 - Installable static PWA shell suitable for GitHub Pages
 
-## Using the new 4.0 tools
+## Using RouteHeat 5.0
+
+### Start with a Route Family and Ghost level
+
+1. Choose **Start route** while parked and enter planned stops, optional packages, and the pace goal.
+2. Leave **Personal Ghost** on or turn it off for this workday.
+3. Choose **Adaptive**, **Cruise**, **Standard**, **Expert**, or **Personal best**. The setup preview names the actual saved route RouteHeat expects to use when one is available.
+4. Start the route. A predicted family may appear first; saved GPS delivery stops confirm the final family with a confidence label. The selected Ghost stays fixed for a fair comparison.
+
+Open **History -> Name route families** to replace an automatic family label with a private name. Renaming changes the display label only; it does not split routes, alter GPS history, or change the stable family ID.
+
+### Read the forecast and Smart Coach
+
+The Live and Drive screens show a finish range and confidence level. Confidence normally improves as RouteHeat collects stop intervals and finds comparable family history. The range is a personal estimate, not a navigation promise or a reason to rush.
+
+Smart Coach chooses one short observation at a time. Detailed Ghost charts, filters, replay controls, reports, and family naming are parked-only tools.
+
+### Extend a workday with a rescue
+
+Start a rescue from Route Tools, the finish confirmation, or a finished route report. Enter the added planned stops and added packages when known. RouteHeat keeps continuous stop numbering and workday totals while preserving the original and rescue phases. A skipped package field creates an honest partial total marked with `+` instead of assuming zero.
+
+### Filter the All-time map
+
+Open **All time -> Advanced filters**. Combine Route Family, phase, weekday, time of day, pace band, location source, visit threshold, recency, or explicit dates, then choose **Apply filters**. **Reset** returns to the full private history. The four map modes—Streets, Density, Pace trails, and Repeat stops—operate on the temporary filtered projection without editing the underlying routes.
+
+### Use History Studio replay and recaps
+
+Open a saved route and choose **Map & replay**. Use Replay, the speed buttons, the scrubber, or a chapter for a tote, rescue, saved gap, fast stretch, slow stretch, or finish. Ghost overlay is available only when that saved route retained a real comparable Ghost curve. The map redraws the saved route state when seeking; it does not create new delivery data.
+
+History generates a 7-day and 30-day recap when opened. **Share** sends aggregate performance text only—never the map, GPS coordinates, route IDs, addresses, exact route times, or private family names.
+
+## Using the 4.0 route tools
 
 ### Personal Ghost Run
 
@@ -107,11 +151,11 @@ The status explains where the complete recovery copy came from:
 - **Cloud protected** means a private Supabase tombstone, or its cached device copy, contains the finished route.
 - **On this device** means recovery currently depends on this installation's local copy.
 
-Offline or signed-out recovery returns an eligible route to local History immediately. Keep RouteHeat installed and preserve its website data until an authenticated **Sync now** completes; only then is cloud reactivation confirmed. Close any other open RouteHeat tabs and update older installations to 4.0.4 before using them again. CSV exports are useful private archives, but RouteHeat does not import CSV, so a CSV alone cannot rebuild History.
+Offline or signed-out recovery returns an eligible route to local History immediately. Keep RouteHeat installed and preserve its website data until an authenticated **Sync now** completes; only then is cloud reactivation confirmed. Close any other open RouteHeat tabs and update older installations to RouteHeat 5.0.0 before using them again. CSV exports are useful private archives, but RouteHeat does not import CSV, so a CSV alone cannot rebuild History.
 
 A restored route receives newer revision metadata and its matching deletion records are cleared. That lets newer clients reject stale data from an older device. A future intentional deletion still works normally.
 
-## CSV export in 4.1
+## CSV export in 5.0
 
 CSV export still includes stops, tote changes, rescue starts, route starts, and GPS track points. RouteHeat 4.0 adds fields that preserve corrections and workday structure:
 
@@ -126,10 +170,13 @@ CSV export still includes stops, tote changes, rescue starts, route starts, and 
 - `average_stop_interval_seconds` and `median_stop_interval_seconds`
 - `service_estimate_seconds`, `service_estimate_source`, and `service_estimate_confidence`
 - `location_source`, `manual_original_latitude`, and `manual_original_longitude`
+- `route_family_id`, `route_family_name`, and `route_family_confidence`
+- `ghost_enabled`, `ghost_difficulty`, and `ghost_route_id`
+- `phase_planned_stops_added`
 
 Latitude, longitude, GPS accuracy, location count, event time, segment duration, and segment pace remain available where applicable.
 
-CSV is an analysis/archive format, not an app backup format. RouteHeat 4.1.0 does not include CSV or JSON import.
+The seven RouteHeat 5.0 fields are appended after the original 37 columns, so existing column positions remain stable. CSV is an analysis/archive format, not an app backup format. RouteHeat 5.0.0 does not include CSV or JSON import.
 
 ## Publish on GitHub Pages
 
@@ -159,7 +206,7 @@ Open the published site in Safari, tap **Share**, choose **Add to Home Screen**,
 
 ## Install on Android
 
-Open the published site in Chrome, open the browser menu, and choose **Install app** or **Add to Home screen**. A separate Android Studio project mirrors the same RouteHeat 4.1 interface and can be used to build an APK.
+Open the published site in Chrome, open the browser menu, and choose **Install app** or **Add to Home screen**. A separate Android Studio project mirrors the same RouteHeat 5.0 interface and can be used to build an APK.
 
 ## Route data, cloud sync, and compatibility
 
@@ -167,7 +214,8 @@ Open the published site in Chrome, open the browser menu, and choose **Install a
 - Finished history remains cached locally for offline use. After cloud sign-in, finished routes are also backed up to the user's private Supabase account.
 - Removing or retiring a finished route keeps a recoverable full-data entry when one is available. Recently Deleted can combine the newest local recovery records with private Supabase tombstones after sign-in.
 - Restoring while offline or signed out succeeds locally and waits for the next authenticated online sync. Until that sync finishes, clearing storage or reinstalling can still erase the only restored copy.
-- Existing RouteHeat routes remain compatible. Missing 4.0 fields are normalized when loaded; older routes cannot recreate GPS paths or visit coordinates that were never recorded.
+- Existing RouteHeat routes remain compatible. Missing 4.x and 5.0 fields are normalized or derived when loaded; older routes cannot recreate GPS paths, visit coordinates, package counts, or Ghost curves that were never recorded.
+- RouteHeat 5.0 keeps schema version 4 for its additive family, Ghost, rescue-planning, and export metadata. This avoids making an older active rescue edit lose solely because another device saw a higher schema number.
 - Each edited or merged route keeps the same logical route ID and receives schema/revision/update metadata. During sync, the newer logical version wins instead of blindly overwriting a correction with a stale device copy.
 - Deletion ledgers and Supabase tombstones take priority over stale live copies. A confirmed recovery removes its exact deletion records and advances the route revision before cloud reactivation, preventing an older device from undoing that recovery.
 - Complete the one-time instructions in `SUPABASE_SETUP.md` before using Cloud backup.
@@ -178,7 +226,8 @@ Open the published site in Chrome, open the browser menu, and choose **Install a
 ## Privacy and safety
 
 - RouteHeat does not need street addresses for repeat-stop history. It compares approximate saved GPS areas on the device.
-- Ghost Run uses only the signed-in user's own saved routes.
+- Ghost Run, Route Families, ETA comparisons, Coach insights, map filters, and weekly recaps use only the signed-in user's own saved history.
+- Custom family names are device preferences and are excluded from the weekly share summary. Route GPS remains protected by the existing private route row and Supabase Row Level Security.
 - Cloud GPS history is protected by Supabase Row Level Security and is private to the signed-in account.
 - Do not publish a CSV if it contains GPS coordinates you want to keep private.
 - Use all controls only while parked. RouteHeat must never encourage speeding or distracted driving.
@@ -187,7 +236,7 @@ Open the published site in Chrome, open the browser menu, and choose **Install a
 
 - `index.html` - application interface
 - `assets/styles.css` - responsive Dark and Sunlight theme system
-- `assets/app.js` - GPS, routes, corrections, rescues, Ghost Run, maps, analytics, reports, and replay
+- `assets/app.js` - GPS, routes, corrections, rescues, Route Families, Ghost selection, ETA/Coach logic, filters, recaps, maps, reports, and replay
 - `assets/cloud.js` - authentication, revision-aware backup, recoverable tombstones, stale-deletion protection, offline retry, and restore
 - `assets/supabase-config.js` - Supabase project URL and browser-safe publishable key
 - `manifest.webmanifest` - installable app metadata

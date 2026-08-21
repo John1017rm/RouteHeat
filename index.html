@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="RouteHeat">
-  <meta name="description" content="GPS street-route recording, delivery pace tracking, route history, and lifetime coverage maps.">
+  <meta name="description" content="Private delivery intelligence with Route Families, selectable Ghost runs, ETA coaching, rescue workload, filtered maps, weekly recaps, and street replay.">
   <script>try{const p=localStorage.getItem('routeheat.theme')||'dark',light=matchMedia('(prefers-color-scheme:light)').matches;document.documentElement.dataset.theme=p==='auto'?(light?'sunlight':'dark'):p}catch(e){document.documentElement.dataset.theme='dark'}</script>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icon-192-v2.png">
@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://unpkg.com">
   <link rel="preconnect" href="https://tile.openstreetmap.org">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-  <link rel="stylesheet" href="assets/styles.css?v=4.1.0">
+  <link rel="stylesheet" href="assets/styles.css?v=5.0.0">
   <title>RouteHeat — Delivery Pace</title>
 </head>
 <body>
@@ -50,7 +50,14 @@
             <article class="stat-card"><p>OVERALL PACE</p><strong><span id="overallPace">—</span><small> /hr</small></strong><span>Since route start</span></article>
             <article class="stat-card"><p>LAST SEGMENT</p><strong><span id="segmentPace">—</span><small> /hr</small></strong><span id="segmentTime">Complete a stop</span></article>
           </div>
-          <div id="goalStrip" class="goal-strip"><div><span>PACE GOAL</span><b id="goalStatus">Set a goal before starting</b></div><div class="goal-projection"><span>PROJECTED FINISH</span><b id="finishProjection">—</b></div></div>
+          <div id="goalStrip" class="goal-strip">
+            <div class="goal-strip-target"><span>PACE GOAL</span><b id="goalStatus">Set a goal before starting</b></div>
+            <div class="goal-projection"><span>PROJECTED FINISH</span><b id="finishProjection">—</b><small id="etaConfidence" class="eta-confidence waiting">Waiting for route pace</small></div>
+          </div>
+          <section id="smartCoach" class="smart-coach" role="status" aria-live="polite" hidden>
+            <span class="smart-coach-icon" aria-hidden="true">◆</span>
+            <div class="smart-coach-copy"><div class="smart-coach-meta"><span>SMART COACH</span><span id="routeFamilyLive" class="route-family-badge family-confidence low">Finding route family</span></div><b id="smartCoachTitle">Building today’s read</b><p id="smartCoachMessage">RouteHeat will surface one useful, personal pacing insight at a time.</p></div>
+          </section>
           <div class="auto-detect-card"><div class="auto-copy"><span class="auto-icon">⌁</span><div><b>Auto-detect stops <em>EXPERIMENTAL</em></b><small id="autoStatus">Off · manual button still available</small></div></div><label class="switch"><input id="autoToggle" type="checkbox" aria-label="Toggle automatic stop detection"><span></span></label></div>
           <div id="autoUndo" class="auto-undo" hidden><span><b>Stop counted automatically</b><small>Not a delivery stop?</small></span><button id="undoAuto">Undo</button></div>
 
@@ -71,11 +78,12 @@
       <section id="driveView" class="view drive-view">
         <div class="drive-top"><div><p class="eyebrow">DRIVE MODE</p><h1 id="driveState">Ready to start</h1></div><button id="driveToolsBtn" class="drive-tools-btn" type="button" disabled aria-haspopup="dialog" aria-controls="routeToolsModal"><span>•••</span> Route tools</button></div>
         <div id="driveProgress" class="drive-progress" role="progressbar" aria-label="Route stop progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="drive-progress-head"><span>ROUTE PROGRESS</span><strong id="driveProgressPercent">0%</strong></div><div class="drive-progress-track"><i id="driveProgressFill"></i></div><div class="drive-progress-copy"><b id="driveProgressCount">0 of 0 stops</b><span id="driveProgressLeft">Set your stop goal to begin</span></div></div>
-        <section id="ghostCard" class="ghost-card" hidden><button id="ghostToggle" type="button" aria-expanded="false" aria-haspopup="dialog" aria-controls="ghostRunModal"><span class="ghost-emblem" aria-hidden="true">G</span><span><small id="ghostLabel">PERSONAL GHOST RUN</small><strong id="ghostHeadline">Running with a past route</strong><em id="ghostSubline">Tap for the live comparison</em></span><b aria-hidden="true">›</b></button></section>
+        <section id="ghostCard" class="ghost-card ghost-adaptive" hidden><button id="ghostToggle" type="button" aria-expanded="false" aria-haspopup="dialog" aria-controls="ghostRunModal"><span class="ghost-emblem" aria-hidden="true">G</span><span class="ghost-card-copy"><small id="ghostLabel">PERSONAL GHOST RUN</small><strong id="ghostHeadline">Running with a past route</strong><em id="ghostSubline">Tap for the live comparison</em><span id="ghostRaceChip" class="ghost-race-chip even" data-state="even"><i aria-hidden="true"></i><b id="ghostRaceDelta">Even</b></span></span><b aria-hidden="true">›</b></button></section>
         <div class="speedometer"><button id="driveStopBtn" class="speed-ring drive-speed-stop" type="button" disabled aria-label="Stop complete. Start a route first."><span class="drive-speed-label">OVERALL PACE</span><strong id="drivePace">—</strong><small class="drive-speed-unit">STOPS / HOUR</small><span class="drive-speed-action"><i>✓</i><b>STOP COMPLETE</b></span><small id="driveStopHint" class="drive-speed-hint">Start your route first</small></button><div id="driveGoal" class="drive-goal">Set a route goal to begin</div></div>
         <button id="driveStartBtn" class="drive-start">Start route</button>
         <div class="drive-actions"><button id="driveMultiStopBtn" class="drive-multi" disabled><span>M</span><b>MULTI-LOCATION</b><small>2+ delivery locations</small></button><button id="driveToteBtn" class="drive-tote" disabled><span>＋</span><b>NEW TOTE</b><small id="driveToteHint">Mark location</small></button></div>
-        <div class="drive-stats"><div><span>STOPS / LOC.</span><b id="driveStops">0 / 0</b></div><div><span>ACTIVE TIME</span><b id="driveTime">00:00</b></div><div><span>LAST SEGMENT</span><b id="driveLast">—</b></div><div><span>FINISH</span><b id="driveFinish">—</b></div></div>
+        <div class="drive-stats"><div><span>STOPS / LOC.</span><b id="driveStops">0 / 0</b></div><div><span>ACTIVE TIME</span><b id="driveTime">00:00</b></div><div><span>LAST SEGMENT</span><b id="driveLast">—</b></div><div class="drive-finish-stat"><span>FINISH RANGE</span><b id="driveFinish">—</b><small id="driveEtaConfidence" class="eta-confidence waiting">Waiting for pace</small></div></div>
+        <section id="driveCoach" class="drive-coach" role="status" aria-live="polite" hidden><span aria-hidden="true">◆</span><div><b>Smart Coach</b><p>Your next personal pacing insight will appear here.</p></div></section>
         <div class="drive-controls"><button id="drivePauseBtn" disabled>Ⅱ Pause</button><button id="driveFinishBtn" disabled>Finish route</button></div>
         <p class="safety-note"><span>◆</span> Only interact with RouteHeat while parked.</p>
       </section>
@@ -83,6 +91,14 @@
       <section id="historyView" class="view history-view">
         <div class="page-head"><div><p class="eyebrow">YOUR PERFORMANCE</p><h1>Route history</h1></div><button id="exportAll" class="secondary-btn">Export all</button></div>
         <div id="historySummary" class="history-summary"></div>
+        <section id="weeklyRecap" class="weekly-recap" aria-labelledby="weeklyRecapTitle" hidden>
+          <div class="weekly-recap-head"><div><p class="eyebrow">YOUR WEEK</p><h2 id="weeklyRecapTitle">Weekly recap</h2><p id="weeklyRecapRange">Your latest 7 and 30 days</p></div><button id="shareWeeklyRecap" class="weekly-recap-share" type="button" aria-label="Share your weekly RouteHeat recap"><span aria-hidden="true">↗</span> Share</button></div>
+          <p id="weeklyRecapSummary" class="weekly-recap-summary">A private look at your own recent workload, pace, and consistency.</p>
+          <div id="weeklyRecapMetrics" class="weekly-recap-metrics"></div>
+          <div id="weeklyRecapHighlights" class="weekly-recap-highlights"></div>
+          <p id="weeklyRecapTrend" class="weekly-recap-trend" role="status" aria-live="polite"></p>
+          <p class="weekly-recap-privacy">Personal history only · no leaderboard or driver ranking.</p>
+        </section>
         <section id="awardsPreview" class="awards-preview" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="awardsModal">
           <div class="awards-preview-top"><span class="awards-preview-emblem" aria-hidden="true"><i></i><b>RH</b></span><div><p class="eyebrow">ACHIEVEMENT CENTER</p><h2 id="awardsPreviewTitle">Begin your legacy</h2><small id="awardsPreviewDetail">Complete a route to earn your first badge.</small></div><span id="awardsPreviewCount" class="awards-preview-count">0 / 44</span></div>
           <div id="awardsPreviewBadges" class="awards-preview-badges" aria-label="Latest unlocked awards"></div>
@@ -90,9 +106,9 @@
           <p>View badges, locked goals, lifetime totals, records, and what to chase next <span aria-hidden="true">›</span></p>
         </section>
         <section id="toteAnalytics" class="analytics-card tote-analytics-trigger" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="toteAnalyticsModal"><div class="section-head"><div><p class="eyebrow">TOTE PERFORMANCE</p><h2>Tote analytics</h2></div><div class="tote-card-action"><span id="toteAnalyticsBadge" class="count-badge">0 tracked</span><span class="tote-card-arrow" aria-hidden="true">›</span></div></div><div id="toteMetrics" class="tote-metrics"></div><div id="toteRanking" class="tote-ranking"></div><p class="tote-tap-hint">Tap for complete tote history and performance</p></section>
-        <div class="history-toolbar" role="group" aria-label="Route history sorting">
+        <div class="history-toolbar" role="group" aria-label="Route history controls">
           <div class="history-toolbar-copy"><span>Saved workdays</span><b id="historyResultCount" role="status" aria-live="polite">0 saved routes</b></div>
-          <label class="history-sort-control" for="historySort"><span>Sort routes</span><select id="historySort" aria-describedby="historyResultCount"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="stops">Most stops</option><option value="locations">Most locations</option><option value="packages">Most packages</option><option value="load">Highest load</option><option value="active">Longest active time</option><option value="distance">Longest distance</option><option value="fastest">Fastest pace</option><option value="slowest">Slowest pace</option><option value="interval">Fastest stop interval</option><option value="rescues">Most rescues</option></select></label>
+          <div class="history-toolbar-actions"><label class="history-sort-control" for="historySort"><span>Sort routes</span><select id="historySort" aria-describedby="historyResultCount"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="stops">Most stops</option><option value="locations">Most locations</option><option value="packages">Most packages</option><option value="load">Highest load</option><option value="active">Longest active time</option><option value="distance">Longest distance</option><option value="fastest">Fastest pace</option><option value="slowest">Slowest pace</option><option value="interval">Fastest stop interval</option><option value="rescues">Most rescues</option></select></label><button id="manageRouteFamilies" class="family-manage-button" type="button" aria-haspopup="dialog" aria-controls="familyModal"><span aria-hidden="true">✎</span> Name route families</button></div>
         </div>
         <div id="historyList" class="history-list"></div>
       </section>
@@ -100,6 +116,25 @@
       <section id="heatView" class="view heat-view">
         <div class="page-head heat-head"><div><p class="eyebrow">LIFETIME COVERAGE</p><h1>All-time map</h1><p>See every recorded street, delivery area, and long-term performance trend.</p></div></div>
         <div class="heat-toolbar"><div class="segmented" id="heatRange"><button data-range="7">7 days</button><button data-range="30">30 days</button><button class="active" data-range="all">All time</button></div><div class="segmented" id="heatMode"><button class="active" data-mode="streets">Streets</button><button data-mode="density">Density</button><button data-mode="pace">Pace trails</button><button data-mode="visits">Repeat stops</button></div></div>
+        <details id="heatAdvancedFilters" class="heat-advanced-filters">
+          <summary><span><b>Advanced filters</b><small>Refine your private route history</small></span><span id="heatFilterCount" class="heat-filter-count">All data</span></summary>
+          <div id="heatAdvancedPanel" class="heat-advanced-panel">
+            <div class="heat-filter-grid">
+              <label>RECENCY<select id="heatTimeFilter"><option value="all">All saved time</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="365">Last year</option></select></label>
+              <label>ROUTE FAMILY<select id="heatRouteFamilyFilter"><option value="all">All route families</option></select></label>
+              <label>ROUTE PHASE<select id="heatPhaseFilter"><option value="all">All phases</option><option value="original">Original phase</option><option value="rescue">Rescue phases</option></select></label>
+              <label>DAY OF WEEK<select id="heatDayFilter"><option value="all">Every day</option><option value="weekdays">Weekdays</option><option value="weekends">Weekends</option><option value="mon">Monday</option><option value="tue">Tuesday</option><option value="wed">Wednesday</option><option value="thu">Thursday</option><option value="fri">Friday</option><option value="sat">Saturday</option><option value="sun">Sunday</option></select></label>
+              <label>TIME OF DAY<select id="heatTimeOfDayFilter"><option value="all">Any time of day</option><option value="morning">Early morning · before 9 AM</option><option value="before-noon">Late morning · 9 AM–noon</option><option value="afternoon">Afternoon · noon–5 PM</option><option value="evening">Evening · after 5 PM</option></select></label>
+              <label>PACE BAND<select id="heatPaceBand"><option value="all">Every pace</option><option value="fast">Historically faster</option><option value="steady">Historically steady</option><option value="slow">Historically slower</option></select></label>
+              <label>LOCATION SOURCE<select id="heatLocationSource"><option value="all">GPS + corrected</option><option value="gps">GPS recorded</option><option value="manual">Manually corrected</option></select></label>
+              <label>MINIMUM VISITS<input id="heatMinVisits" type="number" inputmode="numeric" min="1" max="99" step="1" value="1"></label>
+              <label>FROM DATE<input id="heatDateFrom" type="date"></label>
+              <label>TO DATE<input id="heatDateTo" type="date"></label>
+            </div>
+            <div class="heat-filter-actions"><button id="heatFilterReset" class="secondary-btn" type="button">Reset</button><button id="heatFilterApply" class="route-toggle" type="button">Apply filters</button></div>
+            <p id="heatFilterSummary" class="heat-filter-summary" role="status" aria-live="polite">Showing all saved deliveries.</p>
+          </div>
+        </details>
         <div id="heatSummary" class="history-summary heat-summary"></div>
         <section id="heatMapCard" class="zone-section heat-card"><button id="expandHeatMap" class="map-expand-btn" type="button" aria-label="Open all-time map full screen" aria-expanded="false">⛶ <span>Full screen</span></button><div id="zoneMap"></div><div id="heatLegend" class="heat-gradient-legend"><span>Fewer deliveries</span><i></i><span>Most deliveries</span></div><p id="heatMapHint" class="heat-map-hint">Numbers mark visits to the same GPS delivery area.</p><div id="zoneList" class="zone-list"></div></section>
         <p class="heat-privacy">◆ Heat map data stays in this browser on your device.</p>
@@ -144,7 +179,9 @@
     <div class="modal-card"><div class="modal-icon delete-icon">×</div><h2 id="deleteModalTitle">Delete this route?</h2><p id="deleteRouteSummary">This saved route will be removed.</p><p class="delete-warning">It will be removed from History and your cloud route list. You can recover it from Settings → Recently Deleted while a complete recovery copy remains.</p><div class="modal-actions"><button id="cancelDelete" class="secondary-btn" type="button">Keep route</button><button id="confirmDelete" class="danger-btn" type="button">Delete route</button></div></div>
   </div>
   <div id="goalModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="goalModalTitle">
-    <div class="modal-card goal-modal-card"><div class="modal-icon goal-icon">◎</div><h2 id="goalModalTitle">Set today’s target</h2><p>RouteHeat will track whether you’re ahead of pace and project your finish time.</p><label class="form-label">PACE GOAL <span>stops per hour</span><input id="paceGoalInput" type="number" inputmode="decimal" min="1" max="99" step="0.5" value="20"></label><div class="goal-input-grid"><label class="form-label">PLANNED STOPS <span>for finish projection</span><input id="plannedStopsInput" type="number" inputmode="numeric" min="1" max="999" step="1" value="100"></label><label class="form-label">TOTAL PACKAGES <span>optional</span><input id="totalPackagesInput" type="number" inputmode="numeric" min="0" max="9999" step="1" placeholder="Optional"></label></div><div class="modal-actions"><button id="cancelGoal" class="secondary-btn">Cancel</button><button id="confirmGoal" class="route-toggle">Start route</button></div></div>
+    <div class="modal-card goal-modal-card"><div class="modal-icon goal-icon">◎</div><h2 id="goalModalTitle">Set today’s target</h2><p>RouteHeat will track your personal pace and project a finish-time range.</p><label class="form-label">PACE GOAL <span>stops per hour</span><input id="paceGoalInput" type="number" inputmode="decimal" min="1" max="99" step="0.5" value="20"></label><div class="goal-input-grid"><label class="form-label">PLANNED STOPS <span>for finish projection</span><input id="plannedStopsInput" type="number" inputmode="numeric" min="1" max="999" step="1" value="100"></label><label class="form-label">TOTAL PACKAGES <span>optional</span><input id="totalPackagesInput" type="number" inputmode="numeric" min="0" max="9999" step="1" placeholder="Optional"></label></div>
+      <section class="goal-ghost-setup" aria-labelledby="goalGhostTitle"><div class="goal-ghost-head"><div><b id="goalGhostTitle">Personal Ghost</b><small>Compare only with one of your own saved routes.</small></div><label class="switch goal-ghost-switch"><input id="ghostEnabledInput" type="checkbox" checked aria-label="Use a personal Ghost for this route" aria-describedby="ghostSetupSummary"><span></span></label></div><label class="form-label goal-ghost-difficulty">GHOST DIFFICULTY <span>how firmly to match</span><select id="ghostDifficultyInput"><option value="adaptive">Adaptive · best fit</option><option value="cruise">Cruise · extra breathing room</option><option value="standard">Standard · closely matched</option><option value="expert">Expert · a measured stretch</option><option value="personal-best">Personal best · your best comparable day</option></select></label><div class="goal-ghost-preview"><p id="ghostSetupSummary" role="status" aria-live="polite">RouteHeat will choose a comparable route after you start.</p><p id="routeFamilyPreview" class="route-family-preview" role="status" aria-live="polite">Route family: waiting for today’s plan</p></div></section>
+      <div class="modal-actions"><button id="cancelGoal" class="secondary-btn">Cancel</button><button id="confirmGoal" class="route-toggle">Start route</button></div></div>
   </div>
   <div id="multiStopModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="multiStopTitle">
     <div class="modal-card multi-stop-modal-card"><div class="modal-icon multi-stop-modal-icon">M</div><h2 id="multiStopTitle">Multi-location stop</h2><p>This remains one Amazon stop while RouteHeat records the actual delivery workload.</p><div class="multi-location-stepper"><button id="multiMinus" type="button" aria-label="Remove one location">−</button><div><strong id="multiLocationCount" aria-live="polite">2</strong><span>DELIVERY LOCATIONS</span></div><button id="multiPlus" type="button" aria-label="Add one location">＋</button></div><div class="modal-actions"><button id="cancelMultiStop" class="secondary-btn" type="button">Cancel</button><button id="confirmMultiStop" class="multi-save-btn" type="button">Save 2 locations</button></div></div>
@@ -173,17 +210,34 @@
     </div>
   </div>
   <div id="rescueModal" class="modal rescue-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="rescueTitle">
-    <div class="modal-card rescue-card"><div class="modal-icon rescue-icon">R</div><p class="eyebrow">EXTEND THE WORKDAY</p><h2 id="rescueTitle">Start Rescue 1?</h2><p id="rescueSummary">Your original-route totals stay intact and new stops continue the same count.</p><label class="form-label">ADDED PLANNED STOPS <span>optional estimate</span><input id="rescueStopsInput" type="number" inputmode="numeric" min="0" max="999" value="25"></label><div class="modal-actions"><button id="cancelRescue" class="secondary-btn" type="button">Cancel</button><button id="confirmRescue" class="rescue-btn" type="button">Begin rescue</button></div></div>
+    <div class="modal-card rescue-card"><div class="modal-icon rescue-icon">R</div><p class="eyebrow">EXTEND THE WORKDAY</p><h2 id="rescueTitle">Start Rescue 1?</h2><p id="rescueSummary">Your original-route totals stay intact and new stops continue the same count.</p><div class="rescue-plan-grid"><label class="form-label">ADDED PLANNED STOPS <span>optional estimate</span><input id="rescueStopsInput" type="number" inputmode="numeric" min="0" max="999" value="25"></label><label class="form-label">ADDED PACKAGES <span>optional estimate</span><input id="rescuePackagesInput" type="number" inputmode="numeric" min="0" max="9999" placeholder="Optional"></label></div><p class="rescue-plan-hint">These estimates extend today’s totals; they do not start a separate route.</p><div class="modal-actions"><button id="cancelRescue" class="secondary-btn" type="button">Cancel</button><button id="confirmRescue" class="rescue-btn" type="button">Begin rescue</button></div></div>
   </div>
   <div id="mergeModal" class="modal merge-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="mergeTitle">
     <div class="modal-card merge-card"><div class="modal-icon rescue-icon">⇄</div><p class="eyebrow">RESCUE ROUTE REPAIR</p><h2 id="mergeTitle">Combine saved routes</h2><p id="mergeSummary">The later route will become a rescue phase of the earlier route.</p><label class="form-label">COMBINE WITH<select id="mergeCandidate"></select></label><p class="merge-warning">This replaces the two saved routes with one workday and recalculates totals, XP, and achievements.</p><div class="modal-actions"><button id="cancelMerge" class="secondary-btn" type="button">Cancel</button><button id="confirmMerge" class="rescue-btn" type="button">Combine routes</button></div></div>
+  </div>
+  <div id="familyModal" class="modal family-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="familyModalTitle" aria-describedby="familyModalDescription">
+    <div class="family-sheet" tabindex="-1">
+      <header class="family-head"><div><p class="eyebrow">PERSONAL ROUTE LIBRARY</p><h2 id="familyModalTitle">Name route families</h2><p id="familyModalDescription">Give familiar delivery areas a private name that makes sense to you.</p></div><button id="closeFamilyModal" class="icon-btn close-btn" type="button" aria-label="Close route family names">&times;</button></header>
+      <div class="family-body">
+        <div id="familyList" class="family-list" role="list" aria-label="Detected route families"></div>
+        <section class="family-editor" aria-labelledby="familyEditorLabel"><p id="familyEditorLabel">Choose a detected family to rename.</p><label class="form-label">PRIVATE FAMILY NAME <span>32 characters maximum</span><input id="familyNameInput" type="text" maxlength="32" autocomplete="off" placeholder="Example: North apartments"></label><div class="family-editor-actions"><button id="resetFamilyName" class="secondary-btn" type="button">Use automatic name</button><button id="saveFamilyName" class="route-toggle" type="button">Save name</button></div><p class="family-privacy"><span aria-hidden="true">◆</span> Names stay with your private RouteHeat data. Coordinates are never shown here.</p></section>
+      </div>
+      <footer class="family-footer"><button id="doneFamilyNames" class="secondary-btn" type="button">Done</button></footer>
+    </div>
   </div>
   <div id="routeModal" class="modal route-detail-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="detailTitle" aria-describedby="detailSubtitle">
     <div class="route-detail-card">
       <div class="route-detail-head"><div><p class="eyebrow">SAVED ROUTE</p><h2 id="detailTitle">Route details</h2><p id="detailSubtitle"></p></div><div class="detail-head-actions"><button id="detailMergeBtn" class="replay-btn" type="button">⇄ Merge</button><button id="detailReplayBtn" class="replay-btn">▶ Replay</button><button id="closeRouteDetail" class="icon-btn close-btn" aria-label="Close route details">×</button></div></div>
       <div id="historyMap" aria-label="Saved route map"></div>
-      <div id="replayProgressbar" class="replay-track" role="progressbar" aria-label="Route replay progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="replayProgress"></i><span id="replayStatus" aria-live="polite">Full route</span></div>
-      <div class="replay-speed-row"><span>REPLAY SPEED</span><div id="replaySpeed" class="replay-speed" role="group" aria-label="Route replay speed"><button type="button" data-speed="0.5" aria-pressed="false">0.5×</button><button type="button" data-speed="1" class="active" aria-pressed="true">1×</button><button type="button" data-speed="2" aria-pressed="false">2×</button><button type="button" data-speed="4" aria-pressed="false">4×</button></div></div>
+      <section id="replayPanel" class="replay-panel" aria-label="Route replay controls">
+        <div class="replay-timeline-head"><div><span>ROUTE TIMELINE</span><b id="replayTimelineLabel">Start of route</b></div><button id="replayGhostToggle" class="replay-ghost-toggle" type="button" aria-pressed="false"><span aria-hidden="true">G</span><b>Ghost overlay</b><small id="replayGhostStatus">Off</small></button></div>
+        <div id="replayProgressbar" class="replay-track" role="progressbar" aria-label="Route replay progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="replayProgress"></i><span id="replayStatus" aria-live="polite">Full route</span></div>
+        <label class="replay-scrubber-label" for="replayScrubber"><span>SCRUB THROUGH SAVED ROUTE</span><input id="replayScrubber" type="range" min="0" max="1000" step="1" value="0" aria-describedby="replayParkedNote"></label>
+        <div id="replayChapters" class="replay-chapters" role="group" aria-label="Replay chapters"></div>
+        <div id="replayLivePanel" class="replay-live-panel" aria-label="Replay position details"><div><span>STOP</span><b id="replayLiveStop">Start</b></div><div><span>TIME</span><b id="replayLiveTime">00:00</b></div><div><span>PACE</span><b id="replayLivePace">—</b></div><div><span>PHASE</span><b id="replayLivePhase">Original</b></div><div class="replay-live-delta"><span>GHOST DELTA</span><b id="replayLiveDelta">Off</b></div></div>
+        <div class="replay-speed-row"><span>REPLAY SPEED</span><div id="replaySpeed" class="replay-speed" role="group" aria-label="Route replay speed"><button type="button" data-speed="0.5" aria-pressed="false">0.5×</button><button type="button" data-speed="1" class="active" aria-pressed="true">1×</button><button type="button" data-speed="2" aria-pressed="false">2×</button><button type="button" data-speed="4" aria-pressed="false">4×</button></div></div>
+        <p id="replayParkedNote" class="replay-parked-note"><span aria-hidden="true">◆</span> Use timeline, chapter, and Ghost controls only while parked.</p>
+      </section>
       <div class="detail-legend legend"><span><i class="fast"></i>Fast</span><span><i class="steady"></i>Steady</span><span><i class="slow"></i>Slow</span><span><i class="multi-key"></i>Multi-location</span></div>
       <div id="detailMetrics" class="detail-metrics"></div><div id="detailComparison" class="route-comparison"></div><div id="detailStops" class="detail-stops"></div>
     </div>
@@ -281,7 +335,7 @@
 
   <div id="settingsModal" class="modal settings-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <div class="settings-sheet">
-      <div class="settings-head"><div><p class="eyebrow">ROUTEHEAT 4.1.0</p><h2 id="settingsTitle">Settings</h2><p>Make RouteHeat easier to see, hear, and use on the road.</p></div><button id="closeSettings" class="icon-btn close-btn" type="button" aria-label="Close settings">×</button></div>
+      <div class="settings-head"><div><p class="eyebrow">ROUTEHEAT 5.0.0</p><h2 id="settingsTitle">Settings</h2><p>Make RouteHeat easier to see, hear, and use on the road.</p></div><button id="closeSettings" class="icon-btn close-btn" type="button" aria-label="Close settings">×</button></div>
       <section class="settings-section"><div class="settings-section-title"><span class="settings-section-icon">☀</span><div><b>Appearance</b><small>Choose the best visibility for your environment.</small></div></div><div id="themeChoices" class="settings-choice three" role="group" aria-label="Color theme"><button type="button" data-theme="dark">Dark</button><button type="button" data-theme="sunlight">Sunlight</button><button type="button" data-theme="auto">Automatic</button></div></section>
       <section class="settings-section"><div class="settings-section-title"><span class="settings-section-icon">♪</span><div><b>Stop feedback</b><small>Configure confirmation sound and vibration.</small></div></div><label class="settings-toggle"><span><b>Confirmation sound</b><small>Play after every completed stop</small></span><span class="switch"><input id="settingsSound" type="checkbox"><i></i></span></label><div id="soundChoices" class="settings-choice four" role="group" aria-label="Confirmation sound"><button type="button" data-sound="chime">Chime</button><button type="button" data-sound="bell">Bell</button><button type="button" data-sound="voice">Voice</button><button type="button" data-sound="loud">Extra loud</button></div><label class="volume-control"><span><b>Sound level</b><output id="soundVolumeValue">100%</output></span><input id="soundVolume" type="range" min="20" max="100" step="5" value="100"></label><button id="testSound" class="settings-test" type="button">Test confirmation</button><label class="settings-toggle"><span><b>Vibration feedback</b><small>Distinct patterns for stops, multis, and totes</small></span><span class="switch"><input id="settingsVibration" type="checkbox"><i></i></span></label></section>
       <section class="settings-section"><div class="settings-section-title"><span class="settings-section-icon">⌖</span><div><b>Route behavior</b><small>Control automatic tracking preferences.</small></div></div><label class="settings-toggle"><span><b>Automatic stop detection</b><small>Experimental hands-free counting</small></span><span class="switch"><input id="settingsAutoDetect" type="checkbox"><i></i></span></label><label class="settings-toggle"><span><b>Follow vehicle on map</b><small>Keep the live map centered while routing</small></span><span class="switch"><input id="settingsMapFollow" type="checkbox"><i></i></span></label><div class="settings-row-label"><b>Distance units</b></div><div id="unitChoices" class="settings-choice two" role="group" aria-label="Distance units"><button type="button" data-units="miles">Miles</button><button type="button" data-units="kilometers">Kilometers</button></div></section>
@@ -316,8 +370,8 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="assets/supabase-config.js?v=4.1.0"></script>
-  <script src="assets/app.js?v=4.1.0"></script>
-  <script src="assets/cloud.js?v=4.1.0"></script>
+  <script src="assets/supabase-config.js?v=5.0.0"></script>
+  <script src="assets/app.js?v=5.0.0"></script>
+  <script src="assets/cloud.js?v=5.0.0"></script>
 </body>
 </html>

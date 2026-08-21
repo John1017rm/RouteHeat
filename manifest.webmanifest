@@ -1,7 +1,7 @@
 {
   "name": "RouteHeat — Delivery Pace",
   "short_name": "RouteHeat",
-  "description": "GPS delivery pace tracking with animated Ghost Run comparisons, package workload, street replay, route history, milestones, and cloud backup.",
+  "description": "Private GPS delivery intelligence with Route Families, selectable Ghost runs, ETA coaching, rescue workload, filtered maps, recaps, and street replay.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
