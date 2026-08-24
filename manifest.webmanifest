@@ -1,7 +1,7 @@
 {
   "name": "RouteHeat — Delivery Pace",
   "short_name": "RouteHeat",
-  "description": "Private GPS delivery intelligence with Route Families, selectable Ghost runs, ETA coaching, rescue workload, filtered maps, recaps, and street replay.",
+  "description": "Private GPS delivery intelligence with pre-route readiness, trained stop assistance, tote coaching, Route Families, Ghost runs, forecasts, recovery, and offline-ready tracking.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
