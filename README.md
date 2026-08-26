@@ -1,8 +1,15 @@
-# RouteHeat 6.1.1
+# RouteHeat 6.1.2
 
 RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone and Android. It records stops, locations, totes, rescues, packages, timing, and GPS breadcrumbs; compares a driver only with their own history; and turns finished workdays into maps, reports, replay, and long-term insights.
 
 > **Safety:** Use every RouteHeat control only while safely parked. Forecasts, Ghost comparisons, coaching, achievements, and historical pace are personal context—not targets or reasons to rush.
+
+## 6.1.2 fuller-route recovery
+
+- **Journal snapshot rescue:** Startup now inspects both the current and previous protected device snapshots before they can rotate out.
+- **Fuller-copy prompt:** If the journal contains a recent unfinished route with more stops than the local or History copy, RouteHeat offers the exact larger stop count for recovery.
+- **Non-destructive choice:** Choosing to keep the current copy does not clear or modify any active-route data.
+- **Safe rescue continuation:** Recovering a fuller draft preserves reopened-rescue handling when a shorter saved checkpoint exists in History.
 
 ## 6.1.1 finish-storage hotfix
 
