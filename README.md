@@ -1,8 +1,16 @@
-# RouteHeat 6.1.2
+# RouteHeat 6.1.3
 
 RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone and Android. It records stops, locations, totes, rescues, packages, timing, and GPS breadcrumbs; compares a driver only with their own history; and turns finished workdays into maps, reports, replay, and long-term insights.
 
 > **Safety:** Use every RouteHeat control only while safely parked. Forecasts, Ghost comparisons, coaching, achievements, and historical pace are personal context—not targets or reasons to rush.
+
+## 6.1.3 saved-route checkpoint repair
+
+- **History repair:** Saved-route details now include a Repair action for rebuilding missing completed stops from a screenshot or written checkpoint.
+- **Exact totals:** Enter target stops, Amazon's next stop, total active time, checkpoint time, and optional package count.
+- **Rescue reconstruction:** RouteHeat creates a recovered rescue phase, distributes only the missing stops across the added active time, and restores the exact total duration.
+- **No invented GPS:** Recovered stops are clearly marked corrections with unavailable locations. Existing stops, totes, GPS trail, and timing remain unchanged.
+- **Auditable correction:** The repair records its before/after counts, checkpoint, active-time target, and inserted stop IDs.
 
 ## 6.1.2 fuller-route recovery
 
