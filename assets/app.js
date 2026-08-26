@@ -31,7 +31,7 @@
   const HEAT_FILTER_DEFAULTS = Object.freeze({time:'all',family:'all',phase:'all',day:'all',timeOfDay:'all',pace:'all',source:'all',minVisits:1,dateFrom:'',dateTo:''});
   const HEAT_DAY_INDEX = Object.freeze({sun:0,mon:1,tue:2,wed:3,thu:4,fri:5,sat:6});
   const MAP_THEMES = new Set(['auto','standard','contrast','muted']);
-  let route = null, watchId = null, map = null, userMarker = null, routeLayer = null, liveTraceLine = null, timerId = null, historyMap = null, historyReplayLayer = null, stopLocationMap = null, zoneMap = null, reportMap = null, undoTimer = null, replayTimer = null, historyMapInitTimer = null, stopLocationMapInitTimer = null, confirmTimer = null, toteConfirmTimer = null, milestoneTimer = null, achievementTimer = null, activeSaveTimer = null, audioContext = null, audioNeedsRecovery = false, batteryManager = null, pendingRecoveryRoute = null, lastStopAction = 0, lastGpsAt = 0, lastGpsAccuracy = null;
+  let route = null, watchId = null, map = null, userMarker = null, routeLayer = null, liveTraceLine = null, timerId = null, historyMap = null, historyReplayLayer = null, stopLocationMap = null, zoneMap = null, reportMap = null, undoTimer = null, replayTimer = null, historyMapInitTimer = null, stopLocationMapInitTimer = null, confirmTimer = null, toteConfirmTimer = null, milestoneTimer = null, achievementTimer = null, activeSaveTimer = null, audioContext = null, audioNeedsRecovery = false, batteryManager = null, pendingRecoveryRoute = null, pendingRecoverySource = 'active', lastStopAction = 0, lastGpsAt = 0, lastGpsAccuracy = null;
   let autoMode = AUTO_MODES.has(localStorage.getItem(AUTO_MODE_STORE)) ? localStorage.getItem(AUTO_MODE_STORE) : localStorage.getItem('routeheat.autoDetect') === 'true' ? 'auto' : 'off';
   let autoEnabled = autoMode !== 'off', mapFollowEnabled = localStorage.getItem('routeheat.mapFollow') !== 'false', followMap = localStorage.getItem('routeheat.mapFollow') !== 'false';
   let detector = {phase:'moving',anchor:null,stoppedAt:null,last:null,moveHits:0};
@@ -220,7 +220,7 @@
   }
   async function initDurableStorage(){
     try{
-      const module=await import('./routeheat-storage.js?v=6.1.1');
+      const module=await import('./routeheat-storage.js?v=6.1.2');
       durableStorage=module.createRouteHeatStorage({keys:DURABLE_STORAGE_KEYS,arrayKeys:DURABLE_ARRAY_KEYS,objectKeys:DURABLE_OBJECT_KEYS,journalLimit:60,getLogicalClock:durableLogicalClock,onStatus:setDurableStorageStatus});
       const result=await durableStorage.init();durableStorageReady=true;
       const historyFailure=(result.failures||[]).some(item=>item?.key===STORE),journalHistoryRaw=result.snapshot?.values?.[STORE];
@@ -967,9 +967,49 @@
     $('#routeToggle').classList.add('running');$('#routeToggle').innerHTML='<span class="play">■</span><span>Finish</span>';$('#pauseBtn').hidden=false;$('#routeTitle').textContent=route.pausedAt?'On break':routeRescuePhases(route).length?'Rescue in progress':'Route in progress';$('#pauseBtn').innerHTML=route.pausedAt?'<span>▶</span><span>Resume</span>':'<span>Ⅱ</span><span>Pause</span>';const disabled=!!route.pausedAt;$('#stopBtn').disabled=disabled;$('#multiStopBtn').disabled=disabled;$('#toteBtn').disabled=disabled;$('#driveToolsBtn').disabled=false;$('#stopButtonHint').textContent=`Amazon stop ${route.amazon.nextStopNumber} • tap once when parked`;$('#toteButtonHint').textContent=route.currentToteNumber?`Tote ${route.currentToteNumber} open · tap for next tote`:'Marks this location on the map';
     clearInterval(timerId);timerId=setInterval(renderLive,1000);if(watchId!==null&&navigator.geolocation)navigator.geolocation.clearWatch(watchId);watchId=null;getPosition(center);ensureGpsWatch('session');startWriterHeartbeat();drawRoute();renderLive();loadUniversalUndo();saveActiveRoute(true);toast(recovered?'Route restored — all progress recovered':'Route started — drive safe');setTimeout(()=>(($('#driveView').classList.contains('active')?$('#driveStopBtn'):$('#routeToggle')))?.focus(),0);
   }
-  function offerRouteRecovery(){const saved=readActiveRoute();if(!saved)return;pendingRecoveryRoute=saved;const locations=routeLocations(saved),packages=routePackageStats(saved),savedAt=saved.draftSavedAt||saved.lastPosition?.timestamp||saved.startedAt;$('#recoverySummary').innerHTML=`<div><span>STARTED</span><b>${timeLabel(saved.startedAt)}</b></div><div><span>STOPS / LOC.</span><b>${saved.stops.length} / ${locations}</b></div><div><span>PACKAGES</span><b>${packageTotalLabel(packages)}</b></div><div><span>LAST SAVED</span><b>${timeLabel(savedAt)}</b></div>`;setTimeout(()=>{$('#recoveryModal').classList.add('open');$('#recoveryModal').setAttribute('aria-hidden','false');},520);}
-  function resumeRecoveredRoute(forceWriter=false){if(!pendingRecoveryRoute)return;const saved=pendingRecoveryRoute;if(!claimRouteWriter(saved.id,forceWriter)){openWriterConflict(()=>resumeRecoveredRoute(true),saved.id);return;}route=saved;pendingRecoveryRoute=null;startRouteSession(true,true);}
-  function discardRecoveredRoute(){pendingRecoveryRoute=null;clearActiveRoute();$('#recoveryModal').classList.remove('open');$('#recoveryModal').setAttribute('aria-hidden','true');toast('Unfinished route discarded');}
+  async function fullerJournalRouteCandidate(localDraft=null){
+    if(typeof durableStorage?.recoverySnapshots!=='function')return null;
+    let snapshots=[];
+    try{snapshots=await durableStorage.recoverySnapshots();}catch{return null;}
+    const baseline=[localDraft,...routes()].filter(Boolean),sameRoute=(first,second)=>String(first?.id||'')===String(second?.id||'')||(Number(first?.startedAt)>0&&Number(first.startedAt)===Number(second?.startedAt));
+    const candidates=snapshots.map(snapshot=>parseStoredJson(snapshot?.values?.[ACTIVE_ROUTE_STORE],null)).map(normalizeRouteData).filter(saved=>{
+      if(!saved?.id||!saved.startedAt||saved.endedAt)return false;
+      const savedAt=saved.draftSavedAt||saved.updatedAt||saved.lastPosition?.timestamp||saved.stops.at(-1)?.timestamp||saved.startedAt;
+      return Date.now()-Number(savedAt)<=72*3600000;
+    }).filter(candidate=>{
+      const baselineStops=Math.max(0,...baseline.filter(saved=>sameRoute(saved,candidate)).map(saved=>saved.stops?.length||0));
+      return (candidate.stops?.length||0)>baselineStops;
+    });
+    return candidates.sort((first,second)=>(second.stops?.length||0)-(first.stops?.length||0)||Number(second.draftSavedAt||second.updatedAt||0)-Number(first.draftSavedAt||first.updatedAt||0))[0]||null;
+  }
+  async function offerRouteRecovery(){
+    const localDraft=normalizeRouteData(parseStoredJson(localStorage.getItem(ACTIVE_ROUTE_STORE),null)),journalDraft=await fullerJournalRouteCandidate(localDraft),savedDraft=readActiveRoute();
+    const journalWins=journalDraft&&(!savedDraft||(journalDraft.stops?.length||0)>(savedDraft.stops?.length||0)),saved=journalWins?journalDraft:savedDraft;
+    if(!saved)return;
+    pendingRecoveryRoute=saved;pendingRecoverySource=journalWins?'journal':'active';
+    const locations=routeLocations(saved),packages=routePackageStats(saved),savedAt=saved.draftSavedAt||saved.lastPosition?.timestamp||saved.startedAt;
+    $('#recoveryEyebrow').textContent=journalWins?'FULLER COPY FOUND':'ROUTE PROTECTED';
+    $('#recoveryTitle').textContent=journalWins?`Recover all ${saved.stops.length} stops?`:'Resume your route?';
+    $('#recoveryCopy').textContent=journalWins?'RouteHeat found a fuller unfinished-route copy in the protected device journal.':'RouteHeat found an unfinished route saved on this device.';
+    $('#recoverySummary').innerHTML=`<div><span>STARTED</span><b>${timeLabel(saved.startedAt)}</b></div><div><span>STOPS / LOC.</span><b>${saved.stops.length} / ${locations}</b></div><div><span>PACKAGES</span><b>${packageTotalLabel(packages)}</b></div><div><span>LAST SAVED</span><b>${timeLabel(savedAt)}</b></div>`;
+    $('#discardRecovery').textContent=journalWins?'Keep current copy':'Discard draft';
+    $('#resumeRecovery').textContent=journalWins?`Recover ${saved.stops.length} stops`:'Resume route';
+    setTimeout(()=>{$('#recoveryModal').classList.add('open');$('#recoveryModal').setAttribute('aria-hidden','false');},520);
+  }
+  function resumeRecoveredRoute(forceWriter=false){
+    if(!pendingRecoveryRoute)return;
+    const saved=pendingRecoveryRoute;
+    if(!claimRouteWriter(saved.id,forceWriter)){openWriterConflict(()=>resumeRecoveredRoute(true),saved.id);return;}
+    if(routes().some(item=>String(item.id)===String(saved.id)))saved.reopenedForRescue=true;
+    route=saved;pendingRecoveryRoute=null;pendingRecoverySource='active';startRouteSession(true,true);
+  }
+  function discardRecoveredRoute(){
+    const journalRecovery=pendingRecoverySource==='journal',keptStops=Math.max(0,...routes().map(saved=>saved.stops?.length||0));
+    pendingRecoveryRoute=null;pendingRecoverySource='active';
+    if(!journalRecovery)clearActiveRoute();
+    $('#recoveryModal').classList.remove('open');$('#recoveryModal').setAttribute('aria-hidden','true');
+    toast(journalRecovery?`Current ${keptStops}-stop copy kept`:'Unfinished route discarded');
+  }
 
   function renderRouteContextTags(){
     document.querySelectorAll('#routeContextTags .route-context-tag[data-context-tag]').forEach(button=>{const active=selectedContextTags.has(button.dataset.contextTag);button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
@@ -1756,7 +1796,7 @@
   });
   const colorScheme=matchMedia('(prefers-color-scheme:light)');if(colorScheme.addEventListener)colorScheme.addEventListener('change',()=>{if(themePreference==='auto')applyTheme();});
   durableStorageInit=initDurableStorage();window.RouteHeatStorageReady=durableStorageInit;
-  async function bootstrap(){await durableStorageInit;autoMode=AUTO_MODES.has(localStorage.getItem(AUTO_MODE_STORE))?localStorage.getItem(AUTO_MODE_STORE):autoMode;autoEnabled=autoMode!=='off';applyTheme();syncSettingsUi();renderAutoTrainingStatus();renderRouteContextTags();initMap();renderLive();renderHistory();renderHealth();initBatteryHealth();getPosition(false);offerRouteRecovery();setInterval(renderHealth,5000);setTimeout(()=>$('#launchScreen').classList.add('hide'),620);setTimeout(()=>$('#launchScreen').remove(),1100);}
-  bootstrap().catch(()=>{setDurableStorageStatus({state:'degraded',backend:'localStorage',message:'Started with local device storage'});applyTheme();syncSettingsUi();initMap();renderLive();renderHistory();offerRouteRecovery();});
+  async function bootstrap(){await durableStorageInit;autoMode=AUTO_MODES.has(localStorage.getItem(AUTO_MODE_STORE))?localStorage.getItem(AUTO_MODE_STORE):autoMode;autoEnabled=autoMode!=='off';applyTheme();syncSettingsUi();renderAutoTrainingStatus();renderRouteContextTags();initMap();renderLive();renderHistory();renderHealth();initBatteryHealth();getPosition(false);await offerRouteRecovery();setInterval(renderHealth,5000);setTimeout(()=>$('#launchScreen').classList.add('hide'),620);setTimeout(()=>$('#launchScreen').remove(),1100);}
+  bootstrap().catch(()=>{setDurableStorageStatus({state:'degraded',backend:'localStorage',message:'Started with local device storage'});applyTheme();syncSettingsUi();initMap();renderLive();renderHistory();void offerRouteRecovery();});
   if('serviceWorker' in navigator)window.addEventListener('load',registerRouteHeatServiceWorker);
 })();

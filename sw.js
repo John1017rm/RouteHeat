@@ -1,13 +1,13 @@
-const CACHE = 'routeheat-v611';
+const CACHE = 'routeheat-v612';
 const APP = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './assets/styles.css?v=6.1.1',
-  './assets/app.js?v=6.1.1',
-  './assets/cloud.js?v=6.1.1',
-  './assets/supabase-config.js?v=6.1.1',
-  './assets/routeheat-storage.js?v=6.1.1',
+  './assets/styles.css?v=6.1.2',
+  './assets/app.js?v=6.1.2',
+  './assets/cloud.js?v=6.1.2',
+  './assets/supabase-config.js?v=6.1.2',
+  './assets/routeheat-storage.js?v=6.1.2',
   './assets/icon-192-v2.png',
   './assets/icon-512-v2.png'
 ];
