@@ -236,7 +236,8 @@ export function createRouteHeatStorage(options = {}) {
       }
       const primaryClock = Math.max(0, Number(primary.logicalClock) || 0);
       const markerMatchesLocal = marker?.checksum === localChecksum;
-      if (primaryClock > localClock && !markerMatchesLocal) {
+      const markerMatchesPrimary = marker?.checksum === primary.checksum;
+      if ((primaryClock > localClock || (primaryClock === localClock && markerMatchesPrimary)) && !markerMatchesLocal) {
         const failures = apply(primary.values);
         emit({state: failures.length ? 'degraded' : 'recovered', backend, sequence: primary.sequence, message: failures.length ? 'Newer recovery copy is safe, but the local mirror is full' : 'Recovered a newer verified device checkpoint'});
         return {backend, source: 'indexeddb-newer', recovered: !failures.length, failures, snapshot: primary};
