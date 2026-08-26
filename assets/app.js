@@ -220,7 +220,7 @@
   }
   async function initDurableStorage(){
     try{
-      const module=await import('./routeheat-storage.js?v=6.0.0');
+      const module=await import('./routeheat-storage.js?v=6.0.1');
       durableStorage=module.createRouteHeatStorage({keys:DURABLE_STORAGE_KEYS,arrayKeys:DURABLE_ARRAY_KEYS,objectKeys:DURABLE_OBJECT_KEYS,journalLimit:60,getLogicalClock:durableLogicalClock,onStatus:setDurableStorageStatus});
       const result=await durableStorage.init();durableStorageReady=true;
       if(navigator.storage?.persist)navigator.storage.persist().catch(()=>{});
@@ -466,7 +466,35 @@
     if (visible.length !== saved.length){localStorage.setItem(STORE,JSON.stringify(visible));queueDurableCommit('deletion-filter');}
     return withoutReopenedCheckpoint(visible);
   }
-  const saveRoutes = data => {const normalized=data.map(normalizeRouteData).filter(Boolean);assignRouteFamilies(normalized);const raw=JSON.stringify(normalized);try{localStorage.setItem(STORE,raw);queueDurableCommit('finished-routes');return true;}catch(error){setDurableStorageStatus({state:'error',message:'Route history could not update its local mirror · device journal retrying'});queueDurableCommit('finished-routes-idb-only',{[STORE]:raw},true);return false;}};
+  function replaceActiveDraftWithFinishedHistory(raw,fallbackActiveRaw=null){
+    let previousRoutesRaw=null,previousActiveRaw=fallbackActiveRaw,activeReleased=false;
+    try{
+      previousRoutesRaw=localStorage.getItem(STORE);
+      previousActiveRaw=localStorage.getItem(ACTIVE_ROUTE_STORE)??fallbackActiveRaw;
+      localStorage.removeItem(ACTIVE_ROUTE_STORE);
+      activeReleased=true;
+      localStorage.setItem(STORE,raw);
+      return{saved:true,previousRoutesRaw,previousActiveRaw};
+    }catch(error){
+      if(activeReleased){
+        try{if(previousRoutesRaw==null)localStorage.removeItem(STORE);else localStorage.setItem(STORE,previousRoutesRaw);}catch{}
+        try{if(previousActiveRaw==null)localStorage.removeItem(ACTIVE_ROUTE_STORE);else localStorage.setItem(ACTIVE_ROUTE_STORE,previousActiveRaw);}catch{}
+      }
+      return{saved:false,error,previousRoutesRaw,previousActiveRaw};
+    }
+  }
+  const saveRoutes = (data,{releaseActive=false,fallbackActive=null}={}) => {
+    const normalized=data.map(normalizeRouteData).filter(Boolean);assignRouteFamilies(normalized);const raw=JSON.stringify(normalized);
+    if(releaseActive){
+      clearTimeout(activeSaveTimer);
+      const fallbackActiveRaw=fallbackActive?JSON.stringify(fallbackActive):null,result=replaceActiveDraftWithFinishedHistory(raw,fallbackActiveRaw);
+      if(result.saved){queueDurableCommit('route-finished',{[STORE]:raw,[ACTIVE_ROUTE_STORE]:null},true);return true;}
+      setDurableStorageStatus({state:'error',message:'Route history could not replace the active draft · previous route data restored'});
+      queueDurableCommit('route-finish-rollback',{[STORE]:result.previousRoutesRaw,[ACTIVE_ROUTE_STORE]:result.previousActiveRaw},true);
+      return false;
+    }
+    try{localStorage.setItem(STORE,raw);queueDurableCommit('finished-routes');return true;}catch(error){setDurableStorageStatus({state:'error',message:'Route history could not update its local mirror · device journal retrying'});queueDurableCommit('finished-routes-idb-only',{[STORE]:raw},true);return false;}
+  };
   const formatDuration = ms => { const t=Math.max(0,Math.floor(ms/1000)), h=String(Math.floor(t/3600)).padStart(2,'0'), m=String(Math.floor(t%3600/60)).padStart(2,'0'), s=String(t%60).padStart(2,'0'); return `${h}:${m}:${s}`; };
   const formatInterval = ms => Number.isFinite(ms)&&ms>0?(ms>=3600000?formatDuration(ms):formatDuration(ms).slice(3)):'—';
   const pace = ms => ms > 0 ? 3600000/ms : 0;
@@ -861,7 +889,7 @@
   function closeFinishConfirmation(restoreFocus=true){const modal=$('#confirmModal'),focus=confirmReturnFocus;modal.classList.remove('open');modal.setAttribute('aria-hidden','true');confirmReturnFocus=null;if(restoreFocus&&focus?.isConnected&&focus.getClientRects().length)setTimeout(()=>focus.focus(),0);}
   function finishRecordHighlights(saved,previous){if(!previous.length)return[{icon:'◆',label:'First saved workday',value:`${saved.stops.length} stops`,detail:'Your RouteHeat story starts here'}];const duration=activeMs(saved,saved.endedAt||Date.now()),currentPackages=routePackageStats(saved),current={stops:saved.stops.length,locations:routeLocations(saved),packages:currentPackages.total,pace:saved.stops.length&&duration?pace(duration/saved.stops.length):0,hour:fastestHour(saved.stops).count,load:workloadScore(saved).score,distance:trackDistance(saved)},prior={stops:Math.max(0,...previous.map(item=>item.stops?.length||0)),locations:Math.max(0,...previous.map(routeLocations)),packages:Math.max(-1,...previous.map(item=>{const stats=routePackageStats(item);return stats.complete&&stats.total!=null?stats.total:-1;})),pace:Math.max(0,...previous.map(item=>{const ms=activeMs(item,item.endedAt||Date.now());return item.stops?.length&&ms?pace(ms/item.stops.length):0;})),hour:Math.max(0,...previous.map(item=>fastestHour(item.stops||[]).count)),load:Math.max(0,...previous.map(item=>workloadScore(item).score)),distance:Math.max(0,...previous.map(trackDistance))},items=[{key:'stops',icon:'✓',label:'Most stops',value:`${current.stops} stops`,detail:'New single-route record'},{key:'locations',icon:'◎',label:'Most locations',value:`${current.locations} locations`,detail:'New delivery-location record'},{key:'packages',icon:'▣',label:'Highest complete package count',value:current.packages==null?'—':`${current.packages} packages`,detail:'New fully entered package record',known:current.packages!=null&&currentPackages.complete},{key:'pace',icon:'⚡',label:'Fastest route pace',value:`${current.pace.toFixed(1)}/hr`,detail:'New overall pace record',known:saved.stops.length>=5},{key:'hour',icon:'ϟ',label:'Fastest rolling hour',value:`${current.hour} stops`,detail:'New rolling-hour record'},{key:'load',icon:'◇',label:'Highest Route Load',value:String(current.load),detail:'New workload record'},{key:'distance',icon:'≋',label:'Longest recorded trail',value:formatDistance(current.distance),detail:'New GPS distance record',known:current.distance>0}];return items.filter(item=>item.known!==false&&current[item.key]>prior[item.key]+(item.key==='pace'?.05:0)).slice(0,5);}
   function finishRoute(){
-    if(!route||!ensureRouteWriter())return;void primeAudio();const unfinished=cloneRouteData(route),endedAt=Date.now();if(route.pausedAt){route.pauses.push({startedAt:route.pausedAt,endedAt});route.pausedAt=null;}route.endedAt=endedAt;const phase=currentRoutePhase(route);if(phase&&!phase.endedAt){phase.endedAt=endedAt;phase.endStopIndex=route.stops.length;}delete route.reopenedForRescue;compactTrack(route);resequenceRoute(route);route.forecastOutcome=forecastReportData(route);route.routeQuality=routeQualityData(route);touchRoute(route,true);const finishedRoute=route,all=routes().filter(saved=>String(saved.id)!==String(finishedRoute.id)),records=finishRecordHighlights(finishedRoute,all),awardsBeforeFinish=awardSnapshot(all),alreadyCelebrated=new Set(finishedRoute.milestones||[]);all.unshift(finishedRoute);if(!saveRoutes(all)){route=normalizeRouteData(unfinished);saveActiveRoute(true);closeFinishConfirmation();toast('Route is still active · save needs attention');return;}const finishAwards=newAwardsBetween(awardsBeforeFinish,awardSnapshot(all)).filter(badge=>!alreadyCelebrated.has(`award-${badge.id}`));clearActiveRoute();window.dispatchEvent(new CustomEvent('routeheat:route-saved',{detail:{route:finishedRoute}}));
+    if(!route||!ensureRouteWriter())return;void primeAudio();const unfinished=cloneRouteData(route),endedAt=Date.now();if(route.pausedAt){route.pauses.push({startedAt:route.pausedAt,endedAt});route.pausedAt=null;}route.endedAt=endedAt;const phase=currentRoutePhase(route);if(phase&&!phase.endedAt){phase.endedAt=endedAt;phase.endStopIndex=route.stops.length;}delete route.reopenedForRescue;compactTrack(route);resequenceRoute(route);route.forecastOutcome=forecastReportData(route);route.routeQuality=routeQualityData(route);touchRoute(route,true);const finishedRoute=route,all=routes().filter(saved=>String(saved.id)!==String(finishedRoute.id)),records=finishRecordHighlights(finishedRoute,all),awardsBeforeFinish=awardSnapshot(all),alreadyCelebrated=new Set(finishedRoute.milestones||[]);all.unshift(finishedRoute);if(!saveRoutes(all,{releaseActive:true,fallbackActive:unfinished})){route=normalizeRouteData(unfinished);saveActiveRoute(true);closeFinishConfirmation();toast('Route is still active · previous save restored safely');return;}const finishAwards=newAwardsBetween(awardsBeforeFinish,awardSnapshot(all)).filter(badge=>!alreadyCelebrated.has(`award-${badge.id}`));clearActiveRoute();window.dispatchEvent(new CustomEvent('routeheat:route-saved',{detail:{route:finishedRoute}}));
     if(watchId!==null) navigator.geolocation.clearWatch(watchId); clearInterval(timerId); watchId=null; timerId=null;
     const finishedLoad=workloadScore(finishedRoute);route=null;pendingAutoSuggestion=null;renderAutoSuggestion();$('#autoUndo').hidden=true;resetDetector();if(routeLayer)routeLayer.clearLayers();
     closeFinishConfirmation(false); $('#pauseBtn').hidden=true; $('#routeToggle').classList.remove('running'); $('#routeToggle').innerHTML='<span class="play">▶</span><span>Start route</span>';

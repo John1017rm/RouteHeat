@@ -1,8 +1,14 @@
-# RouteHeat 6.0
+# RouteHeat 6.0.1
 
 RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone and Android. It records stops, locations, totes, rescues, packages, timing, and GPS breadcrumbs; compares a driver only with their own history; and turns finished workdays into maps, reports, replay, and long-term insights.
 
 > **Safety:** Use every RouteHeat control only while safely parked. Forecasts, Ghost comparisons, coaching, achievements, and historical pace are personal context—not targets or reasons to rush.
+
+## 6.0.1 finish-save hotfix
+
+- Finishing a route now releases the duplicated active-route mirror before writing the same workday into History, preventing local-storage quota failures on installations with substantial route history.
+- If the History write still fails, RouteHeat restores both the previous History value and the unfinished active draft, then records that rollback in the device journal.
+- The application-shell and service-worker cache versions are synchronized at 6.0.1 so installed PWAs receive the repair as one update.
 
 ## What is new in 6.0
 
