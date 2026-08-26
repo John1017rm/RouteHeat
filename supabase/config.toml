@@ -1,0 +1,4 @@
+project_id = "routeheat"
+
+[functions.neighborhood-snapshot]
+verify_jwt = true
