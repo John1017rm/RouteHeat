@@ -1,8 +1,22 @@
-# RouteHeat 6.1.4
+# RouteHeat 6.2.0
 
 RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone and Android. It records stops, locations, totes, rescues, packages, timing, and GPS breadcrumbs; compares a driver only with their own history; and turns finished workdays into maps, reports, replay, and long-term insights.
 
 > **Safety:** Use every RouteHeat control only while safely parked. Forecasts, Ghost comparisons, coaching, achievements, and historical pace are personal context—not targets or reasons to rush.
+
+## 6.2.0 Neighborhood Snapshot
+
+- **Opt-in post-route context:** Finished-route reports and saved-route details can build a polished housing snapshot for the Census tracts containing trusted mapped stops. Nothing was added to the active Drive screen.
+- **Neutral aggregate metrics:** The card shows typical delivered-area median owner-occupied value, sampled range, household income, gross rent, owner-occupied share, median construction year, tract count, and mapped-stop coverage.
+- **Rescue-aware review:** Multi-phase workdays can show separate Main Route and Rescue summaries so a rescue in another city is not blended invisibly into one number.
+- **Never an individual-home price:** Values are 2020–2024 ACS 5-year tract estimates with 90% margins of error where available—not current sale prices, appraisals, customer data, or estimates for a particular address.
+- **Server-side privacy boundary:** The signed-in Edge Function reads only the stop/phase fields required from that account's completed cloud route through Row Level Security, uses temporary coordinate processing to identify tracts, and stores only the derived aggregate snapshot and non-reversible input hash. GPS trails, unrelated analytics, and Census secrets never enter the function response, browser bundle, Android bundle, or GitHub Pages files.
+- **Safe finish behavior:** A route finishes and clears its active draft before any snapshot request starts. Census, internet, authentication, or function failures cannot keep a route active or roll back a finished workday.
+- **Honest freshness:** Stop removal, rescue continuation, merge, checkpoint repair, or map correction changes the local fingerprint and shows **Refresh recommended** instead of presenting an older snapshot as current.
+- **Race-safe cloud result:** Each build and cache hit is bound to the exact server generation, route revision, and route update time. A route edit or Snapshot removal that wins while Census work is running cancels the older result instead of recreating it.
+- **Bounded Census work:** Stops are clustered before tract matching, ACS rows are fetched once per county, and atomic per-user plus project-wide limits protect the private service and shared Census key.
+- **Offline finish queue:** If Snapshot is enabled but the app is offline or signed out when a route finishes, the route ID is queued in protected device storage and resumes after Cloud is ready. Route completion never waits for it.
+- **Portable and offline after creation:** A completed aggregate follows the saved route into Supabase and `.routeheat` backups, and remains viewable offline. Building, refreshing, or removing the server cache requires internet and Cloud sign-in.
 
 ## 6.1.4 full-history protection
 
@@ -96,10 +110,11 @@ RouteHeat is a static web application. It does not require a build step.
 
 1. Keep `index.html`, `manifest.webmanifest`, `sw.js`, the setup documents, and the complete `assets` directory together.
 2. For optional cloud backup, follow `SUPABASE_SETUP.md`, run `supabase-setup.sql` once, and put the project URL and browser-safe publishable key in `assets/supabase-config.js`.
-3. Host the files from HTTPS. GPS, installability, service workers, and mobile audio recovery are most reliable from a secure origin.
-4. Open RouteHeat once online so the application shell can cache, then install it from the browser if desired.
+3. For the optional Neighborhood Snapshot, also run `supabase-neighborhood-setup.sql`, add a free Census API key as a Supabase secret, and deploy the included authenticated `neighborhood-snapshot` Edge Function. The Census key never belongs in `assets/supabase-config.js`.
+4. Host the files from HTTPS. GPS, installability, service workers, and mobile audio recovery are most reliable from a secure origin.
+5. Open RouteHeat once online so the application shell can cache, then install it from the browser if desired.
 
-Existing RouteHeat cloud projects need **no Supabase migration for 6.1**. Route data remains schema 4. Delivery Area definitions are private device data and are deliberately excluded from cloud route rows.
+Existing RouteHeat cloud projects need the complete, latest, idempotent `supabase-neighborhood-setup.sql` migration only if Neighborhood Snapshot will be used. Re-run the whole 6.2 script if an earlier preview was tested; it upgrades the narrow route-input RPC, generation lock, route-version checks, aggregate caches, and global limits safely. Core route data remains schema 4. Delivery Area definitions are private device data and are deliberately excluded from cloud route rows.
 
 ## Delivery Areas
 
@@ -126,7 +141,7 @@ Area definitions are stored under the private `routeheat.deliveryAreas.v1` devic
 
 ### Finish and review
 
-Finishing opens the optional route movie and full report with workload, pace, package totals, forecast review, Where Time Went, quality confidence, Ghost result, records, and awards. Skip animation whenever reduced motion is enabled or immediate access to the report is preferred.
+Finishing opens the optional route movie and full report with workload, pace, package totals, forecast review, Where Time Went, quality confidence, Ghost result, records, awards, and the optional Neighborhood Snapshot card. When Snapshot is enabled, its separate network request starts only after the route has finished and saved; the report remains usable while it builds.
 
 History contains sortable workdays, Area filters and breakdowns, replay, weekly recaps, Moments, Ghost Rivalries, Personal Seasons, and Delivery Area profiles. **All time → Delivery Year** opens the yearly time-lapse. Shared recap and Area summaries are aggregate text and omit maps, coordinates, route IDs, exact workday times, and private Area names.
 
@@ -139,7 +154,7 @@ RouteHeat uses several intentionally separate protection layers:
 | `localStorage` | Fast working mirror for finished routes, the active draft, recovery records, Delivery Area definitions, and selected settings | Clearing website data removes it |
 | IndexedDB `routeheat-storage` | Transactionally stores the current full protected snapshot and the previous valid full snapshot, each with a checksum and logical clock | It belongs to this browser installation and can also be cleared or evicted |
 | IndexedDB journal | Keeps bounded commit metadata such as sequence, time, reason, checksum, logical clock, and changed key names | It is metadata-only, not a stack of full route-history copies |
-| Supabase | Mirrors signed-in finished routes, deletion tombstones, and restoration state with revision-aware conflict handling | It does **not** upload an unfinished active-route draft |
+| Supabase | Mirrors signed-in finished routes, deletion tombstones, restoration state, and any completed aggregate Neighborhood Snapshot with revision-aware conflict handling | It does **not** upload an unfinished active-route draft; Snapshot generation also needs the Edge Function setup |
 | `.routeheat` file | Portable, restorable export of finished routes, an eligible active draft, recovery state, private Delivery Area names/boundaries, and selected route/auto settings | The file contains sensitive route data and must be stored securely |
 
 On startup, RouteHeat validates the device snapshots and reconciles them with the localStorage mirror without overwriting a logically newer valid copy. If IndexedDB is unavailable, localStorage remains active and Settings reports degraded protection.
@@ -169,7 +184,7 @@ Recently Deleted lists only entries that still contain a complete finished-route
 
 - After one successful online load, the service worker caches the application shell for offline route entry and history access.
 - GPS stop logging, device snapshots, `.routeheat` export/import, and finished history can work without cloud connectivity.
-- Supabase sign-in/sync, first-time library loading, application updates, and OpenStreetMap tiles require a network connection.
+- Supabase sign-in/sync, Neighborhood Snapshot generation/refresh, first-time library loading, application updates, and OpenStreetMap tiles require a network connection.
 - An uncached or offline map may be blank while stop totals and GPS data continue recording.
 - Mobile operating systems can suspend GPS or audio after backgrounding. Return to RouteHeat and use the next parked tap if the OS requires a fresh audio gesture.
 
@@ -188,6 +203,9 @@ On iPhone, open the published URL in Safari and use **Share → Add to Home Scre
 - Delivery Area names and boundary geometry remain device-private unless deliberately included in a `.routeheat` file. They are not uploaded by Supabase route sync.
 - Route history, context tags, automatic-stop training, Moments, Seasons, Ghosts, and forecasts remain on the device unless included in a `.routeheat` file or, for supported finished-route data, synced to the signed-in Supabase account.
 - Supabase Row Level Security restricts cloud rows to the signed-in account.
+- Neighborhood Snapshot is optional and off by default. When enabled and requested, Supabase reads only the required fields from the already cloud-synced finished route and temporarily sends valid stop coordinates to U.S. Census services to identify Census tracts. The returned route card stores aggregate tract estimates, coverage, and source metadata—not addresses, individual property records, or another copy of stop coordinates.
+- Neighborhood values use the 2020–2024 American Community Survey 5-year Detailed Tables. They can lag current market conditions and carry sampling uncertainty. “Typical delivered-area median value” is a stop-weighted median of tract estimates, not a value for any house on the route.
+- This product uses the Census Bureau Data API but is not endorsed or certified by the Census Bureau.
 - Shared summaries deliberately omit precise route geometry and private identifiers, but always review generated text before sharing.
 - OpenStreetMap tiles are fetched from an external tile service. That provider can receive normal network metadata and the geographic tile coordinates requested for the visible map. RouteHeat does not send stop notes, package counts, Area names/boundaries, or full saved route records to the tile provider.
 - Repeat Stops groups approximate GPS areas, not verified street addresses.
@@ -202,6 +220,8 @@ On iPhone, open the published URL in Safari and use **Share → Add to Home Scre
 - `assets/cloud.js` — Supabase authentication, finished-route sync, deletion, and restore conflict handling
 - `assets/supabase-config.js` — Supabase project URL and browser-safe publishable key
 - `manifest.webmanifest` and `sw.js` — installation metadata and offline application-shell cache
-- `supabase-setup.sql` and `SUPABASE_SETUP.md` — optional one-time cloud setup
+- `supabase-setup.sql` and `SUPABASE_SETUP.md` — optional core cloud setup
+- `supabase-neighborhood-setup.sql` — aggregate Snapshot cache, protected rate limit, and cleanup migration
+- `supabase/functions/neighborhood-snapshot/index.ts` and `supabase/config.toml` — authenticated Census Edge Function source and deployment configuration
 
 Map data is provided by OpenStreetMap and displayed with Leaflet. Density rendering uses Leaflet.heat.

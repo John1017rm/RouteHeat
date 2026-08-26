@@ -1,4 +1,4 @@
-# RouteHeat Supabase setup
+# RouteHeat 6.2 Supabase setup
 
 Complete these steps once before using the **Cloud** button in RouteHeat. Custom SMTP is not required.
 
@@ -12,7 +12,53 @@ Complete these steps once before using the **Cloud** button in RouteHeat. Custom
 
 The script creates the `routeheat_routes` table, grants access only to signed-in users, and adds Row Level Security policies that limit every account to its own rows.
 
-## 2. Temporarily allow account creation without email
+## 2. Add Neighborhood Snapshot (optional)
+
+Skip this section if you only want cloud route backup. RouteHeat tracking, finishing, history, and sync do not depend on Census.
+
+### A. Create the aggregate-only tables
+
+1. In **SQL Editor**, create another query.
+2. Copy all of `supabase-neighborhood-setup.sql` into it.
+3. Click **Run**.
+
+This idempotent script creates a private per-route aggregate snapshot cache, a service-only Census tract cache, narrow Row-Level-Security route-input RPC, generation/version locks, atomic per-user and project-wide rate limits, and cleanup for deleted routes. It stores no stop-coordinate list. If you tested a pre-release 6.2 script, run the complete latest file again before deploying the function.
+
+### B. Request a free Census API key
+
+Request a key from the official [U.S. Census Data API key page](https://api.census.gov/data/key_signup.html). Keep the key private. It belongs only in Supabase Edge Function secrets—never in GitHub, `index.html`, `assets/supabase-config.js`, Android files, screenshots, or chat messages.
+
+### C. Link and configure Supabase
+
+Open a terminal in the unzipped RouteHeat folder, then run these commands one at a time:
+
+```text
+npx supabase@latest login
+npx supabase@latest link --project-ref wuhirhbqodkbwqjwpjyl
+npx supabase@latest secrets set CENSUS_API_KEY=PASTE_YOUR_PRIVATE_CENSUS_KEY_HERE
+npx supabase@latest secrets set CENSUS_ACS_YEAR=2024
+npx supabase@latest secrets set CENSUS_GEOGRAPHY_VINTAGE=ACS2024_Current
+npx supabase@latest secrets set CENSUS_BENCHMARK=Public_AR_Current
+npx supabase@latest secrets set ROUTEHEAT_ALLOWED_ORIGINS=https://john1017rm.github.io,https://appassets.androidplatform.net
+npx supabase@latest functions deploy neighborhood-snapshot
+```
+
+The included `supabase/config.toml` keeps JWT verification enabled. Only a signed-in RouteHeat user can invoke the function, and the function reads a minimized stop/phase projection of that user's finished route through the existing Row Level Security policy. Route revision, update time, and server generation must still match when a cache hit is returned or a new result is stored. Do not deploy it with `--no-verify-jwt`.
+
+The 2024 ACS 5-year release represents data collected during 2020–2024. Keep `CENSUS_ACS_YEAR=2024` paired with `CENSUS_GEOGRAPHY_VINTAGE=ACS2024_Current`; do not switch only one value.
+
+### D. Turn it on in RouteHeat
+
+After publishing 6.2, open **Settings → Neighborhood Snapshot**, review the disclosure, and enable **Build after finished routes**. The first build requires:
+
+- a finished route with trusted mapped stops;
+- a successful Cloud sign-in and sync;
+- internet access; and
+- the SQL, secrets, and Edge Function above.
+
+The route finishes first. Snapshot work runs separately and cannot keep a rescue or normal route active. If Cloud is unavailable at finish, the build is queued in protected device storage and resumes later. A completed aggregate card remains available offline and follows the route into `.routeheat` backups.
+
+## 3. Temporarily allow account creation without email
 
 1. Open **Authentication -> Sign In / Providers**.
 2. Open the **Email** provider.
@@ -23,11 +69,11 @@ The script creates the `routeheat_routes` table, grants access only to signed-in
 
 Turning off Confirm Email lets RouteHeat create your password account immediately, so no email template, magic link, or SMTP service is needed.
 
-## 3. Publish the updated app
+## 4. Publish the updated app
 
 Upload the contents of this RouteHeat package to the root of the GitHub repository. Keep the existing installed iPhone app; do not delete it. Opening the published app again will install the update while preserving its device-local route data.
 
-## 4. Create your RouteHeat account once
+## 5. Create your RouteHeat account once
 
 1. Open RouteHeat from the existing Home Screen icon.
 2. Tap **Cloud off** in the header.
@@ -38,7 +84,7 @@ Upload the contents of this RouteHeat package to the root of the GitHub reposito
 
 The first sync uploads existing local history. Keep RouteHeat open until it reports success.
 
-## 5. Close public account creation
+## 6. Close public account creation
 
 After your account is working:
 
@@ -50,7 +96,7 @@ Leave **Enable Email provider** on. Leave **Confirm Email** off unless you later
 
 The app's Create account button can remain visible; Supabase will reject new accounts after signups are disabled. On another device, use **Sign in and sync** with the same email and password.
 
-## 6. Site address
+## 7. Site address
 
 Under **Authentication -> URL Configuration**, use:
 
@@ -63,6 +109,10 @@ Password sign-in does not depend on an emailed redirect, but keeping the correct
 
 - The GitHub app contains only the Supabase publishable key, which is intended for browser clients.
 - Never put a `service_role` key, secret key, database password, or JWT secret in GitHub.
+- Never put `CENSUS_API_KEY` in the static app. The Edge Function reads it from Supabase secrets.
+- The Neighborhood Function accepts only a route ID. It reads the caller's own non-deleted finished route through RLS, uses Census services to match valid stop coordinates to tracts, and returns aggregate ACS estimates. It does not return coordinates or addresses.
+- Census tract values are statistical estimates with 90% margins of error, not appraisals or current individual-home prices.
+- This product uses the Census Bureau Data API but is not endorsed or certified by the Census Bureau.
 - RouteHeat continues recording locally when offline.
 - Signing out does not erase local routes from the device.
 - Without custom SMTP, RouteHeat cannot send password-reset emails. Save the password in a password manager.
