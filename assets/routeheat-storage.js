@@ -77,6 +77,7 @@ export function createRouteHeatStorage(options = {}) {
   let backend = 'localStorage';
   let sequence = 0;
   let commitQueue = Promise.resolve();
+  let initialRecoverySnapshots = [];
 
   const validateValues = values => {
     if (!values || typeof values !== 'object') return false;
@@ -211,6 +212,7 @@ export function createRouteHeatStorage(options = {}) {
       database = await openDatabase(indexedDb);
       backend = 'indexedDB';
       const records = await stateRecords();
+      initialRecoverySnapshots=[records.primary,records.previous].filter(snapshot=>snapshotValid(snapshot,validateValues));
       const primary = bestValidSnapshot(records);
       sequence = Math.max(0, Number(primary?.sequence) || 0);
       const localChecksum = routeHeatChecksum(localValues);
@@ -264,6 +266,14 @@ export function createRouteHeatStorage(options = {}) {
     return {recovered: !failures.length, failures, snapshot};
   };
 
+  const recoverySnapshots = async () => {
+    const current=database?await stateRecords():{primary:null,previous:null};
+    const snapshots=[...initialRecoverySnapshots,current.primary,current.previous].filter(snapshot=>snapshotValid(snapshot,validateValues));
+    const unique=new Map();
+    snapshots.forEach(snapshot=>unique.set(`${snapshot.sequence}:${snapshot.checksum}`,snapshot));
+    return [...unique.values()].sort((first,second)=>(Number(second.logicalClock)||0)-(Number(first.logicalClock)||0)||(Number(second.sequence)||0)-(Number(first.sequence)||0));
+  };
+
   const close = () => { database?.close(); database = null; };
 
   return {
@@ -271,6 +281,7 @@ export function createRouteHeatStorage(options = {}) {
     commit,
     capture,
     recoverLatest,
+    recoverySnapshots,
     close,
     validateValues,
     checksum: routeHeatChecksum,
