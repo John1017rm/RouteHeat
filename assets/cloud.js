@@ -93,6 +93,43 @@
     && !(Array.isArray(route?.neighborhoodSnapshot?.phases) && route.neighborhoodSnapshot.phases.length);
   const hasNeighborhoodDetail = route => (Array.isArray(route?.neighborhoodSnapshot?.areas) && route.neighborhoodSnapshot.areas.length > 0)
     || (Array.isArray(route?.neighborhoodSnapshot?.phases) && route.neighborhoodSnapshot.phases.length > 0);
+  function routeCopiesCanShareTrail(firstRoute, secondRoute) {
+    if (!firstRoute || !secondRoute) return false;
+    return exactRouteContentMatch(routeSignature(firstRoute), routeSignature(secondRoute));
+  }
+  function enrichPreferredRouteCopy(preferredRoute, alternateRoute) {
+    if (!routeCopiesCanShareTrail(preferredRoute, alternateRoute)) return preferredRoute;
+    let enriched = preferredRoute, changed = false;
+    if (compactMirrorOnly(preferredRoute) && hasRecordedTrail(alternateRoute)) {
+      enriched = {...preferredRoute};
+      enriched.track = alternateRoute.track;
+      if (Array.isArray(alternateRoute.trackBreaks)) enriched.trackBreaks = alternateRoute.trackBreaks;
+      if (Array.isArray(alternateRoute.trackBreakTimes)) enriched.trackBreakTimes = alternateRoute.trackBreakTimes;
+      enriched.recordedDistanceMeters = Math.max(Number(preferredRoute.recordedDistanceMeters) || 0, Number(alternateRoute.recordedDistanceMeters) || 0);
+      enriched.localMirrorTrackOmitted = false;
+      const alternateStops = new Map(), alternateStopsByTime = new Map();
+      (alternateRoute.stops || []).forEach(stop => {
+        if (stop?.id != null) alternateStops.set(String(stop.id), stop);
+        const timestamp = timeKey(stop?.timestamp);
+        if (timestamp && !alternateStopsByTime.has(timestamp)) alternateStopsByTime.set(timestamp, stop);
+      });
+      enriched.stops = (preferredRoute.stops || []).map((stop, index) => {
+        const timestamp = timeKey(stop?.timestamp), sameIndex = alternateRoute.stops?.[index], alternate = (stop?.id != null ? alternateStops.get(String(stop.id)) : null) || (timestamp ? alternateStopsByTime.get(timestamp) : null) || (timeKey(sameIndex?.timestamp) === timestamp ? sameIndex : null), trackIndex = Number(alternate?.trackIndex);
+        return Number.isInteger(trackIndex) && trackIndex >= 0 ? {...stop, trackIndex} : stop;
+      });
+      changed = true;
+    }
+    if (compactNeighborhoodOnly(enriched) && hasNeighborhoodDetail(alternateRoute)) {
+      const preferredSnapshot = enriched.neighborhoodSnapshot, alternateSnapshot = alternateRoute.neighborhoodSnapshot, sameSnapshot = preferredSnapshot && alternateSnapshot && ((preferredSnapshot.inputHash && preferredSnapshot.inputHash === alternateSnapshot.inputHash) || preferredSnapshot.source?.generatedAt === alternateSnapshot.source?.generatedAt);
+      if (sameSnapshot) {
+        if (!changed) enriched = {...enriched};
+        enriched.neighborhoodSnapshot = {...preferredSnapshot, areas:alternateSnapshot.areas || [], phases:alternateSnapshot.phases || []};
+        enriched.localMirrorNeighborhoodDetailOmitted = false;
+        changed = true;
+      }
+    }
+    return changed ? enriched : preferredRoute;
+  }
   function compareRouteCopies(firstRoute, secondRoute, firstCloudUpdatedAt = null, secondCloudUpdatedAt = null) {
     const version = compareRouteVersions(firstRoute, secondRoute, firstCloudUpdatedAt, secondCloudUpdatedAt);
     if (version) return version;
@@ -626,7 +663,11 @@
       const localById = new Map();
       local.forEach(saved => {
         const logicalId = routeIdOf(saved), current = localById.get(logicalId);
-        if (!current || compareRouteCopies(saved, current) >= 0) localById.set(logicalId, saved);
+        if (!current) localById.set(logicalId, saved);
+        else {
+          const preferred = compareRouteCopies(saved, current) >= 0 ? saved : current;
+          localById.set(logicalId, enrichPreferredRouteCopy(preferred, preferred === saved ? current : saved));
+        }
       });
       const remoteById = new Map();
       (remoteRows || [])
@@ -639,7 +680,12 @@
           const canonicalTie = comparison === 0
             && String(row.route_id) === logicalId
             && String(current?.route_id) !== logicalId;
-          if (!current || comparison > 0 || canonicalTie) remoteById.set(logicalId, row);
+          if (!current) remoteById.set(logicalId, row);
+          else {
+            const preferred = comparison > 0 || canonicalTie ? row : current, alternate = preferred === row ? current : row;
+            const enriched = enrichPreferredRouteCopy(preferred.route_data, alternate.route_data);
+            remoteById.set(logicalId, {...preferred, route_data:enriched, routeheatNeedsRichnessRepair:preferred.routeheatNeedsRichnessRepair === true || enriched !== preferred.route_data});
+          }
         });
 
       const merged = new Map();
@@ -649,6 +695,7 @@
         const localRoute = localById.get(logicalId), remoteRow = remoteById.get(logicalId);
         if (!localRoute) {
           merged.set(logicalId, remoteRow.route_data);
+          if (remoteRow.routeheatNeedsRichnessRepair) upload.push(remoteRow.route_data);
           return;
         }
         if (!remoteRow) {
@@ -658,10 +705,13 @@
         }
         const comparison = compareRouteCopies(localRoute, remoteRow.route_data, null, remoteRow.updated_at);
         if (comparison >= 0) {
-          merged.set(logicalId, localRoute);
-          upload.push(localRoute);
+          const preferred = enrichPreferredRouteCopy(localRoute, remoteRow.route_data);
+          merged.set(logicalId, preferred);
+          upload.push(preferred);
         } else {
-          merged.set(logicalId, remoteRow.route_data);
+          const preferred = enrichPreferredRouteCopy(remoteRow.route_data, localRoute);
+          merged.set(logicalId, preferred);
+          if (preferred !== remoteRow.route_data) upload.push(preferred);
         }
       });
 
