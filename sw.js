@@ -1,13 +1,21 @@
-const CACHE = 'routeheat-v620';
+const CACHE = 'routeheat-v621';
 const APP = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './assets/styles.css?v=6.2.0',
-  './assets/app.js?v=6.2.0',
-  './assets/cloud.js?v=6.2.0',
-  './assets/supabase-config.js?v=6.2.0',
-  './assets/routeheat-storage.js?v=6.2.0',
+  './assets/styles.css?v=6.2.1',
+  './assets/app.js?v=6.2.1',
+  './assets/cloud.js?v=6.2.1',
+  './assets/supabase-config.js?v=6.2.1',
+  './assets/routeheat-storage.js?v=6.2.1',
+  './assets/vendor/leaflet/leaflet.css?v=1.9.4',
+  './assets/vendor/leaflet/leaflet.js?v=1.9.4',
+  './assets/vendor/leaflet/leaflet-heat.js?v=0.2.0',
+  './assets/vendor/leaflet/images/layers.png',
+  './assets/vendor/leaflet/images/layers-2x.png',
+  './assets/vendor/leaflet/images/marker-icon.png',
+  './assets/vendor/leaflet/images/marker-icon-2x.png',
+  './assets/vendor/leaflet/images/marker-shadow.png',
   './assets/icon-192-v2.png',
   './assets/icon-512-v2.png'
 ];

@@ -1,8 +1,18 @@
-# RouteHeat 6.2.0
+# RouteHeat 6.2.1
 
 RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone and Android. It records stops, locations, totes, rescues, packages, timing, and GPS breadcrumbs; compares a driver only with their own history; and turns finished workdays into maps, reports, replay, and long-term insights.
 
 > **Safety:** Use every RouteHeat control only while safely parked. Forecasts, Ghost comparisons, coaching, achievements, and historical pace are personal context—not targets or reasons to rush.
+
+## 6.2.1 All-time map hotfix
+
+- **Stops always remain visible:** Streets mode now draws a small mapped-stop dot when a route has no usable GPS trail, while repeat locations keep their numbered markers.
+- **GPS trails protected first:** Under phone storage pressure, optional Neighborhood Snapshot detail is compacted before any recorded route trail.
+- **Fuller cloud copy wins:** Sync enriches a newer compact copy with the matching protected trail instead of allowing Snapshot metadata or a local mirror to erase street history.
+- **Reliable offline map engine:** Leaflet and the heat-map plugin are bundled and precached locally instead of depending on a third-party CDN at startup.
+- **No silent black rectangle:** Missing map tiles or a map-engine failure now produces a readable status while saved stop and route overlays remain available.
+- **iPhone rendering repair:** The All-time tile surface avoids the large CSS filter that could become black during WebKit compositing or fullscreen changes.
+- **Outlier-resistant view:** An isolated ocean/global GPS point no longer zooms genuine delivery history into invisibility.
 
 ## 6.2.0 Neighborhood Snapshot
 
