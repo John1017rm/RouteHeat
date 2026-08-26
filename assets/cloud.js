@@ -21,6 +21,16 @@
     catch { return fallback; }
   };
   const localRoutes = () => readJson(ROUTES_KEY, []);
+  async function fullLocalRoutes() {
+    const history = window.RouteHeatHistory;
+    try { await (history?.ready?.() || window.RouteHeatStorageReady); }
+    catch {}
+    try {
+      const items = history?.read?.();
+      if (Array.isArray(items)) return items;
+    } catch {}
+    return localRoutes();
+  }
   const deletionQueue = () => readJson(DELETIONS_KEY, []);
   const deletionBlocklist = () => readJson(BLOCKLIST_KEY, []);
   const restoreQueue = () => readJson(RESTORES_KEY, []);
@@ -70,6 +80,16 @@
     if (first.schema !== second.schema) return first.schema > second.schema ? 1 : -1;
     if (first.revision !== second.revision) return first.revision > second.revision ? 1 : -1;
     if (first.updatedAt !== second.updatedAt) return first.updatedAt > second.updatedAt ? 1 : -1;
+    return 0;
+  }
+  const compactMirrorOnly = route => route?.localMirrorTrackOmitted === true
+    && !(Array.isArray(route?.track) && route.track.length);
+  const hasRecordedTrail = route => Array.isArray(route?.track) && route.track.length > 0;
+  function compareRouteCopies(firstRoute, secondRoute, firstCloudUpdatedAt = null, secondCloudUpdatedAt = null) {
+    const version = compareRouteVersions(firstRoute, secondRoute, firstCloudUpdatedAt, secondCloudUpdatedAt);
+    if (version) return version;
+    if (compactMirrorOnly(firstRoute) && hasRecordedTrail(secondRoute)) return -1;
+    if (compactMirrorOnly(secondRoute) && hasRecordedTrail(firstRoute)) return 1;
     return 0;
   }
   function signaturesMatch(first, second) {
@@ -157,10 +177,22 @@
     (_, index) => items.slice(index * size, index * size + size)
   );
 
-  function saveLocalRoutes(items) {
+  async function saveLocalRoutes(items) {
     const sorted = items.slice().sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
-    const before = localStorage.getItem(ROUTES_KEY) || '[]';
     const after = JSON.stringify(sorted);
+    const history = window.RouteHeatHistory;
+    if (history?.replace) {
+      let current = [];
+      try {
+        const value = history.read?.();
+        if (Array.isArray(value)) current = value.slice().sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
+      } catch {}
+      if (JSON.stringify(current) === after) return false;
+      if (history.replace(sorted) === false) throw new Error('Full route history could not be protected on this device.');
+      window.dispatchEvent(new CustomEvent('routeheat:cloud-merged', {detail: {count: sorted.length}}));
+      return true;
+    }
+    const before = localStorage.getItem(ROUTES_KEY) || '[]';
     if (before === after) return false;
     localStorage.setItem(ROUTES_KEY, after);
     window.dispatchEvent(new CustomEvent('routeheat:cloud-merged', {detail: {count: sorted.length}}));
@@ -253,9 +285,9 @@
     else setTimeout(() => $('#cloudBtn')?.focus(), 0);
   }
 
-  function ensureOwner(userId) {
+  function ensureOwner(userId, routeItems = localRoutes()) {
     const owner = localStorage.getItem(OWNER_KEY);
-    const routes = localRoutes();
+    const routes = Array.isArray(routeItems) ? routeItems : localRoutes();
     if (owner && owner !== userId && routes.length) {
       throw new Error('This device contains routes linked to another cloud account. Export them before switching accounts.');
     }
@@ -365,12 +397,12 @@
     }
   }
 
-  async function flushDeletions(userId) {
+  async function flushDeletions(userId, routeItems = localRoutes()) {
     const pending = deletionQueue();
     if (!pending.length) return;
     for (const item of pending) {
       const routeData = item.routeData
-        || localRoutes().find(route => String(route.id) === item.routeId)
+        || routeItems.find(route => String(route.id) === item.routeId)
         || {id: item.routeId, startedAt: Date.parse(item.deletedAt) || Date.now(), endedAt: Date.parse(item.deletedAt) || Date.now(), stops: [], totes: [], track: []};
       const itemDeletedAt = deletionTime(item);
       const itemIntentAt = explicitDeletionTime(item);
@@ -423,9 +455,10 @@
     setStatus('syncing', 'Securely syncing route history...');
     try {
       const userId = session.user.id;
-      ensureOwner(userId);
+      const localSnapshot = await fullLocalRoutes();
+      ensureOwner(userId, localSnapshot);
       await flushRestores(userId);
-      await flushDeletions(userId);
+      await flushDeletions(userId, localSnapshot);
 
       const {data: remoteRows, error: remoteError} = await client
         .from(TABLE)
@@ -495,11 +528,11 @@
           if (aliasError) throw aliasError;
         }
       }
-      const local = localRoutes().filter(saved => saved?.id != null && !isDeletedRoute(saved));
+      const local = localSnapshot.filter(saved => saved?.id != null && !isDeletedRoute(saved));
       const localById = new Map();
       local.forEach(saved => {
         const logicalId = routeIdOf(saved), current = localById.get(logicalId);
-        if (!current || compareRouteVersions(saved, current) >= 0) localById.set(logicalId, saved);
+        if (!current || compareRouteCopies(saved, current) >= 0) localById.set(logicalId, saved);
       });
       const remoteById = new Map();
       (remoteRows || [])
@@ -507,7 +540,7 @@
         .forEach(row => {
           const logicalId = routeIdOf(row.route_data), current = remoteById.get(logicalId);
           const comparison = current
-            ? compareRouteVersions(row.route_data, current.route_data, row.updated_at, current.updated_at)
+            ? compareRouteCopies(row.route_data, current.route_data, row.updated_at, current.updated_at)
             : 1;
           const canonicalTie = comparison === 0
             && String(row.route_id) === logicalId
@@ -529,7 +562,7 @@
           upload.push(localRoute);
           return;
         }
-        const comparison = compareRouteVersions(localRoute, remoteRow.route_data, null, remoteRow.updated_at);
+        const comparison = compareRouteCopies(localRoute, remoteRow.route_data, null, remoteRow.updated_at);
         if (comparison >= 0) {
           merged.set(logicalId, localRoute);
           upload.push(localRoute);
@@ -553,7 +586,7 @@
       for (const [key, saved] of merged) {
         if (finalBlocked.some(signature => signaturesMatch(routeSignature(saved), signature))) merged.delete(key);
       }
-      saveLocalRoutes([...merged.values()]);
+      await saveLocalRoutes([...merged.values()]);
 
       const now = Date.now();
       localStorage.setItem(LAST_SYNC_KEY, String(now));
