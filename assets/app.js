@@ -45,7 +45,7 @@
   let detailReturnFocus = null, reportReturnFocus = null, rescueReturnFocus = null, mergeReturnFocus = null, goalReturnFocus = null, confirmReturnFocus = null, familyReturnFocus = null, selectedFamilyId = null, lastKnownPosition = null;
   let familyNamesCache = {raw:null,value:{}}, intelligenceHistoryCache = {store:null,deleted:null,deletions:null,restores:null,reopened:null,value:null};
   let durableStorage = null, durableStorageInit = null, durableStorageReady = false, durableCommitTimer = null, durableStorageStatus = {state:'starting',backend:'localStorage',message:'Preparing device protection'};
-  let selectedContextTags = new Set(), pendingAutoSuggestion = null, currentUndo = null, undoExpiresTimer = null, pendingBackupImport = null, backupImportReturnFocus = null;
+  let selectedContextTags = new Set(), pendingAutoSuggestion = null, currentUndo = null, undoExpiresTimer = null, pendingActivityDelete = null, activityDeleteReturnFocus = null, pendingBackupImport = null, backupImportReturnFocus = null;
   let writerHeartbeatTimer = null, writerBlocked = false, pendingWriterTakeover = null, gpsRestartTimer = null, lastGpsRestartAt = 0;
   let serviceWorkerRegistration = null, pendingUpdateWorker = null, updateReloadPending = false;
   let mapThemePreference = MAP_THEMES.has(localStorage.getItem(MAP_THEME_STORE)) ? localStorage.getItem(MAP_THEME_STORE) : 'auto';
@@ -220,7 +220,7 @@
   }
   async function initDurableStorage(){
     try{
-      const module=await import('./routeheat-storage.js?v=6.0.1');
+      const module=await import('./routeheat-storage.js?v=6.1.0');
       durableStorage=module.createRouteHeatStorage({keys:DURABLE_STORAGE_KEYS,arrayKeys:DURABLE_ARRAY_KEYS,objectKeys:DURABLE_OBJECT_KEYS,journalLimit:60,getLogicalClock:durableLogicalClock,onStatus:setDurableStorageStatus});
       const result=await durableStorage.init();durableStorageReady=true;
       if(navigator.storage?.persist)navigator.storage.persist().catch(()=>{});
@@ -692,16 +692,66 @@
   }
   function restoreUniversalUndo(){
     if(!currentUndo||!route||String(currentUndo.routeId)!==String(route.id)||Number(currentUndo.expiresAt)<=Date.now()){clearUniversalUndo();toast('Undo window expired');return;}
-    if(!ensureRouteWriter())return;const checkpoint=currentUndo;
+    if(!ensureRouteWriter())return;
+    const checkpoint=currentUndo;
     if(checkpoint.kind==='stop'){
-      const index=route.stops.findIndex(stop=>String(stop.id)===String(checkpoint.eventId));if(index<0){clearUniversalUndo();return;}
-      const [removed]=route.stops.splice(index,1);route.amazon.nextStopNumber=Math.max(1,Number(checkpoint.amazonNextBefore)||displayStopNumber(removed));route.milestones=Array.isArray(checkpoint.milestonesBefore)?checkpoint.milestonesBefore:route.milestones;route.forecastSnapshots=(route.forecastSnapshots||[]).filter(item=>Number(item.capturedAt)<Number(checkpoint.createdAt));
-      if(checkpoint.suggestionId){const suggestion=(route.autoSuggestions||[]).find(item=>String(item.id)===String(checkpoint.suggestionId));if(suggestion)suggestion.status='pending';pendingAutoSuggestion=suggestion||null;}
-      resequenceRoute(route);if(removed.source==='auto')recordAutoTraining('undone',removed.serviceEstimateMs||0);
+      const index=route.stops.findIndex(stop=>String(stop.id)===String(checkpoint.eventId));
+      if(index<0){clearUniversalUndo();return;}
+      const [removed]=route.stops.splice(index,1);
+      route.amazon.nextStopNumber=Math.max(1,Number(checkpoint.amazonNextBefore)||displayStopNumber(removed));
+      route.milestones=Array.isArray(checkpoint.milestonesBefore)?checkpoint.milestonesBefore:route.milestones;
+      route.forecastSnapshots=(route.forecastSnapshots||[]).filter(item=>Number(item.capturedAt)<Number(checkpoint.createdAt));
+      if(checkpoint.suggestionId){
+        const suggestion=(route.autoSuggestions||[]).find(item=>String(item.id)===String(checkpoint.suggestionId));
+        if(suggestion)suggestion.status='pending';
+        pendingAutoSuggestion=suggestion||null;
+      }
+      resequenceRoute(route);
+      if(removed.source==='auto')recordAutoTraining('undone',removed.serviceEstimateMs||0);
     }else if(checkpoint.kind==='tote'){
-      const index=route.totes.findIndex(tote=>String(tote.id)===String(checkpoint.eventId));if(index<0){clearUniversalUndo();return;}route.totes.splice(index,1);route.currentToteNumber=Math.max(0,Number(checkpoint.currentToteBefore)||0);route.milestones=Array.isArray(checkpoint.milestonesBefore)?checkpoint.milestonesBefore:route.milestones;touchRoute(route);
-    }else{clearUniversalUndo();return;}
-    clearUniversalUndo();clearTimeout(undoTimer);$('#autoUndo').hidden=true;resetDetector();drawRoute();renderLive();saveActiveRoute(true);toast(checkpoint.kind==='tote'?'Tote marker undone':'Last completed stop undone');
+      const index=route.totes.findIndex(tote=>String(tote.id)===String(checkpoint.eventId));
+      if(index<0){clearUniversalUndo();return;}
+      route.totes.splice(index,1);
+      route.currentToteNumber=Math.max(0,Number(checkpoint.currentToteBefore)||0);
+      route.milestones=Array.isArray(checkpoint.milestonesBefore)?checkpoint.milestonesBefore:route.milestones;
+      touchRoute(route);
+    }else if(checkpoint.kind==='deleted-stop'){
+      route.stops.splice(Math.max(0,Math.min(route.stops.length,Number(checkpoint.index)||0)),0,checkpoint.item);
+      const amazonNumbers=new Map(Array.isArray(checkpoint.amazonNumbersBefore)?checkpoint.amazonNumbersBefore:[]);
+      route.stops.forEach(stop=>{if(amazonNumbers.has(String(stop.id)))stop.amazonStopNumber=amazonNumbers.get(String(stop.id));});
+      route.amazon.nextStopNumber=Math.max(1,Number(checkpoint.amazonNextBefore)||1);
+      const phaseFirstStops=new Map(Array.isArray(checkpoint.phaseFirstStopsBefore)?checkpoint.phaseFirstStopsBefore:[]);
+      route.phases.forEach(phase=>{if(phaseFirstStops.has(String(phase.id)))phase.firstStopId=phaseFirstStops.get(String(phase.id));});
+      route.milestones=Array.isArray(checkpoint.milestonesBefore)?checkpoint.milestonesBefore:route.milestones;
+      route.corrections=(route.corrections||[]).filter(item=>String(item.id)!==String(checkpoint.correctionId));
+      if(checkpoint.suggestionStateBefore){
+        const suggestion=(route.autoSuggestions||[]).find(item=>String(item.id)===String(checkpoint.suggestionStateBefore.id));
+        if(suggestion)suggestion.status=checkpoint.suggestionStateBefore.status;
+        pendingAutoSuggestion=suggestion?.status==='pending'?suggestion:null;
+      }
+      resequenceRoute(route);
+    }else if(checkpoint.kind==='deleted-tote'){
+      route.totes.splice(Math.max(0,Math.min(route.totes.length,Number(checkpoint.index)||0)),0,checkpoint.item);
+      const toteNumbers=new Map(Array.isArray(checkpoint.toteNumbersBefore)?checkpoint.toteNumbersBefore:[]);
+      route.totes.forEach(tote=>{if(toteNumbers.has(String(tote.id)))tote.number=toteNumbers.get(String(tote.id));});
+      route.currentToteNumber=Math.max(0,Number(checkpoint.currentToteBefore)||0);
+      route.milestones=Array.isArray(checkpoint.milestonesBefore)?checkpoint.milestonesBefore:route.milestones;
+      route.corrections=(route.corrections||[]).filter(item=>String(item.id)!==String(checkpoint.correctionId));
+      resequenceRoute(route);
+    }else{
+      clearUniversalUndo();
+      return;
+    }
+    const restoredKind=checkpoint.kind;
+    clearUniversalUndo();
+    clearTimeout(undoTimer);
+    $('#autoUndo').hidden=true;
+    lastStopAction=0;
+    resetDetector();
+    drawRoute();
+    renderLive();
+    saveActiveRoute(true);
+    toast(restoredKind==='deleted-stop'?'Stop restored':restoredKind==='deleted-tote'?'Tote restored':restoredKind==='tote'?'Tote marker undone':'Last completed stop undone');
   }
   function loadUniversalUndo(){
     const saved=parseStoredJson(localStorage.getItem(UNDO_STORE),null);if(!saved||Number(saved.expiresAt)<=Date.now()||!route||String(saved.routeId)!==String(route.id)){if(saved)clearUniversalUndo();return;}currentUndo=saved;renderUniversalUndo();undoExpiresTimer=setTimeout(clearUniversalUndo,Math.max(0,Number(saved.expiresAt)-Date.now()));
@@ -904,6 +954,149 @@
   }
   function undoAutoStop(){if(currentUndo?.kind==='stop'&&route?.stops.find(stop=>String(stop.id)===String(currentUndo.eventId))?.source==='auto'){restoreUniversalUndo();return;}if(!route||route.stops.at(-1)?.source!=='auto')return;const removed=route.stops.pop();route.amazon.nextStopNumber=displayStopNumber(removed);touchRoute(route);recordAutoTraining('undone',removed.serviceEstimateMs||0);$('#autoUndo').hidden=true;clearTimeout(undoTimer);drawRoute();renderLive();saveActiveRoute(true);toast('Automatic stop removed');}
   function openNewTote(){if(!route||route.pausedAt||!ensureRouteWriter())return;route=normalizeRouteData(route);const awardsBefore=awardSnapshot([...routes(),{...route,stops:route.stops.slice(),totes:(route.totes||[]).slice()}]),position=freshRoutePosition(),pos=position.point,number=route.currentToteNumber+1,phase=currentRoutePhase(route),milestonesBefore=(route.milestones||[]).slice(),currentToteBefore=route.currentToteNumber,tote={id:eventId('tote'),number,phaseId:phase?.id||'phase-main',source:'manual',timestamp:Date.now(),afterStop:route.stops.length,locationReason:position.reason,gpsAgeMs:position.ageMs,assistantExpectedStops:optionalInteger(route.toteAssistant?.baselineStopsPerTote),lat:pos?.lat??null,lng:pos?.lng??null,accuracy:pos?.accuracy??null};route.currentToteNumber=number;(route.totes??=[]).push(tote);touchRoute(route);const liveAwards=newAwardsBetween(awardsBefore,awardSnapshot([...routes(),route]),true);if(liveAwards.length){const achieved=new Set(route.milestones||[]);liveAwards.forEach(badge=>achieved.add(`award-${badge.id}`));route.milestones=[...achieved];queueAchievements(liveAwards,850);}vibrate([60,40,60]);drawRoute();if(map&&tote.lat!=null){followMap=mapFollowEnabled;const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;map.panTo([tote.lat,tote.lng],{animate:!reduced,duration:reduced?0:.5});}$('#toteButtonHint').textContent=`Tote ${number} opened · tap for next tote`;showToteConfirmation(tote);setUniversalUndo({kind:'tote',eventId:tote.id,currentToteBefore,milestonesBefore,summary:`Undo Tote ${number} marker`});renderToteAssistant();saveActiveRoute(true);toast(position.reason?`Tote ${number} saved · GPS point unavailable`:`New Tote ${number} marked on map`);}
+  function removeActiveStopRecord(saved,id,correctionId=eventId('correction')){
+    const index=saved.stops.findIndex(stop=>String(stop.id)===String(id));
+    if(index<0)return null;
+    const item=saved.stops[index],removedAmazonNumber=displayStopNumber(item);
+    const checkpoint={
+      kind:'deleted-stop',
+      item,
+      index,
+      amazonNumbersBefore:saved.stops.map(stop=>[String(stop.id),displayStopNumber(stop)]),
+      amazonNextBefore:saved.amazon.nextStopNumber,
+      phaseFirstStopsBefore:saved.phases.map(phase=>[String(phase.id),phase.firstStopId??null]),
+      milestonesBefore:(saved.milestones||[]).slice(),
+      correctionId
+    };
+    if(item.suggestionId){
+      const suggestion=(saved.autoSuggestions||[]).find(entry=>String(entry.id)===String(item.suggestionId));
+      if(suggestion){
+        checkpoint.suggestionStateBefore={id:String(suggestion.id),status:suggestion.status};
+        suggestion.status='pending';
+        pendingAutoSuggestion=suggestion;
+      }
+    }
+    saved.stops.splice(index,1);
+    saved.stops.forEach(stop=>{if(displayStopNumber(stop)>removedAmazonNumber)stop.amazonStopNumber=displayStopNumber(stop)-1;});
+    if(Number(saved.amazon.nextStopNumber)>removedAmazonNumber)saved.amazon.nextStopNumber=Math.max(1,Number(saved.amazon.nextStopNumber)-1);
+    saved.phases.forEach(phase=>{
+      if(phase.type!=='rescue')return;
+      const first=saved.stops.filter(stop=>String(stop.phaseId)===String(phase.id)).sort((a,b)=>Number(a.timestamp)-Number(b.timestamp))[0];
+      phase.firstStopId=first?.id??null;
+    });
+    (saved.corrections??=[]).push({id:correctionId,type:'deleted-stop',timestamp:Date.now(),stopId:item.id,amazonStopNumber:removedAmazonNumber});
+    resequenceRoute(saved);
+    return checkpoint;
+  }
+  function removeActiveToteRecord(saved,id,correctionId=eventId('correction')){
+    const index=saved.totes.findIndex(tote=>String(tote.id)===String(id));
+    if(index<0)return null;
+    const item=saved.totes[index],removedToteNumber=Math.max(0,Number(item.number)||index+1);
+    const checkpoint={
+      kind:'deleted-tote',
+      item,
+      index,
+      toteNumbersBefore:saved.totes.map((tote,toteIndex)=>[String(tote.id),Math.max(0,Number(tote.number)||toteIndex+1)]),
+      currentToteBefore:saved.currentToteNumber,
+      milestonesBefore:(saved.milestones||[]).slice(),
+      correctionId
+    };
+    saved.totes.splice(index,1);
+    saved.totes.forEach((tote,toteIndex)=>{
+      const number=Math.max(0,Number(tote.number)||toteIndex+1);
+      if(number>removedToteNumber)tote.number=number-1;
+    });
+    if(Number(saved.currentToteNumber)>=removedToteNumber)saved.currentToteNumber=Math.max(0,Number(saved.currentToteNumber)-1);
+    (saved.corrections??=[]).push({id:correctionId,type:'deleted-tote',timestamp:Date.now(),toteId:item.id,toteNumber:removedToteNumber});
+    resequenceRoute(saved);
+    return checkpoint;
+  }
+  function reconcileActiveAwardMilestones(){
+    if(!route)return;
+    const count=route.stops.length,planned=Math.max(1,Number(route.plannedStops)||1),percent=count/planned*100;
+    const priorRoutes=routes(),priorLocations=priorRoutes.reduce((total,item)=>total+routeLocations(item),0),lifetime=priorLocations+routeLocations(route);
+    const previousBest=Math.max(0,...priorRoutes.map(item=>fastestHour(item.stops||[]).count)),currentBest=fastestHour(route.stops||[]).count;
+    const unlocked=new Set(awardSnapshot([...priorRoutes,route]).unlocked.map(badge=>badge.id));
+    route.milestones=(route.milestones||[]).filter(key=>{
+      const interval=String(key).match(/^stop-interval-(\d+)$/);
+      if(interval)return Number(interval[1])<=count;
+      const progress=String(key).match(/^progress-(\d+)$/);
+      if(progress)return percent>=Number(progress[1]);
+      const lifetimeMark=String(key).match(/^lifetime-(\d+)$/);
+      if(lifetimeMark)return lifetime>=Number(lifetimeMark[1]);
+      if(key==='personal-hour')return currentBest>=20&&currentBest>previousBest;
+      if(String(key).startsWith('award-'))return unlocked.has(String(key).slice(6));
+      return true;
+    });
+  }
+  function recentRouteActivity(){
+    if(!route)return[];
+    return[
+      ...(route.stops||[]).map(item=>({kind:'stop',item,timestamp:Number(item.timestamp)||0})),
+      ...(route.totes||[]).map(item=>({kind:'tote',item,timestamp:Number(item.timestamp)||0}))
+    ].sort((a,b)=>b.timestamp-a.timestamp).slice(0,6);
+  }
+  function renderRecentActivity(){
+    const box=$('#recentStops'),activity=recentRouteActivity();
+    if(!activity.length){
+      box.className='empty-state';
+      box.innerHTML='<div class="empty-icon">◎</div><p>Your completed stops and tote changes will appear here.</p>';
+      return;
+    }
+    box.className='stop-list activity-list';
+    box.innerHTML=activity.map(({kind,item})=>{
+      if(kind==='stop'){
+        const segmentPace=pace(item.segmentMs),locationCount=stopLocations(item),number=displayStopNumber(item);
+        return `<div class="stop-row activity-row${locationCount>1?' multi-stop-row':''}${item.corrected?' missed-stop-row':''}"><span class="stop-number">${number}</span><div class="stop-info"><b>Stop ${number}${item.source==='auto'?' · Auto':''}${item.corrected?' <em class="correction-badge">Corrected</em>':''}${locationCount>1?` · ${locationCount} locations`:''}</b><span>${timeLabel(item.timestamp)} · ${formatDuration(item.segmentMs).slice(3)} segment</span></div><span class="activity-actions"><span class="pace-pill ${paceClass(segmentPace)}">${segmentPace.toFixed(1)}/hr</span><button class="activity-remove" type="button" data-activity-kind="stop" data-activity-id="${escapeHtml(item.id)}" aria-label="Remove stop ${number} from the active route">Remove</button></span></div>`;
+      }
+      const number=Math.max(0,Number(item.number)||1);
+      return `<div class="stop-row activity-row tote-activity-row"><span class="stop-number tote-activity-number">T${number}</span><div class="stop-info"><b>Tote ${number}</b><span>${timeLabel(item.timestamp)} · after ${Math.max(0,Number(item.afterStop)||0)} stop${Number(item.afterStop)===1?'':'s'}</span></div><span class="activity-actions"><span class="activity-kind-pill">TOTE</span><button class="activity-remove" type="button" data-activity-kind="tote" data-activity-id="${escapeHtml(item.id)}" aria-label="Remove tote ${number} from the active route">Remove</button></span></div>`;
+    }).join('');
+  }
+  function openActivityDelete(kind,id,returnFocus=null){
+    if(!route||!['stop','tote'].includes(kind))return;
+    const collection=kind==='stop'?route.stops:route.totes,item=collection.find(entry=>String(entry.id)===String(id));
+    if(!item){toast('That active-route item is no longer available');renderLive();return;}
+    pendingActivityDelete={routeId:String(route.id),kind,id:String(item.id)};
+    activityDeleteReturnFocus=returnFocus||document.activeElement;
+    const number=kind==='stop'?displayStopNumber(item):Math.max(0,Number(item.number)||1);
+    $('#activityDeleteTitle').textContent=`Remove ${kind} ${number}?`;
+    $('#activityDeleteSummary').textContent=kind==='stop'
+      ?'Later Amazon stop numbers, segment timing, rescue anchors, and tote positions will be repaired automatically.'
+      :'Later tote numbers and the current tote will be repaired automatically.';
+    $('#confirmActivityDelete').textContent=`Remove ${kind}`;
+    $('#activityDeleteModal').classList.add('open');
+    $('#activityDeleteModal').setAttribute('aria-hidden','false');
+    document.body.classList.add('modal-scroll-locked');
+    setTimeout(()=>$('#cancelActivityDelete').focus(),0);
+  }
+  function closeActivityDelete(restoreFocus=true){
+    $('#activityDeleteModal').classList.remove('open');
+    $('#activityDeleteModal').setAttribute('aria-hidden','true');
+    document.body.classList.remove('modal-scroll-locked');
+    pendingActivityDelete=null;
+    const focusTarget=activityDeleteReturnFocus;
+    activityDeleteReturnFocus=null;
+    if(restoreFocus&&focusTarget?.isConnected)setTimeout(()=>focusTarget.focus(),0);
+  }
+  function confirmActivityDelete(){
+    if(!pendingActivityDelete||!route||String(route.id)!==pendingActivityDelete.routeId){closeActivityDelete(false);toast('Active route changed · nothing removed');return;}
+    if(!ensureRouteWriter())return;
+    route=normalizeRouteData(route);
+    const {kind,id}=pendingActivityDelete,correctionId=eventId('correction');
+    const checkpoint=kind==='stop'?removeActiveStopRecord(route,id,correctionId):removeActiveToteRecord(route,id,correctionId);
+    if(!checkpoint){closeActivityDelete(false);toast('That active-route item is no longer available');renderLive();return;}
+    closeActivityDelete(false);
+    reconcileActiveAwardMilestones();
+    setUniversalUndo({...checkpoint,summary:kind==='stop'?`Restore removed stop ${displayStopNumber(checkpoint.item)}`:`Restore removed Tote ${Math.max(0,Number(checkpoint.item.number)||1)}`});
+    lastStopAction=0;
+    resetDetector();
+    drawRoute();
+    renderLive();
+    saveActiveRoute(true);
+    vibrate([70,45,70]);
+    toast(kind==='stop'?'Stop removed · numbering repaired':'Tote removed · numbering repaired');
+  }
   function updateMultiStopPicker(){pendingMultiLocations=Math.max(2,Math.min(20,pendingMultiLocations));$('#multiLocationCount').textContent=pendingMultiLocations;$('#multiMinus').disabled=pendingMultiLocations<=2;$('#multiPlus').disabled=pendingMultiLocations>=20;$('#confirmMultiStop').textContent=`Save ${pendingMultiLocations} locations`;}
   function openMultiStop(){if(!route||route.pausedAt)return;pendingMultiLocations=2;updateMultiStopPicker();$('#multiStopModal').classList.add('open');$('#multiStopModal').setAttribute('aria-hidden','false');setTimeout(()=>$('#confirmMultiStop').focus(),0);}
   function closeMultiStop(restoreFocus=true){$('#multiStopModal').classList.remove('open');$('#multiStopModal').setAttribute('aria-hidden','true');if(restoreFocus)setTimeout(()=>($('#driveView').classList.contains('active')?$('#driveMultiStopBtn'):$('#multiStopBtn')).focus(),0);}
@@ -957,12 +1150,11 @@
     const count=route?.stops.length||0, locations=routeLocations(route), packages=routePackageStats(route), elapsed=route?activeMs(route):0, last=route?.stops.at(-1), eta=route?etaEstimate(route):null, coach=smartCoachInsight(route,eta);
     $('#stopCount').textContent=count; $('#routeTime').textContent=`${formatDuration(elapsed)} active time`; $('#overallPace').textContent=route&&count?pace(elapsed/count).toFixed(1):'—';
     $('#segmentPace').textContent=last?pace(last.segmentMs).toFixed(1):'—'; $('#segmentTime').textContent=last?`${formatDuration(last.segmentMs).slice(3)} segment`:'Complete a stop';
-    $('#stopBadge').textContent=`${count} stop${count===1?'':'s'} · ${locations} location${locations===1?'':'s'}`; if(route) $('#stopButtonHint').textContent=`Amazon stop ${route.amazon.nextStopNumber} • tap once when parked`;
+    const toteCount=route?.totes?.length||0;$('#stopBadge').textContent=`${count} stop${count===1?'':'s'} · ${toteCount} tote${toteCount===1?'':'s'}`; if(route){$('#stopButtonHint').textContent=`Amazon stop ${route.amazon.nextStopNumber} • tap once when parked`;$('#toteButtonHint').textContent=route.currentToteNumber?`Tote ${route.currentToteNumber} open · tap for next tote`:'Mark location';}
     const strip=$('#goalStrip');strip.classList.remove('ahead','behind');if(route){const actual=count&&elapsed?pace(elapsed/count):0,delta=actual-route.paceGoal,packageCopy=packages.total!=null?` · ${packageTotalLabel(packages)} packages`:'';$('#goalStatus').textContent=count?`${Math.abs(delta).toFixed(1)}/hr ${delta>=0?'ahead':'behind'} · goal ${route.paceGoal}/hr${packageCopy}`:`Goal ${route.paceGoal}/hr · ${route.plannedStops} stops${packageCopy}`;strip.classList.add(delta>=0?'ahead':'behind');$('#finishProjection').textContent=eta?.label||'—';}else{$('#goalStatus').textContent='Set a goal before starting';$('#finishProjection').textContent='—';}
     const etaConfidence=$('#etaConfidence');if(etaConfidence){etaConfidence.className=`eta-confidence ${route?eta?.confidence||'low':'waiting'}`;etaConfidence.textContent=route?`${eta.confidence} confidence · ${eta.historyCount} comparable route${eta.historyCount===1?'':'s'}`:'ETA confidence builds after route start';}const coachElement=$('#smartCoach');if(coachElement){coachElement.hidden=!route;coachElement.className=`smart-coach coach-insight ${coach.tone}`;if($('#smartCoachTitle'))$('#smartCoachTitle').textContent=coach.title;if($('#smartCoachMessage'))$('#smartCoachMessage').textContent=coach.text;}const familyElement=$('#routeFamilyLive');if(familyElement){const family=route?.routeFamily||route?.familyHint,level=confidenceLabel(family?.confidence);familyElement.className=`route-family-badge family-confidence ${level}${route?.routeFamily?'':' is-predicted'}`;familyElement.textContent=family?`${route?.routeFamily?familyDisplayName(family):`Likely ${family.name}`} · ${level}`:'Family learns after GPS stops';}
     renderDrive(eta,coach);renderToteAssistant();renderAutoSuggestion();renderUniversalUndo();
-    const box=$('#recentStops'); if(!count){box.className='empty-state';box.innerHTML='<div class="empty-icon">◎</div><p>Your completed stops will appear here.</p>';return;}
-    box.className='stop-list'; box.innerHTML=route.stops.slice(-4).reverse().map(s=>{const p=pace(s.segmentMs),locationCount=stopLocations(s),number=displayStopNumber(s);return `<div class="stop-row${locationCount>1?' multi-stop-row':''}${s.corrected?' missed-stop-row':''}"><span class="stop-number">${number}</span><div class="stop-info"><b>Stop ${number}${s.source==='auto'?' · Auto':''}${s.corrected?' <em class="correction-badge">Corrected</em>':''}${locationCount>1?` · ${locationCount} locations`:''}</b><span>${timeLabel(s.timestamp)} · ${formatDuration(s.segmentMs).slice(3)} segment</span></div><span class="pace-pill ${paceClass(p)}">${p.toFixed(1)}/hr</span></div>`}).join('');
+    renderRecentActivity();
   }
   function renderDrive(sharedEta=null,sharedCoach=null){
     const active=!!route,count=route?.stops.length||0,locations=routeLocations(route),packages=routePackageStats(route),planned=active?Math.max(1,route.plannedStops):0,elapsed=active?activeMs(route):0,last=route?.stops.at(-1),actual=count&&elapsed?pace(elapsed/count):0,remaining=active?Math.max(0,planned-count):0,paused=!!route?.pausedAt,rawProgress=active?count/planned*100:0,barProgress=Math.min(100,rawProgress),eta=active?(sharedEta||etaEstimate(route)):null,coach=sharedCoach||smartCoachInsight(route,eta);
@@ -1431,6 +1623,8 @@
   $('#runReadinessCheck')?.addEventListener('click',runReadinessCheck);$('#routeContextTags')?.addEventListener('click',event=>{const button=event.target.closest('.route-context-tag[data-context-tag]');if(button)toggleRouteContextTag(button.dataset.contextTag);});
   $('#autoStopModeChoices')?.addEventListener('click',event=>{const button=event.target.closest('[data-auto-stop-mode]');if(button)setAutoStopMode(button.dataset.autoStopMode);});$('#resetAutoStopTraining')?.addEventListener('click',resetAutoTraining);$('#acceptAutoStopSuggestion')?.addEventListener('click',acceptAutoSuggestion);$('#dismissAutoStopSuggestion')?.addEventListener('click',dismissAutoSuggestion);
   $('#toteAssistantAction')?.addEventListener('click',openNewTote);$('#driveToteAssistantAction')?.addEventListener('click',openNewTote);$('#retryRouteSave')?.addEventListener('click',retryDurableSave);$('#undoLastAction')?.addEventListener('click',restoreUniversalUndo);$('#dismissUndo')?.addEventListener('click',clearUniversalUndo);
+  $('#recentStops')?.addEventListener('click',event=>{const button=event.target.closest('.activity-remove[data-activity-kind][data-activity-id]');if(button)openActivityDelete(button.dataset.activityKind,button.dataset.activityId,button);});
+  $('#cancelActivityDelete')?.addEventListener('click',()=>closeActivityDelete());$('#confirmActivityDelete')?.addEventListener('click',confirmActivityDelete);$('#activityDeleteModal')?.addEventListener('click',event=>{if(event.target.id==='activityDeleteModal')closeActivityDelete();});
   $('#cancelWriterTakeover')?.addEventListener('click',closeWriterConflict);$('#takeOverRouteWriter')?.addEventListener('click',takeOverRouteWriter);$('#writerConflictModal')?.addEventListener('click',event=>{if(event.target.id==='writerConflictModal')closeWriterConflict();});
   $('#exportRouteheatBackup')?.addEventListener('click',exportRouteheatBackup);$('#routeheatBackupInput')?.addEventListener('change',event=>{const file=event.target.files?.[0];event.target.value='';if(file)previewBackupImport(file);});$('#cancelBackupImport')?.addEventListener('click',()=>closeBackupImport());$('#confirmBackupImport')?.addEventListener('click',confirmBackupImport);$('#backupImportModal')?.addEventListener('click',event=>{if(event.target.id==='backupImportModal')closeBackupImport();});
   $('#applyRouteHeatUpdate')?.addEventListener('click',applyRouteHeatUpdate);$('#dismissRouteHeatUpdate')?.addEventListener('click',dismissRouteHeatUpdate);

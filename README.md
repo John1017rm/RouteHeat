@@ -1,8 +1,15 @@
-# RouteHeat 6.0.1
+# RouteHeat 6.1.0
 
 RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone and Android. It records stops, locations, totes, rescues, packages, timing, and GPS breadcrumbs; compares a driver only with their own history; and turns finished workdays into maps, reports, replay, and long-term insights.
 
 > **Safety:** Use every RouteHeat control only while safely parked. Forecasts, Ghost comparisons, coaching, achievements, and historical pace are personal context—not targets or reasons to rush.
+
+## 6.1.0 active-route corrections
+
+- **Recent activity:** The Live view now combines the six most recent completed stops and tote changes in one list.
+- **Easy parked removal:** Each recent stop or tote has a clear Remove control and a confirmation that affects only the active route.
+- **Automatic repair:** Removing a stop recalculates later Amazon stop numbers, segment timing, phase anchors, and tote positions. Removing a tote recalculates later tote numbers and the current tote.
+- **30-second Undo:** A removed stop or tote can be restored with its original numbering and route metadata from the existing protected Undo banner.
 
 ## 6.0.1 finish-save hotfix
 
