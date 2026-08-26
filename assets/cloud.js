@@ -3,12 +3,14 @@
 
   const CONFIG = window.ROUTEHEAT_SUPABASE || {};
   const TABLE = CONFIG.table || 'routeheat_routes';
+  const SNAPSHOT_FUNCTION = CONFIG.snapshotFunction || 'neighborhood-snapshot';
   const ROUTES_KEY = 'routeheat.routes.v2';
   const OWNER_KEY = 'routeheat.cloud.owner.v1';
   const DELETIONS_KEY = 'routeheat.cloud.deletions.v1';
   const BLOCKLIST_KEY = 'routeheat.cloud.deletedRoutes.v1';
   const RESTORES_KEY = 'routeheat.cloud.restores.v1';
   const LAST_SYNC_KEY = 'routeheat.cloud.lastSync.v1';
+  const SNAPSHOT_DELETIONS_KEY = 'routeheat.neighborhood.deletions.v1';
   const $ = selector => document.querySelector(selector);
   let client = null;
   let session = null;
@@ -34,6 +36,7 @@
   const deletionQueue = () => readJson(DELETIONS_KEY, []);
   const deletionBlocklist = () => readJson(BLOCKLIST_KEY, []);
   const restoreQueue = () => readJson(RESTORES_KEY, []);
+  const snapshotDeletionQueue = () => readJson(SNAPSHOT_DELETIONS_KEY, []).filter(item => item && item.routeId);
   const saveDeletions = items => localStorage.setItem(DELETIONS_KEY, JSON.stringify(items));
   const saveBlocklist = items => localStorage.setItem(BLOCKLIST_KEY, JSON.stringify(items.slice(-500)));
   const saveRestores = items => localStorage.setItem(RESTORES_KEY, JSON.stringify(items.slice(-500)));
@@ -85,11 +88,18 @@
   const compactMirrorOnly = route => route?.localMirrorTrackOmitted === true
     && !(Array.isArray(route?.track) && route.track.length);
   const hasRecordedTrail = route => Array.isArray(route?.track) && route.track.length > 0;
+  const compactNeighborhoodOnly = route => route?.localMirrorNeighborhoodDetailOmitted === true
+    && !(Array.isArray(route?.neighborhoodSnapshot?.areas) && route.neighborhoodSnapshot.areas.length)
+    && !(Array.isArray(route?.neighborhoodSnapshot?.phases) && route.neighborhoodSnapshot.phases.length);
+  const hasNeighborhoodDetail = route => (Array.isArray(route?.neighborhoodSnapshot?.areas) && route.neighborhoodSnapshot.areas.length > 0)
+    || (Array.isArray(route?.neighborhoodSnapshot?.phases) && route.neighborhoodSnapshot.phases.length > 0);
   function compareRouteCopies(firstRoute, secondRoute, firstCloudUpdatedAt = null, secondCloudUpdatedAt = null) {
     const version = compareRouteVersions(firstRoute, secondRoute, firstCloudUpdatedAt, secondCloudUpdatedAt);
     if (version) return version;
     if (compactMirrorOnly(firstRoute) && hasRecordedTrail(secondRoute)) return -1;
     if (compactMirrorOnly(secondRoute) && hasRecordedTrail(firstRoute)) return 1;
+    if (compactNeighborhoodOnly(firstRoute) && hasNeighborhoodDetail(secondRoute)) return -1;
+    if (compactNeighborhoodOnly(secondRoute) && hasNeighborhoodDetail(firstRoute)) return 1;
     return 0;
   }
   function signaturesMatch(first, second) {
@@ -254,10 +264,93 @@
     }
   }
 
+  function dispatchNeighborhoodState(status = null, message = '') {
+    const resolved = status || (!navigator.onLine ? 'offline' : !CONFIG.snapshotFunction ? 'setup-error' : session?.user ? 'ready' : 'signed-out');
+    const defaults = {ready:'Cloud is signed in and Neighborhood Snapshot is ready.',checking:'Checking Neighborhood Snapshot setup.','signed-out':'Sign in to Cloud before building Neighborhood Snapshots.',offline:'Offline · saved snapshots remain available.','setup-error':'Add snapshotFunction to Supabase config and deploy the included Edge Function.',error:'Neighborhood Snapshot service needs attention.'};
+    window.dispatchEvent(new CustomEvent('routeheat:neighborhood-cloud-state',{detail:{status:resolved,message:message||defaults[resolved]||defaults.error}}));
+  }
+
+  async function neighborhoodFunctionError(error) {
+    let message = String(error?.message || error || 'Neighborhood Snapshot request failed');
+    const response = error?.context;
+    if (response?.clone) {
+      try { const payload = await response.clone().json(); message = String(payload?.message || payload?.error || message); }
+      catch {}
+      if (response.status === 404) return 'Neighborhood Snapshot Edge Function is not deployed yet.';
+      if (response.status === 401) return 'Cloud session expired. Sign in again, then retry.';
+      if (response.status === 429) return 'Snapshot limit reached. Wait a little while, then retry.';
+    }
+    if (/function.*not found|404/i.test(message)) return 'Neighborhood Snapshot Edge Function is not deployed yet.';
+    if (/census.*key|missing key|secret/i.test(message)) return 'Census API key is not configured in Supabase yet.';
+    if (/route.*not found/i.test(message)) return 'This route is not in Cloud yet. Sync once, then retry.';
+    return friendlyError(message);
+  }
+
+  async function waitForCloudSync(maxMs = 20000) {
+    const started=Date.now();let idleSince=0;
+    while(Date.now()-started<maxMs){
+      if(syncing||syncRequested)idleSince=0;
+      else if(!idleSince)idleSince=Date.now();
+      else if(Date.now()-idleSince>=160)return true;
+      await new Promise(resolve=>setTimeout(resolve,80));
+    }
+    return false;
+  }
+
+  async function invokeSnapshotFunction(body, timeoutMs = 70000) {
+    let timer;
+    try{return await Promise.race([
+      client.functions.invoke(SNAPSHOT_FUNCTION,{body}),
+      new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('Neighborhood Snapshot timed out. Your route is still saved; retry when the app is in front.')),timeoutMs);})
+    ]);}finally{clearTimeout(timer);}
+  }
+
+  async function invokeNeighborhoodSnapshot(event) {
+    const detail = event.detail && typeof event.detail === 'object' ? event.detail : {}, routeId = String(detail.routeId || '').slice(0, 192), requestId = String(detail.requestId || '').slice(0, 192), fingerprint = String(detail.fingerprint || '').slice(0, 32), respond = payload => window.dispatchEvent(new CustomEvent('routeheat:neighborhood-result',{detail:{routeId,requestId,fingerprint,...payload}}));
+    if (!routeId || !requestId) return;
+    if (!CONFIG.snapshotFunction || !client) { const message='Neighborhood Snapshot Edge Function is not configured.';dispatchNeighborhoodState('setup-error',message);respond({status:'setup-error',message});return; }
+    if (!navigator.onLine) { respond({status:'offline',message:'Offline · reconnect to build this snapshot.'});return; }
+    if (!session?.user) { respond({status:'signed-out',message:'Sign in to Cloud before building a snapshot.'});return; }
+    try {
+      await syncNow(false);if(!await waitForCloudSync())throw new Error('Cloud sync is still busy. Wait a moment, then retry the snapshot.');
+      const {data,error}=await invokeSnapshotFunction({routeId,forceRefresh:detail.forceRefresh===true});
+      if(error)throw error;const snapshot=data?.snapshot??data;if(!snapshot||Number(snapshot.version)!==1)throw new Error('Neighborhood service returned an incomplete response');
+      dispatchNeighborhoodState('ready');respond({status:'ready',snapshot});
+    } catch(error) {
+      const message=await neighborhoodFunctionError(error),status=/not deployed|not configured|Census API key/i.test(message)?'setup-error':/sign in|session expired/i.test(message)?'signed-out':/connection|offline/i.test(message)?'offline':'error';if(status!=='error')dispatchNeighborhoodState(status,message);respond({status,message});
+    }
+  }
+
+  function queueNeighborhoodSnapshotDeletion(routeId) {
+    const normalized=String(routeId||'').slice(0,192);if(!normalized)return false;
+    const queue=snapshotDeletionQueue().filter(item=>String(item.routeId)!==normalized);
+    queue.push({routeId:normalized,queuedAt:new Date().toISOString()});
+    try{const raw=JSON.stringify(queue);localStorage.setItem(SNAPSHOT_DELETIONS_KEY,raw);window.dispatchEvent(new CustomEvent('routeheat:neighborhood-delete-queue-changed',{detail:{raw,count:queue.length}}));return true;}catch{return false;}
+  }
+
+  async function flushNeighborhoodSnapshotDeletions() {
+    const queue=snapshotDeletionQueue();
+    if(!queue.length||!client||!session?.user||!navigator.onLine||!CONFIG.snapshotFunction)return{removed:0,pending:queue.length};
+    const pending=[];let removed=0;
+    for(const item of queue){
+      try{const {error}=await invokeSnapshotFunction({routeId:String(item.routeId),action:'delete'},30000);if(error)throw error;removed++;}
+      catch{pending.push(item);}
+    }
+    try{const raw=JSON.stringify(pending);localStorage.setItem(SNAPSHOT_DELETIONS_KEY,raw);window.dispatchEvent(new CustomEvent('routeheat:neighborhood-delete-queue-changed',{detail:{raw,count:pending.length}}));}catch{}
+    return{removed,pending:pending.length};
+  }
+
+  async function deleteNeighborhoodSnapshot(event) {
+    const routeId=String(event.detail?.routeId||'').slice(0,192);if(!routeId)return;
+    const queued=queueNeighborhoodSnapshotDeletion(routeId);if(event.detail&&typeof event.detail==='object')event.detail.queued=queued;
+    if(queued)await flushNeighborhoodSnapshotDeletions();
+  }
+
   function renderAccount() {
     const signedIn = !!session?.user;
     $('#cloudSignedOut').hidden = signedIn;
     $('#cloudSignedIn').hidden = !signedIn;
+    dispatchNeighborhoodState();
     if (!signedIn) return;
     $('#cloudAccountEmail').textContent = session.user.email || 'Cloud account';
     const last = Number(localStorage.getItem(LAST_SYNC_KEY));
@@ -459,6 +552,7 @@
       ensureOwner(userId, localSnapshot);
       await flushRestores(userId);
       await flushDeletions(userId, localSnapshot);
+      await flushNeighborhoodSnapshotDeletions();
 
       const {data: remoteRows, error: remoteError} = await client
         .from(TABLE)
@@ -755,9 +849,10 @@
     $('#cloudPassword').addEventListener('keydown', event => {
       if (event.key === 'Enter') signIn();
     });
-    window.addEventListener('online', () => syncNow());
+    window.addEventListener('online', () => { dispatchNeighborhoodState();syncNow(); });
     window.addEventListener('offline', () => {
       if (session) setStatus('offline', 'Offline. Local tracking remains available.');
+      dispatchNeighborhoodState('offline');
     });
     window.addEventListener('routeheat:route-saved', () => syncNow());
     window.addEventListener('routeheat:route-deleted', event => {
@@ -771,6 +866,8 @@
     window.addEventListener('routeheat:request-deleted-routes', () => {
       requestDeletedRoutes();
     });
+    window.addEventListener('routeheat:neighborhood-request', invokeNeighborhoodSnapshot);
+    window.addEventListener('routeheat:neighborhood-delete', deleteNeighborhoodSnapshot);
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') syncNow();
     });
@@ -780,6 +877,7 @@
     bindUi();
     if (!CONFIG.url || !CONFIG.publishableKey || !window.supabase?.createClient) {
       setStatus('error', 'Cloud backup could not load. Route tracking still works locally.');
+      dispatchNeighborhoodState('setup-error','Cloud backup must be configured before Neighborhood Snapshot can run.');
       return;
     }
     client = window.supabase.createClient(CONFIG.url, CONFIG.publishableKey, {
