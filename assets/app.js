@@ -44,7 +44,7 @@
   let finishReviewTimers = [], pendingFinishAwards = [], finishReviewRouteId = null, reportWasCelebration = false, reportMapInitTimer = null, weeklyRecapShareText = '', weeklyRecapCache = null;
   let detailReturnFocus = null, reportReturnFocus = null, rescueReturnFocus = null, mergeReturnFocus = null, goalReturnFocus = null, confirmReturnFocus = null, familyReturnFocus = null, selectedFamilyId = null, lastKnownPosition = null;
   let familyNamesCache = {raw:null,value:{}}, intelligenceHistoryCache = {store:null,deleted:null,deletions:null,restores:null,reopened:null,value:null};
-  let durableStorage = null, durableStorageInit = null, durableStorageReady = false, durableCommitTimer = null, durableStorageStatus = {state:'starting',backend:'localStorage',message:'Preparing device protection'};
+  let durableStorage = null, durableStorageInit = null, durableStorageReady = false, durableCommitTimer = null, durableHistoryRaw = null, durableStorageStatus = {state:'starting',backend:'localStorage',message:'Preparing device protection'};
   let selectedContextTags = new Set(), pendingAutoSuggestion = null, currentUndo = null, undoExpiresTimer = null, pendingActivityDelete = null, activityDeleteReturnFocus = null, pendingBackupImport = null, backupImportReturnFocus = null;
   let writerHeartbeatTimer = null, writerBlocked = false, pendingWriterTakeover = null, gpsRestartTimer = null, lastGpsRestartAt = 0;
   let serviceWorkerRegistration = null, pendingUpdateWorker = null, updateReloadPending = false;
@@ -167,7 +167,7 @@
     saved.autoSuggestions=(Array.isArray(saved.autoSuggestions)?saved.autoSuggestions:[]).filter(item=>item&&typeof item==='object'&&!Array.isArray(item)&&item.id).slice(-50).map(item=>({...item,id:normalizeIdentifier(item.id),status:normalizeBoundedText(item.status,'pending',32),confidence:normalizeBoundedText(item.confidence,'low',16)}));
     saved.toteAssistant=saved.toteAssistant&&typeof saved.toteAssistant==='object'&&!Array.isArray(saved.toteAssistant)?{version:1,...saved.toteAssistant,scope:normalizeBoundedText(saved.toteAssistant.scope,'personal history',64)}:null;
     saved.gpsDiagnostics=saved.gpsDiagnostics&&typeof saved.gpsDiagnostics==='object'?{version:1,acceptedFixes:Math.max(0,Number(saved.gpsDiagnostics.acceptedFixes)||0),rejectedWeakFixes:Math.max(0,Number(saved.gpsDiagnostics.rejectedWeakFixes)||0),rejectedOutlierFixes:Math.max(0,Number(saved.gpsDiagnostics.rejectedOutlierFixes)||0),gapCount:Math.max(0,Number(saved.gpsDiagnostics.gapCount)||0),longestGapMs:Math.max(0,Number(saved.gpsDiagnostics.longestGapMs)||0),lastFixAt:Math.max(0,Number(saved.gpsDiagnostics.lastFixAt)||0)}:{version:1,acceptedFixes:0,rejectedWeakFixes:0,rejectedOutlierFixes:0,gapCount:0,longestGapMs:0,lastFixAt:0};
-    saved.totalPackages=optionalInteger(saved.totalPackages);
+    saved.totalPackages=optionalInteger(saved.totalPackages);saved.recordedDistanceMeters=Math.max(0,Number(saved.recordedDistanceMeters)||0);saved.localMirrorTrackOmitted=!!saved.localMirrorTrackOmitted;
     if(!Array.isArray(saved.phases)||!saved.phases.length)saved.phases=[{id:'phase-main',type:'original',label:'Original route',startedAt:saved.startedAt,endedAt:saved.endedAt||null,startStopIndex:0,endStopIndex:saved.endedAt?saved.stops.length:null,plannedStopsAdded:Number(saved.plannedStops)||saved.stops.length||0}];
     saved.phases=saved.phases.filter(phase=>phase&&typeof phase==='object'&&!Array.isArray(phase));if(!saved.phases.length)saved.phases=[{id:'phase-main',type:'original',label:'Original route',startedAt:saved.startedAt,endedAt:saved.endedAt||null,startStopIndex:0,endStopIndex:saved.endedAt?saved.stops.length:null,plannedStopsAdded:Number(saved.plannedStops)||saved.stops.length||0}];
     saved.phases.forEach((phase,index)=>{phase.id=normalizeIdentifier(phase.id,`phase-${index+1}`);phase.type=phase.type==='rescue'?'rescue':'original';phase.label=normalizeBoundedText(phase.label,!index?'Original route':`Rescue ${index}`,96);phase.firstStopId=phase.firstStopId==null?null:normalizeIdentifier(phase.firstStopId);phase.startStopIndex=Math.max(0,Number(phase.startStopIndex)||0);phase.packagesAdded=optionalInteger(phase.packagesAdded);if(saved.phases.length===1&&index===0&&phase.packagesAdded==null&&saved.totalPackages!=null)phase.packagesAdded=saved.totalPackages;});
@@ -215,16 +215,21 @@
   let durablePendingOverrides={},durablePendingReasons=[];
   function queueDurableCommit(reason='app-checkpoint',overrides=null,immediate=false){
     if(overrides)Object.assign(durablePendingOverrides,overrides);durablePendingReasons.push(String(reason));clearTimeout(durableCommitTimer);
-    const run=()=>{durableCommitTimer=null;if(!durableStorage||!durableStorageReady){durableCommitTimer=setTimeout(run,250);return;}const nextOverrides={...durablePendingOverrides},reasons=durablePendingReasons.splice(0);durablePendingOverrides={};durableStorage.commit(nextOverrides,{reason:[...new Set(reasons)].slice(-3).join('+')||reason,logicalClock:durableLogicalClock(durableStorage.capture(nextOverrides))}).catch(()=>{});};
+    const run=()=>{durableCommitTimer=null;if(!durableStorage||!durableStorageReady){durableCommitTimer=setTimeout(run,250);return;}const nextOverrides={...durablePendingOverrides},reasons=durablePendingReasons.splice(0);durablePendingOverrides={};if(durableHistoryRaw!=null&&!Object.prototype.hasOwnProperty.call(nextOverrides,STORE))nextOverrides[STORE]=durableHistoryRaw;durableStorage.commit(nextOverrides,{reason:[...new Set(reasons)].slice(-3).join('+')||reason,logicalClock:durableLogicalClock(durableStorage.capture(nextOverrides))}).catch(()=>{});};
     if(immediate)run();else durableCommitTimer=setTimeout(run,450);
   }
   async function initDurableStorage(){
     try{
-      const module=await import('./routeheat-storage.js?v=6.1.0');
+      const module=await import('./routeheat-storage.js?v=6.1.1');
       durableStorage=module.createRouteHeatStorage({keys:DURABLE_STORAGE_KEYS,arrayKeys:DURABLE_ARRAY_KEYS,objectKeys:DURABLE_OBJECT_KEYS,journalLimit:60,getLogicalClock:durableLogicalClock,onStatus:setDurableStorageStatus});
       const result=await durableStorage.init();durableStorageReady=true;
+      const historyFailure=(result.failures||[]).some(item=>item?.key===STORE),journalHistoryRaw=result.snapshot?.values?.[STORE];
+      if(historyFailure&&typeof journalHistoryRaw==='string'&&Array.isArray(parseStoredJson(journalHistoryRaw,null))){
+        durableHistoryRaw=journalHistoryRaw;
+        setDurableStorageStatus({state:'saved',backend:durableStorage.backend,message:'Full history loaded from the device journal · compact local mirror active'});
+      }
       if(navigator.storage?.persist)navigator.storage.persist().catch(()=>{});
-      if(result.recovered){renderHistory();updateRecentlyDeletedSummary();}
+      if(result.recovered||durableHistoryRaw!=null){renderHistory();updateRecentlyDeletedSummary();}
       return result;
     }catch(error){durableStorage={backend:'localStorage',capture:overrides=>Object.fromEntries(DURABLE_STORAGE_KEYS.map(key=>[key,overrides&&Object.prototype.hasOwnProperty.call(overrides,key)?overrides[key]:localStorage.getItem(key)])),commit:async()=>({backend:'localStorage',committed:false})};durableStorageReady=true;setDurableStorageStatus({state:'degraded',backend:'localStorage',error,message:'Device journal unavailable · local save still active'});return{backend:'localStorage',source:'fallback',error};}
   }
@@ -451,30 +456,67 @@
   }
   function routes() {
     let saved;
-    try { saved=JSON.parse(localStorage.getItem(STORE)) || []; } catch { saved=[]; }
+    try { saved=JSON.parse(durableHistoryRaw??localStorage.getItem(STORE)) || []; } catch { saved=[]; }
     if (!Array.isArray(saved)) saved=[];
     let ledger=deletionLedger(),queue=storedArray(CLOUD_DELETIONS_STORE);
     const reopenedCheckpointId=route?.reopenedForRescue&&route.id!=null?String(route.id):null;
     const withoutReopenedCheckpoint=items=>reopenedCheckpointId?items.filter(item=>String(item.id)!==reopenedCheckpointId):items;
     saved=saved.map(normalizeRouteData).filter(Boolean);
     const beforeHydration=JSON.stringify(saved);saved=hydratePendingRestores(saved,ledger,queue);assignRouteFamilies(saved);
-    if(JSON.stringify(saved)!==beforeHydration)try{localStorage.setItem(STORE,JSON.stringify(saved));queueDurableCommit('restore-hydration');}catch{}
+    if(JSON.stringify(saved)!==beforeHydration){
+      const hydratedRaw=JSON.stringify(saved);if(durableHistoryRaw!=null)durableHistoryRaw=hydratedRaw;
+      try{localStorage.setItem(STORE,hydratedRaw);}catch{}
+      queueDurableCommit('restore-hydration',{[STORE]:hydratedRaw});
+    }
     ({ledger,queue}=pruneSupersededLocalDeletions(saved,ledger,queue));
     const blocked=[...ledger,...queue].map(recoveryEntrySignature);
     if (!blocked.length) return withoutReopenedCheckpoint(saved);
     const visible=saved.filter(item=>!blocked.some(signature=>recoveryLogicalMatch(localDeletionSignature(item),signature)));
-    if (visible.length !== saved.length){localStorage.setItem(STORE,JSON.stringify(visible));queueDurableCommit('deletion-filter');}
+    if (visible.length !== saved.length){
+      const visibleRaw=JSON.stringify(visible);if(durableHistoryRaw!=null)durableHistoryRaw=visibleRaw;
+      try{localStorage.setItem(STORE,visibleRaw);}catch{}
+      queueDurableCommit('deletion-filter',{[STORE]:visibleRaw});
+    }
     return withoutReopenedCheckpoint(visible);
   }
-  function replaceActiveDraftWithFinishedHistory(raw,fallbackActiveRaw=null){
+  function stripLocalMirrorTrail(saved){
+    if(!saved?.track?.length)return false;
+    const distance=trackDistance(saved);if(distance>0)saved.recordedDistanceMeters=Math.max(Number(saved.recordedDistanceMeters)||0,distance);
+    saved.track=[];saved.trackBreakTimes=[];saved.localMirrorTrackOmitted=true;
+    (saved.stops||[]).forEach(stop=>{stop.trackIndex=0;});
+    return true;
+  }
+  function writeLocalRouteHistory(normalized){
+    const mirror=JSON.parse(JSON.stringify(normalized)),attempt=trimmedRoutes=>{
+      const raw=JSON.stringify(mirror);
+      try{localStorage.setItem(STORE,raw);return{saved:true,raw,trimmedRoutes};}
+      catch(error){return{saved:false,error,raw,trimmedRoutes};}
+    };
+    let result=attempt(0);
+    if(result.saved)return result;
+    let trimmedRoutes=0;
+    const order=[...mirror.keys()].sort((first,second)=>{
+      if(first===0)return 1;if(second===0)return-1;
+      return Number(mirror[first]?.startedAt||0)-Number(mirror[second]?.startedAt||0);
+    });
+    for(const index of order){
+      if(!stripLocalMirrorTrail(mirror[index]))continue;
+      trimmedRoutes++;
+      result=attempt(trimmedRoutes);
+      if(result.saved)return result;
+    }
+    return result;
+  }
+  function replaceActiveDraftWithFinishedHistory(normalized,fallbackActiveRaw=null){
     let previousRoutesRaw=null,previousActiveRaw=fallbackActiveRaw,activeReleased=false;
     try{
       previousRoutesRaw=localStorage.getItem(STORE);
       previousActiveRaw=localStorage.getItem(ACTIVE_ROUTE_STORE)??fallbackActiveRaw;
       localStorage.removeItem(ACTIVE_ROUTE_STORE);
       activeReleased=true;
-      localStorage.setItem(STORE,raw);
-      return{saved:true,previousRoutesRaw,previousActiveRaw};
+      const result=writeLocalRouteHistory(normalized);
+      if(!result.saved)throw result.error;
+      return{...result,previousRoutesRaw,previousActiveRaw};
     }catch(error){
       if(activeReleased){
         try{if(previousRoutesRaw==null)localStorage.removeItem(STORE);else localStorage.setItem(STORE,previousRoutesRaw);}catch{}
@@ -484,16 +526,32 @@
     }
   }
   const saveRoutes = (data,{releaseActive=false,fallbackActive=null}={}) => {
-    const normalized=data.map(normalizeRouteData).filter(Boolean);assignRouteFamilies(normalized);const raw=JSON.stringify(normalized);
+    const normalized=data.map(normalizeRouteData).filter(Boolean);assignRouteFamilies(normalized);
+    normalized.forEach(saved=>{if(saved.endedAt)compactTrack(saved);});
+    const raw=JSON.stringify(normalized);
     if(releaseActive){
       clearTimeout(activeSaveTimer);
-      const fallbackActiveRaw=fallbackActive?JSON.stringify(fallbackActive):null,result=replaceActiveDraftWithFinishedHistory(raw,fallbackActiveRaw);
-      if(result.saved){queueDurableCommit('route-finished',{[STORE]:raw,[ACTIVE_ROUTE_STORE]:null},true);return true;}
+      const fallbackActiveRaw=fallbackActive?JSON.stringify(fallbackActive):null,result=replaceActiveDraftWithFinishedHistory(normalized,fallbackActiveRaw);
+      if(result.saved){
+        durableHistoryRaw=result.trimmedRoutes?raw:null;
+        if(result.trimmedRoutes)setDurableStorageStatus({state:'saved',backend:durableStorage?.backend||'localStorage',message:`Route saved · ${result.trimmedRoutes} older GPS trail${result.trimmedRoutes===1?'':'s'} moved to the device journal`});
+        queueDurableCommit('route-finished',{[STORE]:raw,[ACTIVE_ROUTE_STORE]:null},true);
+        return true;
+      }
       setDurableStorageStatus({state:'error',message:'Route history could not replace the active draft · previous route data restored'});
       queueDurableCommit('route-finish-rollback',{[STORE]:result.previousRoutesRaw,[ACTIVE_ROUTE_STORE]:result.previousActiveRaw},true);
       return false;
     }
-    try{localStorage.setItem(STORE,raw);queueDurableCommit('finished-routes');return true;}catch(error){setDurableStorageStatus({state:'error',message:'Route history could not update its local mirror · device journal retrying'});queueDurableCommit('finished-routes-idb-only',{[STORE]:raw},true);return false;}
+    const result=writeLocalRouteHistory(normalized);
+    if(result.saved){
+      durableHistoryRaw=result.trimmedRoutes?raw:null;
+      if(result.trimmedRoutes)setDurableStorageStatus({state:'saved',backend:durableStorage?.backend||'localStorage',message:`History saved · ${result.trimmedRoutes} older GPS trail${result.trimmedRoutes===1?'':'s'} moved to the device journal`});
+      queueDurableCommit('finished-routes',{[STORE]:raw},true);
+      return true;
+    }
+    setDurableStorageStatus({state:'error',message:'Route history could not update its local mirror · device journal retrying'});
+    queueDurableCommit('finished-routes-idb-only',{[STORE]:raw},true);
+    return false;
   };
   const formatDuration = ms => { const t=Math.max(0,Math.floor(ms/1000)), h=String(Math.floor(t/3600)).padStart(2,'0'), m=String(Math.floor(t%3600/60)).padStart(2,'0'), s=String(t%60).padStart(2,'0'); return `${h}:${m}:${s}`; };
   const formatInterval = ms => Number.isFinite(ms)&&ms>0?(ms>=3600000?formatDuration(ms):formatDuration(ms).slice(3)):'—';
@@ -549,7 +607,7 @@
   const vibrate = pattern => {if(vibrationEnabled&&navigator.vibrate)navigator.vibrate(pattern);};
   const formatDistance = meters => {if(!meters)return '—';const value=distanceUnits==='kilometers'?meters/1000:meters/1609.344;return `${value.toFixed(1)} ${distanceUnits==='kilometers'?'km':'mi'}`;};
   const trackCoords = r => trackPointSlots(r).filter(Boolean).map(point=>[point.lat,point.lng]);
-  const trackDistance = r => {const points=trackPointSlots(r),breaks=new Set(trackBreakIndices(r));let meters=0;for(let i=1;i<points.length;i++)if(!breaks.has(i)&&points[i-1]&&points[i])meters+=distanceM(points[i-1],points[i]);return meters;};
+  const trackDistance = r => {const points=trackPointSlots(r),breaks=new Set(trackBreakIndices(r));let meters=0;for(let i=1;i<points.length;i++)if(!breaks.has(i)&&points[i-1]&&points[i])meters+=distanceM(points[i-1],points[i]);return Math.max(meters,Math.max(0,Number(r?.recordedDistanceMeters)||0));};
   function derivedGpsDwellEstimate(saved,stop){
     if(!saved||!stop||stop.corrected||stop.estimatedLocation||stop.locationSource==='manual'||!validMapPoint(stop))return null;
     const accuracy=Number(stop.accuracy);if(Number.isFinite(accuracy)&&accuracy>45)return null;
@@ -804,9 +862,11 @@
   }
   function updateLiveTrace(point){if(!routeLayer)return;if(!liveTraceLine){drawRoute();return;}liveTraceLine.addLatLng([point.lat,point.lng]);}
   function compactTrack(r){
-    if(!r.track?.length)return;const trusted=trackPointSlots(r),entries=r.track.map((raw,index)=>({raw,index,point:trusted[index]})).filter(entry=>entry.point),compact=[],compactPoints=[],breakTimes=new Set(r.trackBreakTimes||[]);
-    entries.forEach((entry,validIndex)=>{const p=entry.point,previousEntry=entries[validIndex-1],invalidGap=!!previousEntry&&entry.index>previousEntry.index+1,prev=compactPoints.at(-1)||null;if(invalidGap)breakTimes.add(p.timestamp);if(!prev||validIndex===entries.length-1||invalidGap||breakTimes.has(p.timestamp)||distanceM(prev,p)>=10||Number(p.timestamp)-Number(prev.timestamp)>=30000){const lat=+p.lat.toFixed(5),lng=+p.lng.toFixed(5),timestamp=Number(p.timestamp)||Date.now(),raw=entry.raw,copy=Array.isArray(raw)?Object.assign(raw.slice(),{0:lat,1:lng,2:timestamp}):{...raw,lat,lng,timestamp};compact.push(copy);compactPoints.push({...p,lat,lng,timestamp});}});
-    r.track=compact;r.trackBreakTimes=[...new Set([...breakTimes].map(Number).filter(Number.isFinite))].sort((a,b)=>a-b);r.stops.forEach(stop=>{let index=0;for(let i=0;i<compactPoints.length&&Number(compactPoints[i].timestamp)<=Number(stop.timestamp);i++)index=i;stop.trackIndex=index;});
+    if(!r.track?.length)return;
+    const fullDistance=trackDistance(r);if(fullDistance>0)r.recordedDistanceMeters=Math.max(Number(r.recordedDistanceMeters)||0,fullDistance);
+    const trusted=trackPointSlots(r),entries=r.track.map((raw,index)=>({raw,index,point:trusted[index]})).filter(entry=>entry.point),compactPoints=[],breakTimes=new Set(r.trackBreakTimes||[]);
+    entries.forEach((entry,validIndex)=>{const p=entry.point,previousEntry=entries[validIndex-1],invalidGap=!!previousEntry&&entry.index>previousEntry.index+1,prev=compactPoints.at(-1)||null;if(invalidGap)breakTimes.add(p.timestamp);if(!prev||validIndex===entries.length-1||invalidGap||breakTimes.has(p.timestamp)||distanceM(prev,p)>=10||Number(p.timestamp)-Number(prev.timestamp)>=30000){compactPoints.push({...p,lat:+p.lat.toFixed(5),lng:+p.lng.toFixed(5),timestamp:Number(p.timestamp)||Date.now()});}});
+    r.track=compactPoints.map(point=>[point.lat,point.lng,point.timestamp]);r.trackBreakTimes=[...new Set([...breakTimes].map(Number).filter(Number.isFinite))].sort((a,b)=>a-b);r.stops.forEach(stop=>{let index=0;for(let i=0;i<compactPoints.length&&Number(compactPoints[i].timestamp)<=Number(stop.timestamp);i++)index=i;stop.trackIndex=index;});
   }
   function trackBreakIndices(r){const points=(r.track||[]).map(trackPoint);return(r.trackBreakTimes||[]).map(time=>{const index=points.findIndex(p=>p.timestamp>=time);return index<0?points.length:index;}).filter(i=>i>0&&i<points.length);}
   function drawTrackSlice(r,layer,start,end,style){const points=trackPointSlots(r),first=Math.max(0,Math.floor(Number(start)||0)),last=Math.min(points.length-1,Math.floor(Number(end)||0));if(!points.length||last<=first)return null;const breaks=new Set(trackBreakIndices(r)),flush=()=>{if(part.length>1)lastLine=L.polyline(part,style).addTo(layer);part=[];};let part=[],lastLine=null;for(let index=first;index<=last;index++){if(index>first&&breaks.has(index))flush();const point=points[index];if(!point){flush();continue;}part.push([point.lat,point.lng]);}flush();return lastLine;}
