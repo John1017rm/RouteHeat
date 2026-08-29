@@ -1,8 +1,19 @@
-# RouteHeat 6.2.2
+# RouteHeat 6.3.0
 
 RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone and Android. It records stops, locations, totes, rescues, packages, timing, and GPS breadcrumbs; compares a driver only with their own history; and turns finished workdays into maps, reports, replay, and long-term insights.
 
 > **Safety:** Use every RouteHeat control only while safely parked. Forecasts, Ghost comparisons, coaching, achievements, and historical pace are personal context—not targets or reasons to rush.
+
+## 6.3.0 map worlds, route feedback, and Delivery Area Cloud
+
+- **Five real map worlds:** RouteHeat, Neon, Sunset, Blueprint, and color-safer Signal now change tile treatment, route trails, pace bands, live tails, stop dots, repeats, tote markers, rescue markers, replay, and density colors—not just one subtle map filter.
+- **Eight stop sounds:** Chime, Bell, Sparkle, Arcade, Pulse, Beacon, Voice, and Extra loud are available. The six tone-based choices are generated locally with Web Audio and need no downloaded sound files.
+- **Optional Delivery Feedback:** A default-off setting enables occasional, metric-based check-ins after manually completed stops. Wording rotates, but every fast, longer, improving, steady, or on-goal assessment comes from the current route's recent comparable intervals. It never counts or judges an automatically detected stop, and it adds no extra sound or vibration.
+- **Smooth iPhone-safe density:** Density is again a real continuous-looking heat field instead of hard circles. It uses bounded DOM/CSS radial kernels, keeps exact totals, draws no map canvas, and remains available in both Full and Lite detail.
+- **Private Delivery Areas in Cloud:** Named outlines, colors, priorities, edits, and deletions now sync separately per signed-in user with Row Level Security, revision-aware merging, stale-write protection, and durable deletion tombstones. Offline edits remain local until the next successful sync.
+- **Fresh installed-app update:** New 6.3.0 service-worker and asset keys prevent an iPhone Home Screen installation from mixing old map code with this release.
+
+> **One-time Cloud upgrade:** Existing Supabase users must run the complete latest `supabase-setup.sql` once in Supabase SQL Editor. It is idempotent and preserves all existing route rows while adding the private Delivery Area table and policies.
 
 ## 6.2.2 iPhone All-time map repair and upgrade
 
@@ -136,7 +147,7 @@ RouteHeat is a static web application. It does not require a build step.
 4. Host the files from HTTPS. GPS, installability, service workers, and mobile audio recovery are most reliable from a secure origin.
 5. Open RouteHeat once online so the application shell can cache, then install it from the browser if desired.
 
-Existing RouteHeat cloud projects need the complete, latest, idempotent `supabase-neighborhood-setup.sql` migration only if Neighborhood Snapshot will be used. Re-run the whole 6.2 script if an earlier preview was tested; it upgrades the narrow route-input RPC, generation lock, route-version checks, aggregate caches, and global limits safely. Core route data remains schema 4. Delivery Area definitions are private device data and are deliberately excluded from cloud route rows.
+Existing RouteHeat cloud projects should re-run the complete, latest, idempotent `supabase-setup.sql` once to add private Delivery Area sync. Existing route rows remain unchanged. Run `supabase-neighborhood-setup.sql` only if Neighborhood Snapshot will be used; re-run the whole 6.2 Snapshot script if an earlier preview was tested. Core route data remains schema 4, and Delivery Area definitions stay in their own RLS-protected table instead of being embedded in route rows.
 
 ## Delivery Areas
 
@@ -149,7 +160,7 @@ Open **History → Manage Areas** or **Settings → Delivery Areas** while parke
 - Editing a stop location or an Area boundary recalculates derived Area analytics. RouteHeat never rewrites the immutable raw route merely to change an Area match.
 - Suggested Areas are conservative drafts based on legacy route patterns. Review their shape and name before saving.
 
-Area definitions are stored under the private `routeheat.deliveryAreas.v1` device state, included in the checksummed transactional snapshots, and included in `.routeheat` backup files. Use a `.routeheat` file to move Areas between installations; Supabase finished-route sync does not move private Area definitions.
+Area definitions are stored under the private `routeheat.deliveryAreas.v1` device state, included in checksummed transactional snapshots, and included in `.routeheat` backup files. When Cloud is signed in and the latest `supabase-setup.sql` has been run, definitions also merge through the account's private `routeheat_delivery_areas` table. Offline edits and deletions queue safely; revisions and update time select the newer copy without replacing unrelated local Areas.
 
 ## Daily use
 
@@ -176,7 +187,7 @@ RouteHeat uses several intentionally separate protection layers:
 | `localStorage` | Fast working mirror for finished routes, the active draft, recovery records, Delivery Area definitions, and selected settings | Clearing website data removes it |
 | IndexedDB `routeheat-storage` | Transactionally stores the current full protected snapshot and the previous valid full snapshot, each with a checksum and logical clock | It belongs to this browser installation and can also be cleared or evicted |
 | IndexedDB journal | Keeps bounded commit metadata such as sequence, time, reason, checksum, logical clock, and changed key names | It is metadata-only, not a stack of full route-history copies |
-| Supabase | Mirrors signed-in finished routes, deletion tombstones, restoration state, and any completed aggregate Neighborhood Snapshot with revision-aware conflict handling | It does **not** upload an unfinished active-route draft; Snapshot generation also needs the Edge Function setup |
+| Supabase | Mirrors signed-in finished routes, Delivery Area definitions and tombstones, route deletion/restoration state, and any completed aggregate Neighborhood Snapshot with revision-aware conflict handling | It does **not** upload an unfinished active-route draft; Snapshot generation also needs the Edge Function setup |
 | `.routeheat` file | Portable, restorable export of finished routes, an eligible active draft, recovery state, private Delivery Area names/boundaries, and selected route/auto settings | The file contains sensitive route data and must be stored securely |
 
 On startup, RouteHeat validates the device snapshots and reconciles them with the localStorage mirror without overwriting a logically newer valid copy. If IndexedDB is unavailable, localStorage remains active and Settings reports degraded protection.
@@ -222,7 +233,7 @@ On iPhone, open the published URL in Safari and use **Share → Add to Home Scre
 
 ## Privacy and map tiles
 
-- Delivery Area names and boundary geometry remain device-private unless deliberately included in a `.routeheat` file. They are not uploaded by Supabase route sync.
+- Delivery Area names and boundary geometry remain device-private while signed out. When Cloud is signed in, they are uploaded only to that account's separate RLS-protected Delivery Area table so another signed-in installation can restore them; they are never embedded in shared summaries or route rows.
 - Route history, context tags, automatic-stop training, Moments, Seasons, Ghosts, and forecasts remain on the device unless included in a `.routeheat` file or, for supported finished-route data, synced to the signed-in Supabase account.
 - Supabase Row Level Security restricts cloud rows to the signed-in account.
 - Neighborhood Snapshot is optional and off by default. When enabled and requested, Supabase reads only the required fields from the already cloud-synced finished route and temporarily sends valid stop coordinates to U.S. Census services to identify Census tracts. The returned route card stores aggregate tract estimates, coverage, and source metadata—not addresses, individual property records, or another copy of stop coordinates.

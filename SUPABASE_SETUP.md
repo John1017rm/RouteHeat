@@ -1,8 +1,8 @@
-# RouteHeat 6.2.2 Supabase setup
+# RouteHeat 6.3.0 Supabase setup
 
 Complete these steps once before using the **Cloud** button in RouteHeat. Custom SMTP is not required.
 
-## 1. Create the protected route table
+## 1. Create the protected cloud tables
 
 1. Open your Supabase project.
 2. Open **SQL Editor**.
@@ -10,7 +10,9 @@ Complete these steps once before using the **Cloud** button in RouteHeat. Custom
 4. Copy all of `supabase-setup.sql` into the query.
 5. Click **Run**.
 
-The script creates the `routeheat_routes` table, grants access only to signed-in users, and adds Row Level Security policies that limit every account to its own rows.
+The script creates the `routeheat_routes` and `routeheat_delivery_areas` tables, grants access only to signed-in users, and adds Row Level Security policies that limit every account to its own rows. The Delivery Area table stores private names, colors, priorities, and boundary coordinates separately from finished routes. Compact deletion tombstones prevent an older offline device from recreating an Area that was intentionally deleted.
+
+If cloud backup was configured for an earlier RouteHeat release, run the complete latest `supabase-setup.sql` again. It is idempotent: existing route rows stay in place while the Delivery Area table, policies, indexes, and stale-write guard are added.
 
 ## 2. Add Neighborhood Snapshot (optional)
 
@@ -49,7 +51,7 @@ The 2024 ACS 5-year release represents data collected during 2020–2024. Keep `
 
 ### D. Turn it on in RouteHeat
 
-After publishing 6.2.2, open **Settings → Neighborhood Snapshot**, review the disclosure, and enable **Build after finished routes**. The first build requires:
+After publishing 6.3.0, open **Settings → Neighborhood Snapshot**, review the disclosure, and enable **Build after finished routes**. The first build requires:
 
 - a finished route with trusted mapped stops;
 - a successful Cloud sign-in and sync;
@@ -82,7 +84,7 @@ Upload the contents of this RouteHeat package to the root of the GitHub reposito
 5. Tap **First time? Create account**.
 6. Wait for the status to say that the cloud backup is complete.
 
-The first sync uploads existing local history. Keep RouteHeat open until it reports success.
+The first sync uploads existing local history and saved Delivery Areas. Keep RouteHeat open until it reports both the route and Area counts are protected. Area changes made offline remain on the device and sync after connectivity returns; revision-aware merging keeps the newer edit, and an intentional deletion wins an exact version tie.
 
 ## 6. Close public account creation
 
@@ -114,6 +116,7 @@ Password sign-in does not depend on an emailed redirect, but keeping the correct
 - Census tract values are statistical estimates with 90% margins of error, not appraisals or current individual-home prices.
 - This product uses the Census Bureau Data API but is not endorsed or certified by the Census Bureau.
 - RouteHeat continues recording locally when offline.
+- Delivery Areas remain available locally while offline. When signed in, their names and boundary coordinates are copied to the account's private RLS-protected table so they can return on another signed-in installation.
 - Signing out does not erase local routes from the device.
 - Without custom SMTP, RouteHeat cannot send password-reset emails. Save the password in a password manager.
 - Export your route history before deliberately changing to a different cloud account.
