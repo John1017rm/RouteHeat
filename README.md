@@ -1,8 +1,20 @@
-# RouteHeat 6.2.1
+# RouteHeat 6.2.2
 
 RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone and Android. It records stops, locations, totes, rescues, packages, timing, and GPS breadcrumbs; compares a driver only with their own history; and turns finished workdays into maps, reports, replay, and long-term insights.
 
 > **Safety:** Use every RouteHeat control only while safely parked. Forecasts, Ghost comparisons, coaching, achievements, and historical pace are personal context—not targets or reasons to rush.
+
+## 6.2.2 iPhone All-time map repair and upgrade
+
+- **iPhone-safe renderer:** Streets, repeat visits, pace trails, stop dots, and Delivery Area outlines use Leaflet's SVG renderer instead of depending on a large shared canvas that iOS can fail to allocate.
+- **Stable map lifecycle:** Sync and filter updates reuse one map and replace only its overlays, preventing repeated map teardown from exhausting iPhone WebKit drawing resources.
+- **Automatic Lite detail:** Auto mode reduces only displayed geometry on iPhone or very large histories; every route, stop, location, distance, and pace total remains exact. Full and Lite can also be selected manually.
+- **Hard drawing budgets:** Fragmented GPS trails and pace calculations are bounded while they are processed—not only after drawing—so unusually large histories cannot silently exceed Lite mode's iPhone-safe limits.
+- **Recovery instead of a dead map:** A failed detailed layer is skipped independently. If the main renderer cannot continue, RouteHeat retries with lightweight markers and finally provides a saved-coverage preview rather than a blank or black panel.
+- **Coverage dashboard:** New mapped-coverage, repeat-area, recent-area, and rescue-coverage insights explain what the map contains for the selected filters.
+- **Faster map navigation:** Coverage and Latest controls quickly return to the full history or the newest mapped stop; recent routes open their map and replay, and density/repeat results focus the matching area. The fullscreen Layers control changes views without closing the map.
+- **Clearer visual language:** The rebuilt map card adds mode-aware legends, an on-map range/detail summary, improved full-screen controls, polished dark styling, and high-contrast Sunlight styling.
+- **Fresh installed-app update:** Every local map, script, style, storage, and service-worker URL has a distinct 6.2.2 cache key so an iPhone home-screen installation cannot retain the older renderer.
 
 ## 6.2.1 All-time map hotfix
 
