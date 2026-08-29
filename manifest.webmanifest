@@ -1,7 +1,7 @@
 {
   "name": "RouteHeat — Delivery Pace",
   "short_name": "RouteHeat",
-  "description": "Private GPS delivery intelligence with a seamless Delivery Atlas, road and pace history, drawn Delivery Areas, rescue-aware insights, forecasts, recovery, and offline-ready tracking.",
+  "description": "Private GPS delivery intelligence with layered Hotspots, road and pace history, estimated Stop Time, app themes, Delivery Areas, rescue-aware insights, recovery, and offline-ready tracking.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

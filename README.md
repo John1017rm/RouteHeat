@@ -1,8 +1,19 @@
-# RouteHeat 6.4.0
+# RouteHeat 6.5.0
 
 RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone and Android. It records stops, locations, totes, rescues, packages, timing, and GPS breadcrumbs; compares a driver only with their own history; and turns finished workdays into maps, reports, replay, and long-term insights.
 
 > **Safety:** Use every RouteHeat control only while safely parked. Forecasts, Ghost comparisons, coaching, achievements, and historical pace are personal context—not targets or reasons to rush.
+
+## 6.5.0 Atlas layers, Stop Time, and App themes
+
+- **Hotspots are now an independent underlay:** Roads, Pace, Repeats, Recency, and Totes each keep their own analysis while a clear **Hotspots On/Off** control optionally places delivery density underneath. The preference stays saved on the device.
+- **The lingering-heat bug is fixed:** Every view change hides the heat pane immediately, cancels pending heat redraws, removes the tracked canvas, and clears any orphaned Leaflet heat canvas. Rapid taps, backgrounding, fullscreen, and iPhone WebKit can no longer leave an old heat field stuck behind another view.
+- **New Average Stop Time view:** A seventh Atlas view maps normalized local averages from GPS- and motion-based service-time estimates. Nearby sample frequency affects confidence and opacity—not the duration color—so several short stops cannot falsely look like one long stop. It intentionally excludes completed-stop travel intervals, shows the percentage of mapped stops with usable estimates, and reports average, median, and sample count for highlighted areas.
+- **Honest heat separation:** Hotspots always represents delivery concentration. Stop Time uses its own shorter-to-longer surface, and the two full-color heat fields cannot be combined into a misleading picture.
+- **Appearance is simple:** Settings now offers **Dark**, **Light**, and **Automatic**. Automatic follows the device appearance setting.
+- **Four app-wide color themes:** **Default**, **Blue**, **Orange**, and **Purple** recolor primary buttons, selected controls, progress accents, route lines, stop dots, repeats, totes, rescues, and heat surfaces together.
+- **Familiar streets in every theme:** App themes color RouteHeat data rather than tinting the entire OpenStreetMap world. Only the Dark/Light appearance applies a restrained tile treatment, keeping street names and roads legible.
+- **Upgrade-safe settings:** Existing RouteHeat, Neon, Sunset, Blueprint, and Signal preferences migrate to the closest new App theme. Fresh 6.5.0 application and service-worker keys deliver the map fix and theme system as one consistent installed-app update.
 
 ## 6.4.0 Delivery Atlas
 
@@ -12,12 +23,12 @@ RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone an
 - **Simpler controls:** The ambiguous Layer-cycle control and user-facing Full/Lite tuning are gone. A descriptive horizontal view picker, 30-day/one-year/all-time range, Refine panel, Fit all, Newest, Areas, and Full screen controls make each action explicit.
 - **Stable comparisons:** Switching map views preserves center and zoom. The map is created once and only the active overlay changes, while filter or range changes deliberately refit the matching history.
 - **iPhone-safe heat engine:** Stops are outlier-filtered, accuracy-filtered, aggregated into adaptive meter cells, square-root normalized against the 95th percentile, and capped before one dedicated heat canvas is drawn. Road vectors remain SVG, and the heat canvas never uses CSS filters, blend modes, or backdrop blur.
-- **Polished map-first design:** Delivery Atlas adds a compact lifetime snapshot, larger map, theme-aware view art, streamlined legends, ranked highlights, a narrative Map Readout, six context cards, improved sunlight contrast, and safe-area-aware fullscreen controls.
+- **Polished map-first design:** Delivery Atlas adds a compact lifetime snapshot, larger map, theme-aware view art, streamlined legends, ranked highlights, a narrative Map Readout, six context cards, improved Light appearance contrast, and safe-area-aware fullscreen controls.
 - **Fresh installed-app update:** The 6.4.0 service worker precaches the local heat engine and every application asset with new keys so an iPhone Home Screen installation receives the overhaul as one consistent release.
 
-## 6.3.0 map worlds, route feedback, and Delivery Area Cloud
+## 6.3.0 previous map worlds, route feedback, and Delivery Area Cloud
 
-- **Five real map worlds:** RouteHeat, Neon, Sunset, Blueprint, and color-safer Signal now change tile treatment, route trails, pace bands, live tails, stop dots, repeats, tote markers, rescue markers, replay, and density colors—not just one subtle map filter.
+- **Previous map-world system:** RouteHeat, Neon, Sunset, Blueprint, and Signal were introduced here. RouteHeat 6.5.0 replaces this older control with the simpler Appearance + App theme system above.
 - **Eight stop sounds:** Chime, Bell, Sparkle, Arcade, Pulse, Beacon, Voice, and Extra loud are available. The six tone-based choices are generated locally with Web Audio and need no downloaded sound files.
 - **Optional Delivery Feedback:** A default-off setting enables occasional, metric-based check-ins after manually completed stops. Wording rotates, but every fast, longer, improving, steady, or on-goal assessment comes from the current route's recent comparable intervals. It never counts or judges an automatically detected stop, and it adds no extra sound or vibration.
 - **Smooth iPhone-safe density:** Density is again a real continuous-looking heat field instead of hard circles. It uses bounded DOM/CSS radial kernels, keeps exact totals, draws no map canvas, and remains available in both Full and Lite detail.
@@ -35,7 +46,7 @@ RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone an
 - **Recovery instead of a dead map:** A failed detailed layer is skipped independently. If the main renderer cannot continue, RouteHeat retries with lightweight markers and finally provides a saved-coverage preview rather than a blank or black panel.
 - **Coverage dashboard:** New mapped-coverage, repeat-area, recent-area, and rescue-coverage insights explain what the map contains for the selected filters.
 - **Faster map navigation:** Coverage and Latest controls quickly return to the full history or the newest mapped stop; recent routes open their map and replay, and density/repeat results focus the matching area. The fullscreen Layers control changes views without closing the map.
-- **Clearer visual language:** The rebuilt map card adds mode-aware legends, an on-map range/detail summary, improved full-screen controls, polished dark styling, and high-contrast Sunlight styling.
+- **Clearer visual language:** The rebuilt map card adds mode-aware legends, an on-map range/detail summary, improved full-screen controls, polished dark styling, and high-contrast Light styling.
 - **Fresh installed-app update:** Every local map, script, style, storage, and service-worker URL has a distinct 6.2.2 cache key so an iPhone home-screen installation cannot retain the older renderer.
 
 ## 6.2.1 All-time map hotfix
@@ -121,7 +132,7 @@ RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone an
 - **Learned forecast:** RouteHeat saves forecast snapshots during the workday, shows a finish range with an honest confidence level, and reviews how the estimate performed after the route.
 - **Tote Assistant:** Personal route and Delivery Area history estimate a typical tote size and show progress toward a likely tote change. The driver always decides when a new tote actually opens.
 - **Auto-stop modes:** Off is manual-only; Suggest asks for a parked confirmation; Auto can count from the learned stop pattern. Accepted, rejected, and undone suggestions train only this installation. Manual Stop Complete and Undo remain available.
-- **Map themes:** Auto, Standard, Contrast, and Muted styles adjust the existing maps without changing the OpenStreetMap provider.
+- **Appearance + App themes:** Dark, Light, and Automatic control contrast, while Default, Blue, Orange, and Purple recolor RouteHeat controls and map overlays without changing the OpenStreetMap provider.
 - **Where Time Went:** Finished-route detail and reports separate recorded time into driving, service, breaks, transitions, and unclassified gaps when the available data supports it.
 - **Route quality review:** Mapped-stop coverage, GPS quality and continuity, gaps, ignored jumps, and manual corrections produce a transparent confidence review. Package completeness and forecast coverage remain visible as separate report facts. A limited score never removes completed stops.
 - **Private Story Studio:** Moments highlights personal turning points; Ghost Rivalries revisit comparable routes from the same driver's history; Personal Seasons summarize Winter, Spring, Summer, and Fall; and Delivery Year animates saved workdays across one calendar year.
@@ -258,7 +269,7 @@ On iPhone, open the published URL in Safari and use **Share → Add to Home Scre
 ## Main files
 
 - `index.html` — accessible mobile interface and modal shells
-- `assets/styles.css` — Dark, Sunlight, responsive, reduced-motion, and map-theme presentation
+- `assets/styles.css` — Dark/Light appearance, app-theme accents, responsive, reduced-motion, and map presentation
 - `assets/app.js` — route workflow, intelligence, local recovery, backup/import, history, reports, and maps
 - `assets/routeheat-storage.js` — IndexedDB transactional snapshots and metadata journal
 - `assets/cloud.js` — Supabase authentication, finished-route sync, deletion, and restore conflict handling
