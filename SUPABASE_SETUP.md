@@ -1,4 +1,4 @@
-# RouteHeat 6.3.0 Supabase setup
+# RouteHeat 6.4.0 Supabase setup
 
 Complete these steps once before using the **Cloud** button in RouteHeat. Custom SMTP is not required.
 
@@ -51,7 +51,7 @@ The 2024 ACS 5-year release represents data collected during 2020–2024. Keep `
 
 ### D. Turn it on in RouteHeat
 
-After publishing 6.3.0, open **Settings → Neighborhood Snapshot**, review the disclosure, and enable **Build after finished routes**. The first build requires:
+After publishing 6.4.0, open **Settings → Neighborhood Snapshot**, review the disclosure, and enable **Build after finished routes**. The first build requires:
 
 - a finished route with trusted mapped stops;
 - a successful Cloud sign-in and sync;

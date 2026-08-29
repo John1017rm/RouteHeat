@@ -1,8 +1,19 @@
-# RouteHeat 6.3.0
+# RouteHeat 6.4.0
 
 RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone and Android. It records stops, locations, totes, rescues, packages, timing, and GPS breadcrumbs; compares a driver only with their own history; and turns finished workdays into maps, reports, replay, and long-term insights.
 
 > **Safety:** Use every RouteHeat control only while safely parked. Forecasts, Ghost comparisons, coaching, achievements, and historical pace are personal context—not targets or reasons to rush.
+
+## 6.4.0 Delivery Atlas
+
+- **True seamless Hotspots:** The All-time map now uses one locally bundled Leaflet Heat canvas. Nearby deliveries accumulate into a continuous color surface—never a collection of fake glowing circles—and the canvas is removed completely when another view is selected.
+- **Six clear map views:** Hotspots, Road coverage, historical Pace, Repeat Visits, Recency, and Tote Changes each have a plain-language description, truthful legend, focused highlights, and a map-specific readout.
+- **Useful map intelligence:** The Atlas adds GPS mapping percentage, repeat-delivery areas, recent new coverage, rescue stops, mapped tote changes, saved Area context, busiest hotspots, route recency, and repeat tote hubs without pretending to know unavailable street names or stop-level package counts.
+- **Simpler controls:** The ambiguous Layer-cycle control and user-facing Full/Lite tuning are gone. A descriptive horizontal view picker, 30-day/one-year/all-time range, Refine panel, Fit all, Newest, Areas, and Full screen controls make each action explicit.
+- **Stable comparisons:** Switching map views preserves center and zoom. The map is created once and only the active overlay changes, while filter or range changes deliberately refit the matching history.
+- **iPhone-safe heat engine:** Stops are outlier-filtered, accuracy-filtered, aggregated into adaptive meter cells, square-root normalized against the 95th percentile, and capped before one dedicated heat canvas is drawn. Road vectors remain SVG, and the heat canvas never uses CSS filters, blend modes, or backdrop blur.
+- **Polished map-first design:** Delivery Atlas adds a compact lifetime snapshot, larger map, theme-aware view art, streamlined legends, ranked highlights, a narrative Map Readout, six context cards, improved sunlight contrast, and safe-area-aware fullscreen controls.
+- **Fresh installed-app update:** The 6.4.0 service worker precaches the local heat engine and every application asset with new keys so an iPhone Home Screen installation receives the overhaul as one consistent release.
 
 ## 6.3.0 map worlds, route feedback, and Delivery Area Cloud
 
@@ -134,7 +145,7 @@ RouteHeat 6.1 retains the established workflow:
 - Delivery Areas, finish-range confidence, Smart Coach, History sorting, weekly recaps, achievements, and awards
 - Street-following replay with scrubber, chapters, saved breaks and GPS gaps, live metrics, speeds, and optional Ghost delta
 - Manual stop-location correction that preserves the original GPS point
-- All-time Streets, Density, Pace Trails, and Repeat Stops maps with advanced filters
+- All-time Hotspots, Road coverage, Pace, Repeat Visits, Recency, and Tote Changes maps with advanced filters
 - Recently Deleted recovery with revision-aware local and Supabase conflict protection
 
 ## Setup

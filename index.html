@@ -14,8 +14,8 @@
   <link rel="icon" href="assets/icon-192-v2.png">
   <link rel="apple-touch-icon" href="assets/icon-192-v2.png">
   <link rel="preconnect" href="https://tile.openstreetmap.org">
-  <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css?v=1.9.4-rh630">
-  <link rel="stylesheet" href="assets/styles.css?v=6.3.0">
+  <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css?v=1.9.4-rh640">
+  <link rel="stylesheet" href="assets/styles.css?v=6.4.0">
   <title>RouteHeat — Delivery Pace</title>
 </head>
 <body>
@@ -133,10 +133,21 @@
       </section>
 
       <section id="heatView" class="view heat-view">
-        <div class="page-head heat-head"><div><p class="eyebrow">LIFETIME COVERAGE</p><h1>All-time map</h1><p>See every recorded street, delivery area, and long-term performance trend.</p></div></div>
-        <div class="heat-toolbar"><div class="segmented" id="heatRange"><button data-range="7" type="button" aria-pressed="false">7 days</button><button data-range="30" type="button" aria-pressed="false">30 days</button><button class="active" data-range="all" type="button" aria-pressed="true">All time</button></div><div class="segmented" id="heatMode"><button class="active" data-mode="streets" type="button" aria-pressed="true">Streets</button><button data-mode="density" type="button" aria-pressed="false">Density</button><button data-mode="pace" type="button" aria-pressed="false">Pace trails</button><button data-mode="visits" type="button" aria-pressed="false">Repeat stops</button></div></div>
+        <div class="page-head heat-head heat-atlas-head"><div><p class="eyebrow">YOUR DELIVERY ATLAS</p><h1>Delivery Atlas</h1><p>Explore where you deliver, how often you return, and where route time is being spent.</p></div><div class="heat-range-control"><span>TIME RANGE</span><div class="segmented" id="heatRange" role="group" aria-label="All-time map range"><button data-range="30" type="button" aria-pressed="false">30D</button><button data-range="365" type="button" aria-pressed="false">1Y</button><button class="active" data-range="all" type="button" aria-pressed="true">All</button></div></div></div>
+        <div id="heatSummary" class="history-summary heat-summary heat-atlas-summary"></div>
+        <section class="heat-view-deck" aria-labelledby="heatModeTitle">
+          <header><div><p class="eyebrow">MAP VIEW</p><h2 id="heatModeTitle">Delivery hotspots</h2><p id="heatModeDescription">A seamless heat surface showing where your delivery activity is most concentrated.</p></div><span id="heatModeBadge">HOTSPOTS</span></header>
+          <div id="heatMode" class="heat-mode-carousel" role="group" aria-label="Choose what the all-time map shows">
+            <button class="active" data-mode="density" type="button" aria-pressed="true"><span class="heat-mode-icon heat-mode-hotspots" aria-hidden="true"><i></i></span><span><b>Hotspots</b><small>Delivery concentration</small></span></button>
+            <button data-mode="streets" type="button" aria-pressed="false"><span class="heat-mode-icon heat-mode-roads" aria-hidden="true"><i></i></span><span><b>Roads</b><small>Every recorded drive</small></span></button>
+            <button data-mode="pace" type="button" aria-pressed="false"><span class="heat-mode-icon heat-mode-pace" aria-hidden="true"><i></i></span><span><b>Pace</b><small>Fast and slow roads</small></span></button>
+            <button data-mode="visits" type="button" aria-pressed="false"><span class="heat-mode-icon heat-mode-repeat" aria-hidden="true"><i></i></span><span><b>Repeats</b><small>Stops seen again</small></span></button>
+            <button data-mode="recency" type="button" aria-pressed="false"><span class="heat-mode-icon heat-mode-recency" aria-hidden="true"><i></i></span><span><b>Recency</b><small>Oldest to newest</small></span></button>
+            <button data-mode="totes" type="button" aria-pressed="false"><span class="heat-mode-icon heat-mode-totes" aria-hidden="true"><i></i></span><span><b>Totes</b><small>Where totes change</small></span></button>
+          </div>
+        </section>
         <details id="heatAdvancedFilters" class="heat-advanced-filters">
-          <summary><span><b>Advanced filters</b><small>Refine your private route history</small></span><span id="heatFilterCount" class="heat-filter-count">All data</span></summary>
+          <summary><span><b>Refine this map</b><small>Area, route phase, day, pace, GPS source, or custom dates</small></span><span id="heatFilterCount" class="heat-filter-count">All data</span></summary>
           <div id="heatAdvancedPanel" class="heat-advanced-panel">
             <div class="heat-filter-grid">
               <label>RECENCY<select id="heatTimeFilter"><option value="all">All saved time</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="365">Last year</option></select></label>
@@ -152,26 +163,27 @@
               <label>TO DATE<input id="heatDateTo" type="date"></label>
             </div>
             <div class="heat-filter-actions"><button id="heatFilterReset" class="secondary-btn" type="button">Reset</button><button id="heatFilterApply" class="route-toggle" type="button">Apply filters</button></div>
-            <div class="heat-detail-control"><div><b>Map drawing detail</b><small id="heatDetailStatus">Auto chooses the safest detail for this device.</small></div><div id="heatDetailMode" class="segmented" aria-label="All-time map drawing detail"><button class="active" data-detail="auto" type="button" aria-pressed="true">Auto</button><button data-detail="full" type="button" aria-pressed="false">Full</button><button data-detail="lite" type="button" aria-pressed="false">Lite</button></div></div>
             <p id="heatFilterSummary" class="heat-filter-summary" role="status" aria-live="polite">Showing all saved deliveries.</p>
           </div>
         </details>
-        <section id="heatMapCard" class="zone-section heat-card">
+        <section id="heatMapCard" class="zone-section heat-card heat-atlas-card">
           <button id="expandHeatMap" class="map-expand-btn" type="button" aria-label="Open all-time map full screen" aria-expanded="false">⛶ <span>Full screen</span></button>
-          <div class="heat-map-quick-actions" aria-label="All-time map controls"><button id="fitHeatMap" type="button"><span aria-hidden="true">◎</span> Coverage</button><button id="latestHeatMap" type="button"><span aria-hidden="true">↗</span> Latest</button><button id="cycleHeatLayer" type="button" aria-label="Change all-time map layer"><span aria-hidden="true">◫</span> Layer</button></div>
+          <label class="heat-fullscreen-mode">VIEW<select id="heatFullscreenMode" aria-label="All-time full-screen map view"><option value="density">Hotspots</option><option value="streets">Roads</option><option value="pace">Pace</option><option value="visits">Repeats</option><option value="recency">Recency</option><option value="totes">Totes</option></select></label>
+          <div class="heat-map-quick-actions" aria-label="All-time map controls"><button id="fitHeatMap" type="button"><span aria-hidden="true">◎</span> Fit all</button><button id="latestHeatMap" type="button"><span aria-hidden="true">↗</span> Newest</button><button id="toggleHeatAreas" type="button" aria-pressed="true"><span aria-hidden="true">◇</span> Areas</button></div>
           <div id="heatMapOverlaySummary" class="heat-map-overlay-summary" role="status">Preparing coverage…</div>
           <div id="zoneMap" role="region" aria-label="Interactive all-time delivery history map"></div>
           <div id="heatMapStatus" class="heat-map-status" role="status" aria-live="polite" hidden></div>
-          <div id="heatLegend" class="heat-gradient-legend"><span>Fewer deliveries</span><i></i><span>Most deliveries</span></div>
-          <div id="heatStreetLegend" class="heat-street-legend" aria-label="Street history map legend"><span><i class="street"></i>Recorded street</span><span><i class="stop"></i>Saved stop</span><span><i class="repeat">2</i>Repeat area</span><span><i class="area"></i>Saved Area</span></div>
+          <div id="heatLegend" class="heat-gradient-legend" aria-label="Map color legend"><span>Less activity</span><i></i><span>Most active</span></div>
+          <div id="heatStreetLegend" class="heat-street-legend" aria-label="Road coverage map legend" hidden><span><i class="street"></i>Recorded road</span><span><i class="repeat-road"></i>Repeated road</span><span><i class="area"></i>Saved Area</span></div>
           <div id="deliveryAreaMapLegend" class="delivery-area-map-legend" role="list" aria-label="Delivery area boundary legend" hidden></div>
-          <p id="heatMapHint" class="heat-map-hint">Numbers mark repeat visits; colored boundaries show your saved Delivery Areas.</p>
+          <p id="heatMapHint" class="heat-map-hint">Heat clouds blend nearby delivery activity into one continuous surface. Zoom in to reveal local detail.</p>
+          <div class="heat-explore-head"><div><p class="eyebrow">MAP HIGHLIGHTS</p><h2 id="heatExploreTitle">Busiest hotspots</h2><p id="heatExploreDescription">Tap a highlight to move the map there.</p></div></div>
           <div id="zoneList" class="zone-list"></div>
         </section>
-        <div id="heatSummary" class="history-summary heat-summary"></div>
-        <section class="heat-insights" aria-labelledby="heatInsightsTitle"><header><div><p class="eyebrow">COVERAGE SIGNALS</p><h2 id="heatInsightsTitle">What your map is showing</h2></div><span id="heatInsightRange">All saved time</span></header><div id="heatInsightGrid" class="heat-insight-grid"></div></section>
+        <section id="heatMapStory" class="heat-map-story" aria-labelledby="heatMapStoryTitle"><div class="heat-map-story-art" aria-hidden="true"><i></i><i></i><i></i></div><div><p class="eyebrow">MAP READOUT</p><h2 id="heatMapStoryTitle">Your delivery footprint</h2><p id="heatMapStoryText">RouteHeat is reading your saved map history.</p></div></section>
+        <section class="heat-insights" aria-labelledby="heatInsightsTitle"><header><div><p class="eyebrow">ATLAS INSIGHTS</p><h2 id="heatInsightsTitle">Useful context behind the map</h2></div><span id="heatInsightRange">All saved time</span></header><div id="heatInsightGrid" class="heat-insight-grid"></div></section>
         <section id="deliveryYearPreview" class="delivery-year-preview" aria-labelledby="deliveryYearPreviewTitle"><div class="delivery-year-art" aria-hidden="true"><i></i><span>365</span></div><div><p class="eyebrow">DELIVERY YEAR</p><h2 id="deliveryYearPreviewTitle">Watch your year unfold</h2><p id="deliveryYearPreviewSummary">A private time-lapse of saved routes, recurring areas, and the miles between.</p></div><button id="openDeliveryYear" type="button" aria-haspopup="dialog" aria-controls="deliveryYearModal">Open time-lapse <span aria-hidden="true">›</span></button></section>
-        <p class="heat-privacy">◆ Built privately from your own saved RouteHeat history.</p>
+        <p class="heat-privacy">◆ Explore map history only while safely parked. Built privately from your own saved RouteHeat data.</p>
       </section>
     </main>
 
@@ -521,7 +533,7 @@
 
   <div id="settingsModal" class="modal settings-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <div class="settings-sheet">
-      <div class="settings-head"><div><p class="eyebrow">ROUTEHEAT 6.3.0</p><h2 id="settingsTitle">Settings</h2><p>Make RouteHeat easier to see, hear, and use on the road.</p></div><button id="closeSettings" class="icon-btn close-btn" type="button" aria-label="Close settings">×</button></div>
+      <div class="settings-head"><div><p class="eyebrow">ROUTEHEAT 6.4.0</p><h2 id="settingsTitle">Settings</h2><p>Make RouteHeat easier to see, hear, and use on the road.</p></div><button id="closeSettings" class="icon-btn close-btn" type="button" aria-label="Close settings">×</button></div>
       <section class="settings-section"><div class="settings-section-title"><span class="settings-section-icon">☀</span><div><b>Appearance</b><small>Choose the best visibility for your environment.</small></div></div><div id="themeChoices" class="settings-choice three" role="group" aria-label="Color theme"><button type="button" data-theme="dark">Dark</button><button type="button" data-theme="sunlight">Sunlight</button><button type="button" data-theme="auto">Automatic</button></div><div class="settings-subgroup"><div class="settings-row-label"><b>Map world</b><small>Changes tiles, route lines, stop dots, repeats, and pace colors without changing map providers.</small></div><div id="mapThemeChoices" class="map-theme-choices" role="group" aria-label="Map world"><button type="button" data-map-theme="routeheat" aria-pressed="true"><i aria-hidden="true"></i><span><b>RouteHeat</b><small>Emerald</small></span></button><button type="button" data-map-theme="neon" aria-pressed="false"><i aria-hidden="true"></i><span><b>Neon</b><small>Future grid</small></span></button><button type="button" data-map-theme="sunset" aria-pressed="false"><i aria-hidden="true"></i><span><b>Sunset</b><small>Warm roads</small></span></button><button type="button" data-map-theme="blueprint" aria-pressed="false"><i aria-hidden="true"></i><span><b>Blueprint</b><small>Cool technical</small></span></button><button type="button" data-map-theme="signal" aria-pressed="false"><i aria-hidden="true"></i><span><b>Signal</b><small>Color-safe</small></span></button></div><p id="mapThemeStatus" class="settings-inline-status" role="status" aria-live="polite">RouteHeat map world · emerald pace lines and blue stop dots.</p></div></section>
       <section class="settings-section"><div class="settings-section-title"><span class="settings-section-icon">♪</span><div><b>Stop feedback</b><small>Configure confirmation sound, vibration, and private route insights.</small></div></div><label class="settings-toggle"><span><b>Confirmation sound</b><small>Play after every completed stop</small></span><span class="switch"><input id="settingsSound" type="checkbox"><i></i></span></label><div id="soundChoices" class="settings-choice sound-choice-grid" role="group" aria-label="Confirmation sound"><button type="button" data-sound="chime">Chime</button><button type="button" data-sound="bell">Bell</button><button type="button" data-sound="sparkle">Sparkle</button><button type="button" data-sound="arcade">Arcade</button><button type="button" data-sound="pulse">Pulse</button><button type="button" data-sound="beacon">Beacon</button><button type="button" data-sound="voice">Voice</button><button type="button" data-sound="loud">Extra loud</button></div><label class="volume-control"><span><b>Sound level</b><output id="soundVolumeValue">100%</output></span><input id="soundVolume" type="range" min="20" max="100" step="5" value="100"></label><button id="testSound" class="settings-test" type="button">Test confirmation</button><label class="settings-toggle"><span><b>Vibration feedback</b><small>Distinct patterns for stops, multis, and totes</small></span><span class="switch"><input id="settingsVibration" type="checkbox"><i></i></span></label><label class="settings-toggle delivery-feedback-setting"><span><b>Delivery feedback popups</b><small>Occasional pace and interval insights after a completed stop</small></span><span class="switch"><input id="settingsDeliveryFeedback" type="checkbox" aria-describedby="deliveryFeedbackSettingNote"><i></i></span></label><p id="deliveryFeedbackSettingNote" class="settings-inline-status">Private, metric-based, and nonblocking. Feedback never asks you to rush; review it only while parked.</p></section>
       <section class="settings-section"><div class="settings-section-title"><span class="settings-section-icon">⌖</span><div><b>Route behavior</b><small>Control automatic tracking preferences.</small></div></div><label class="settings-toggle"><span><b>Automatic stop assistant</b><small>Learn only from stops you confirm while parked</small></span><span class="switch"><input id="settingsAutoDetect" type="checkbox"><i></i></span></label><div class="auto-stop-settings"><div class="settings-row-label"><b>Assistant mode</b><small>Manual stop completion always remains available.</small></div><div id="autoStopModeChoices" class="auto-stop-mode-choices" role="group" aria-label="Automatic stop assistant mode"><button type="button" data-auto-stop-mode="off" aria-pressed="true"><b>Off</b><small>Manual only</small></button><button type="button" data-auto-stop-mode="suggest" aria-pressed="false"><b>Suggest</b><small>You confirm</small></button><button type="button" data-auto-stop-mode="auto" aria-pressed="false"><b>Auto</b><small>After training</small></button></div><div class="auto-training-card"><div><span>TRAINING STATUS</span><b id="autoStopTrainingStatus" role="status" aria-live="polite">Not started</b><small>Suggest mode learns your own parked stop pattern.</small></div><progress id="autoStopTrainingProgress" class="auto-training-progress" max="20" value="0" aria-label="Auto-stop training progress">0 of 20</progress><button id="resetAutoStopTraining" type="button">Reset learning</button></div></div><label class="settings-toggle"><span><b>Follow vehicle on map</b><small>Keep the live map centered while routing</small></span><span class="switch"><input id="settingsMapFollow" type="checkbox"><i></i></span></label><div class="settings-row-label"><b>Distance units</b></div><div id="unitChoices" class="settings-choice two" role="group" aria-label="Distance units"><button type="button" data-units="miles">Miles</button><button type="button" data-units="kilometers">Kilometers</button></div></section>
@@ -555,10 +567,11 @@
 
   <div id="milestoneBanner" class="milestone-banner" role="status" aria-live="polite"><span id="milestoneIcon">◆</span><div><b id="milestoneTitle">Route milestone</b><small id="milestoneDetail"></small></div></div>
 
-  <script src="assets/vendor/leaflet/leaflet.js?v=1.9.4-rh630"></script>
+  <script src="assets/vendor/leaflet/leaflet.js?v=1.9.4-rh640"></script>
+  <script src="assets/vendor/leaflet/leaflet-heat.js?v=0.2.0-rh640"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3/dist/umd/supabase.js" crossorigin="anonymous"></script>
-  <script src="assets/supabase-config.js?v=6.3.0"></script>
-  <script src="assets/app.js?v=6.3.0"></script>
-  <script src="assets/cloud.js?v=6.3.0"></script>
+  <script src="assets/supabase-config.js?v=6.4.0"></script>
+  <script src="assets/app.js?v=6.4.0"></script>
+  <script src="assets/cloud.js?v=6.4.0"></script>
 </body>
 </html>
