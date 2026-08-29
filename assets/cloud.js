@@ -3,8 +3,11 @@
 
   const CONFIG = window.ROUTEHEAT_SUPABASE || {};
   const TABLE = CONFIG.table || 'routeheat_routes';
+  const AREAS_TABLE = CONFIG.areasTable || 'routeheat_delivery_areas';
   const SNAPSHOT_FUNCTION = CONFIG.snapshotFunction || 'neighborhood-snapshot';
   const ROUTES_KEY = 'routeheat.routes.v2';
+  const DELIVERY_AREAS_KEY = 'routeheat.deliveryAreas.v1';
+  const AREA_DELETIONS_KEY = 'routeheat.cloud.areaDeletions.v1';
   const OWNER_KEY = 'routeheat.cloud.owner.v1';
   const DELETIONS_KEY = 'routeheat.cloud.deletions.v1';
   const BLOCKLIST_KEY = 'routeheat.cloud.deletedRoutes.v1';
@@ -17,12 +20,167 @@
   let syncing = false;
   let syncRequested = false;
   let cloudModalReturnFocus = null;
+  let applyingAreaCloudMerge = false;
+
+  const DELIVERY_AREA_LIMIT = 250;
+  const DELIVERY_AREA_VERTEX_LIMIT = 64;
 
   const readJson = (key, fallback) => {
     try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
     catch { return fallback; }
   };
   const localRoutes = () => readJson(ROUTES_KEY, []);
+  const boundedText = (value, max) => String(value ?? '')
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max);
+  const areaIdOf = value => boundedText(value?.areaId ?? value?.area_id ?? value?.id, 192);
+  const mapCoordinate = value => {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  };
+  const validAreaPoint = value => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    const lat = mapCoordinate(value.lat), lng = mapCoordinate(value.lng);
+    if (lat == null || lng == null || Math.abs(lat) > 90 || Math.abs(lng) > 180 || (lat === 0 && lng === 0)) return null;
+    return {lat, lng};
+  };
+  const areaProjection = (point, latitude) => {
+    const cosine = Math.max(.01, Math.cos((Number(latitude) || 0) * Math.PI / 180));
+    return {x: point.lng * 111320 * cosine, y: point.lat * 110540};
+  };
+  function areaPolygonSize(polygon) {
+    const latitude = polygon.reduce((sum, point) => sum + point.lat, 0) / polygon.length;
+    const points = polygon.map(point => areaProjection(point, latitude));
+    let twice = 0;
+    points.forEach((point, index) => {
+      const next = points[(index + 1) % points.length];
+      twice += point.x * next.y - next.x * point.y;
+    });
+    return Math.abs(twice) / 2;
+  }
+  const segmentOrientation = (a, b, c) => {
+    const value = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+    return Math.abs(value) < 1e-7 ? 0 : Math.sign(value);
+  };
+  const pointOnSegment = (point, a, b) => segmentOrientation(a, b, point) === 0
+    && point.x >= Math.min(a.x, b.x) - 1e-6 && point.x <= Math.max(a.x, b.x) + 1e-6
+    && point.y >= Math.min(a.y, b.y) - 1e-6 && point.y <= Math.max(a.y, b.y) + 1e-6;
+  function areaSegmentsIntersect(firstA, firstB, secondA, secondB) {
+    const o1 = segmentOrientation(firstA, firstB, secondA), o2 = segmentOrientation(firstA, firstB, secondB), o3 = segmentOrientation(secondA, secondB, firstA), o4 = segmentOrientation(secondA, secondB, firstB);
+    if (o1 !== o2 && o3 !== o4) return true;
+    return (!o1 && pointOnSegment(secondA, firstA, firstB))
+      || (!o2 && pointOnSegment(secondB, firstA, firstB))
+      || (!o3 && pointOnSegment(firstA, secondA, secondB))
+      || (!o4 && pointOnSegment(firstB, secondA, secondB));
+  }
+  function areaPolygonSelfIntersects(polygon) {
+    const latitude = polygon.reduce((sum, point) => sum + point.lat, 0) / polygon.length;
+    const points = polygon.map(point => areaProjection(point, latitude)), count = points.length;
+    for (let first = 0; first < count; first++) {
+      const firstNext = (first + 1) % count;
+      for (let second = first + 1; second < count; second++) {
+        const secondNext = (second + 1) % count;
+        if (first === second || firstNext === second || secondNext === first || (first === 0 && secondNext === 0)) continue;
+        if (areaSegmentsIntersect(points[first], points[firstNext], points[second], points[secondNext])) return true;
+      }
+    }
+    return false;
+  }
+  function normalizeDeliveryArea(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw) || Number(raw.version) !== 1) return null;
+    const id = areaIdOf(raw), name = boundedText(raw.name, 40), color = String(raw.color || '').toLowerCase();
+    if (!id || !name || !/^#[0-9a-f]{6}$/.test(color) || !Array.isArray(raw.polygon) || raw.polygon.length < 3 || raw.polygon.length > DELIVERY_AREA_VERTEX_LIMIT + 1) return null;
+    const polygon = [];
+    for (const candidate of raw.polygon) {
+      const point = validAreaPoint(candidate);
+      if (!point) return null;
+      const duplicate = polygon.some(existing => Math.abs(existing.lat - point.lat) < 1e-7 && Math.abs(existing.lng - point.lng) < 1e-7);
+      if (!duplicate) polygon.push(point);
+    }
+    if (polygon.length > 3 && Math.abs(polygon[0].lat - polygon.at(-1).lat) < 1e-7 && Math.abs(polygon[0].lng - polygon.at(-1).lng) < 1e-7) polygon.pop();
+    if (polygon.length < 3 || polygon.length > DELIVERY_AREA_VERTEX_LIMIT || areaPolygonSize(polygon) < 25 || areaPolygonSelfIntersects(polygon)) return null;
+    const createdAt = Math.round(Number(raw.createdAt)), rawUpdatedAt = Math.round(Number(raw.updatedAt)), revision = Math.round(Number(raw.revision)), priority = Math.round(Number(raw.priority) || 0);
+    if (!Number.isFinite(createdAt) || createdAt <= 0 || !Number.isFinite(rawUpdatedAt) || rawUpdatedAt <= 0 || !Number.isInteger(revision) || revision < 1 || revision > 2147483647 || priority < -100000 || priority > 100000) return null;
+    const updatedAt = Math.max(createdAt, rawUpdatedAt);
+    const normalized = {version: 1, id, name, color, priority, polygon, createdAt, updatedAt, revision};
+    return JSON.stringify(normalized).length <= 131072 ? normalized : null;
+  }
+  const areaSort = (first, second) => Number(second.priority) - Number(first.priority)
+    || areaPolygonSize(first.polygon) - areaPolygonSize(second.polygon)
+    || String(first.id).localeCompare(String(second.id));
+  function localDeliveryAreas({strict = false} = {}) {
+    let parsed = [];
+    try { parsed = JSON.parse(localStorage.getItem(DELIVERY_AREAS_KEY) || '[]'); }
+    catch {
+      if (strict) throw new Error('Local Delivery Area data is unreadable. It was not changed or uploaded.');
+    }
+    const byId = new Map();
+    if (!Array.isArray(parsed)) {
+      if (strict) throw new Error('Local Delivery Area data is unreadable. It was not changed or uploaded.');
+      return [];
+    }
+    if (strict && parsed.length > DELIVERY_AREA_LIMIT) throw new Error(`Local data exceeds the ${DELIVERY_AREA_LIMIT} Delivery Area safety limit. It was not changed or uploaded.`);
+    parsed.slice(0, DELIVERY_AREA_LIMIT + 1).forEach(raw => {
+      const area = normalizeDeliveryArea(raw);
+      if (!area) {
+        if (strict) throw new Error('A local Delivery Area is invalid. Local Areas were left unchanged.');
+        return;
+      }
+      const current = byId.get(area.id);
+      if (strict && current) throw new Error('Local Delivery Areas contain a duplicate identifier. Local Areas were left unchanged.');
+      if (!current || compareAreaCandidates(areaCandidate(area), areaCandidate(current)) > 0) byId.set(area.id, area);
+    });
+    return [...byId.values()].sort(areaSort);
+  }
+  function areaDeletionQueue({strict = false} = {}) {
+    let parsed = [];
+    try { parsed = JSON.parse(localStorage.getItem(AREA_DELETIONS_KEY) || '[]'); }
+    catch {
+      if (strict) throw new Error('The offline Delivery Area deletion queue is unreadable. Local Areas were left unchanged.');
+    }
+    const byId = new Map();
+    if (!Array.isArray(parsed)) {
+      if (strict) throw new Error('The offline Delivery Area deletion queue is unreadable. Local Areas were left unchanged.');
+      return [];
+    }
+    parsed.slice(-500).forEach(raw => {
+      const areaId = areaIdOf(raw), revision = Math.round(Number(raw?.revision)), updatedAt = versionTime(raw?.updatedAt ?? raw?.deletedAt);
+      if (!areaId || !Number.isInteger(revision) || revision < 1 || !updatedAt) {
+        if (strict) throw new Error('The offline Delivery Area deletion queue is invalid. Local Areas were left unchanged.');
+        return;
+      }
+      const candidate = {areaId, revision, updatedAt, deletedAt: new Date(updatedAt).toISOString()};
+      const current = byId.get(areaId);
+      if (!current || compareAreaCandidates(areaCandidate(candidate, true), areaCandidate(current, true)) > 0) byId.set(areaId, candidate);
+    });
+    return [...byId.values()].slice(-500);
+  }
+  function saveAreaDeletions(items) {
+    const raw = JSON.stringify(items.slice(-500));
+    localStorage.setItem(AREA_DELETIONS_KEY, raw);
+    window.dispatchEvent(new CustomEvent('routeheat:area-deletion-queue-changed', {detail: {raw, count: items.length}}));
+  }
+  function areaCandidate(value, deleted = false, cloudUpdatedAt = null) {
+    const area = deleted ? null : normalizeDeliveryArea(value);
+    return {
+      id: areaIdOf(area || value),
+      area,
+      deleted,
+      revision: Math.max(1, Math.round(Number(value?.revision ?? area?.revision) || 1)),
+      updatedAt: versionTime(value?.updatedAt ?? value?.deletedAt ?? cloudUpdatedAt ?? area?.updatedAt)
+    };
+  }
+  function compareAreaCandidates(first, second) {
+    if (!first && !second) return 0;
+    if (!first) return -1;
+    if (!second) return 1;
+    if (first.revision !== second.revision) return first.revision > second.revision ? 1 : -1;
+    if (first.updatedAt !== second.updatedAt) return first.updatedAt > second.updatedAt ? 1 : -1;
+    if (first.deleted !== second.deleted) return first.deleted ? 1 : -1;
+    return 0;
+  }
   async function fullLocalRoutes() {
     const history = window.RouteHeatHistory;
     try { await (history?.ready?.() || window.RouteHeatStorageReady); }
@@ -67,6 +225,7 @@
     const parsed = typeof value === 'number' ? value : Date.parse(value);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
   };
+  let knownDeliveryAreas = new Map(localDeliveryAreas().map(area => [area.id, area]));
   function routeVersion(route, cloudUpdatedAt = null) {
     return {
       schema: versionNumber(route?.schemaVersion ?? route?.schema),
@@ -262,6 +421,7 @@
 
   function friendlyError(error) {
     const message = String(error?.message || error || 'Cloud sync failed');
+    if ((error?.code === '42P01' || /relation .* does not exist/i.test(message)) && /routeheat_delivery_areas/i.test(message)) return 'Delivery Area cloud table not ready. Re-run the supplied Supabase setup SQL; local Delivery Areas remain safe on this device.';
     if (error?.code === '42P01' || /relation .* does not exist/i.test(message)) return 'Cloud table not ready. Run the supplied Supabase setup SQL.';
     if (/failed to fetch|network|load failed/i.test(message)) return 'No connection. RouteHeat will retry automatically.';
     if (/invalid login credentials/i.test(message)) return 'That email or password is not correct.';
@@ -415,13 +575,157 @@
     else setTimeout(() => $('#cloudBtn')?.focus(), 0);
   }
 
-  function ensureOwner(userId, routeItems = localRoutes()) {
+  function ensureOwner(userId, routeItems = localRoutes(), areaItems = localDeliveryAreas(), areaDeletes = areaDeletionQueue()) {
     const owner = localStorage.getItem(OWNER_KEY);
     const routes = Array.isArray(routeItems) ? routeItems : localRoutes();
-    if (owner && owner !== userId && routes.length) {
-      throw new Error('This device contains routes linked to another cloud account. Export them before switching accounts.');
+    const areas = Array.isArray(areaItems) ? areaItems : localDeliveryAreas();
+    const areaTombstones = Array.isArray(areaDeletes) ? areaDeletes : areaDeletionQueue();
+    if (owner && owner !== userId && (routes.length || areas.length || areaTombstones.length)) {
+      throw new Error('This device contains routes or Delivery Areas linked to another cloud account. Export them before switching accounts.');
     }
     localStorage.setItem(OWNER_KEY, userId);
+  }
+
+  function deliveryAreaRow(candidate, userId) {
+    if (!candidate?.id || !candidate.updatedAt || !candidate.revision) throw new Error('Delivery Area cloud data is incomplete.');
+    const updatedAt = new Date(candidate.updatedAt).toISOString();
+    return {
+      user_id: userId,
+      area_id: candidate.id,
+      area_data: candidate.deleted ? null : candidate.area,
+      revision: candidate.revision,
+      updated_at: updatedAt,
+      deleted_at: candidate.deleted ? updatedAt : null
+    };
+  }
+
+  function remoteAreaCandidate(row) {
+    const id = areaIdOf(row), revision = Math.round(Number(row?.revision)), updatedAt = versionTime(row?.updated_at ?? row?.deleted_at), deletedAt = versionTime(row?.deleted_at), deleted = !!deletedAt;
+    if (!id || !Number.isInteger(revision) || revision < 1 || !updatedAt) throw new Error('A saved cloud Delivery Area has invalid version metadata. Local Areas were left unchanged.');
+    if (deleted && deletedAt !== updatedAt) throw new Error('A saved cloud Delivery Area deletion has invalid version metadata. Local Areas were left unchanged.');
+    if (deleted) return {id, area: null, deleted: true, revision, updatedAt};
+    const area = normalizeDeliveryArea(row.area_data);
+    if (!area || area.id !== id || area.revision !== revision || area.updatedAt !== updatedAt) throw new Error('A saved cloud Delivery Area is invalid. Local Areas were left unchanged.');
+    return {id, area, deleted: false, revision, updatedAt};
+  }
+
+  async function fetchRemoteAreaRows(userId) {
+    const rows = [], pageSize = 1000, maximum = 10000;
+    for (let offset = 0; offset < maximum; offset += pageSize) {
+      const {data, error} = await client
+        .from(AREAS_TABLE)
+        .select('area_id,area_data,revision,updated_at,deleted_at')
+        .eq('user_id', userId)
+        .order('updated_at', {ascending: false})
+        .range(offset, offset + pageSize - 1);
+      if (error) throw error;
+      rows.push(...(data || []));
+      if ((data || []).length < pageSize) return rows;
+    }
+    throw new Error('Delivery Area cloud history is larger than the safe sync limit. Local Areas were left unchanged.');
+  }
+
+  function candidateMap(localAreas, tombstones) {
+    const candidates = new Map();
+    const add = candidate => {
+      if (!candidate?.id || !candidate.updatedAt) return;
+      const current = candidates.get(candidate.id);
+      if (!current || compareAreaCandidates(candidate, current) > 0) candidates.set(candidate.id, candidate);
+    };
+    localAreas.forEach(area => add(areaCandidate(area)));
+    tombstones.forEach(item => add(areaCandidate(item, true)));
+    return candidates;
+  }
+
+  function mergeAreaCandidateMaps(localCandidates, remoteCandidates) {
+    const winners = new Map(), upload = [];
+    new Set([...localCandidates.keys(), ...remoteCandidates.keys()]).forEach(id => {
+      const local = localCandidates.get(id), remote = remoteCandidates.get(id), comparison = compareAreaCandidates(local, remote);
+      const winner = comparison > 0 ? local : remote || local;
+      if (winner) winners.set(id, winner);
+      if (local && (!remote || comparison > 0)) upload.push(local);
+    });
+    return {winners, upload};
+  }
+
+  async function syncDeliveryAreas(userId) {
+    const capturedAreasRaw = localStorage.getItem(DELIVERY_AREAS_KEY), capturedDeletionsRaw = localStorage.getItem(AREA_DELETIONS_KEY);
+    const localAreas = localDeliveryAreas({strict: true}), tombstones = areaDeletionQueue({strict: true});
+    const localCandidates = candidateMap(localAreas, tombstones);
+    const firstRemoteRows = await fetchRemoteAreaRows(userId), firstRemoteCandidates = new Map();
+    firstRemoteRows.forEach(row => {
+      const candidate = remoteAreaCandidate(row);
+      firstRemoteCandidates.set(candidate.id, candidate);
+    });
+    const firstMerge = mergeAreaCandidateMaps(localCandidates, firstRemoteCandidates);
+    const prospectiveLive = [...firstMerge.winners.values()].filter(candidate => !candidate.deleted);
+    if (prospectiveLive.length > DELIVERY_AREA_LIMIT) throw new Error(`Cloud merge would exceed the ${DELIVERY_AREA_LIMIT} Delivery Area safety limit. Local Areas were left unchanged.`);
+
+    for (const group of chunks(firstMerge.upload.map(candidate => deliveryAreaRow(candidate, userId)), 20)) {
+      const {error} = await client.from(AREAS_TABLE).upsert(group, {onConflict: 'user_id,area_id'});
+      if (error) throw error;
+    }
+
+    // Re-read after uploads. The database rejects stale concurrent writes, so this
+    // second pass makes another device's newer edit the local winner as well.
+    const finalRemoteRows = firstMerge.upload.length ? await fetchRemoteAreaRows(userId) : firstRemoteRows;
+    const finalRemoteCandidates = new Map();
+    finalRemoteRows.forEach(row => {
+      const candidate = remoteAreaCandidate(row);
+      finalRemoteCandidates.set(candidate.id, candidate);
+    });
+    const finalMerge = mergeAreaCandidateMaps(localCandidates, finalRemoteCandidates);
+    const finalAreas = [...finalMerge.winners.values()].filter(candidate => !candidate.deleted).map(candidate => candidate.area).sort(areaSort);
+    if (finalAreas.length > DELIVERY_AREA_LIMIT) throw new Error(`Cloud contains more than ${DELIVERY_AREA_LIMIT} live Delivery Areas. Local Areas were left unchanged.`);
+    if (localStorage.getItem(DELIVERY_AREAS_KEY) !== capturedAreasRaw || localStorage.getItem(AREA_DELETIONS_KEY) !== capturedDeletionsRaw) {
+      // A draw/edit/delete finished while the network request was in flight.
+      // Never replace that newer device state with this older snapshot.
+      syncRequested = true;
+      const current = localDeliveryAreas({strict: true});
+      knownDeliveryAreas = new Map(current.map(area => [area.id, area]));
+      return {count: current.length, changed: false, uploaded: firstMerge.upload.length, deferred: true};
+    }
+    const beforeRaw = JSON.stringify(localAreas), afterRaw = JSON.stringify(finalAreas), changed = beforeRaw !== afterRaw;
+    if (changed) {
+      localStorage.setItem(DELIVERY_AREAS_KEY, afterRaw);
+      knownDeliveryAreas = new Map(finalAreas.map(area => [area.id, area]));
+      applyingAreaCloudMerge = true;
+      try {
+        window.dispatchEvent(new CustomEvent('routeheat:delivery-areas-changed', {detail: {areas: finalAreas, reason: 'cloud-merged'}}));
+        window.dispatchEvent(new CustomEvent('routeheat:cloud-merged', {detail: {areas: finalAreas.length, source: 'delivery-areas'}}));
+      } finally {
+        applyingAreaCloudMerge = false;
+      }
+    } else {
+      knownDeliveryAreas = new Map(localAreas.map(area => [area.id, area]));
+    }
+    if (tombstones.length) saveAreaDeletions([]);
+    return {count: finalAreas.length, changed, uploaded: firstMerge.upload.length};
+  }
+
+  function rememberDeliveryAreaChange(event) {
+    if (applyingAreaCloudMerge) return;
+    const detail = event.detail && typeof event.detail === 'object' ? event.detail : {}, reason = String(detail.reason || 'updated'), areaId = areaIdOf({id: detail.areaId});
+    const nextAreas = localDeliveryAreas(), nextById = new Map(nextAreas.map(area => [area.id, area]));
+    const removedIds = new Set([...knownDeliveryAreas.keys()].filter(id => !nextById.has(id)));
+    if (reason === 'deleted' && areaId) removedIds.add(areaId);
+    if (removedIds.size) {
+      const queueById = new Map(areaDeletionQueue().map(item => [item.areaId, item]));
+      removedIds.forEach(id => {
+        const prior = (id === areaId ? normalizeDeliveryArea(detail.previousArea) : null) || knownDeliveryAreas.get(id), queued = queueById.get(id);
+        const now = Math.max(Date.now(), Number(prior?.updatedAt || 0) + 1, Number(queued?.updatedAt || 0) + 1), revision = Math.max(1, Number(prior?.revision || 0) + 1, Number(queued?.revision || 0));
+        queueById.set(id, {areaId: id, revision, updatedAt: now, deletedAt: new Date(now).toISOString()});
+      });
+      saveAreaDeletions([...queueById.values()]);
+    } else {
+      const queue = areaDeletionQueue().filter(item => {
+        const live = nextById.get(item.areaId);
+        return !live || compareAreaCandidates(areaCandidate(item, true), areaCandidate(live)) >= 0;
+      });
+      if (queue.length !== areaDeletionQueue().length) saveAreaDeletions(queue);
+    }
+    knownDeliveryAreas = nextById;
+    syncNow();
   }
 
   function rememberRestore(route) {
@@ -586,7 +890,7 @@
     try {
       const userId = session.user.id;
       const localSnapshot = await fullLocalRoutes();
-      ensureOwner(userId, localSnapshot);
+      ensureOwner(userId, localSnapshot, localDeliveryAreas({strict: true}), areaDeletionQueue({strict: true}));
       await flushRestores(userId);
       await flushDeletions(userId, localSnapshot);
       await flushNeighborhoodSnapshotDeletions();
@@ -731,6 +1035,7 @@
         if (finalBlocked.some(signature => signaturesMatch(routeSignature(saved), signature))) merged.delete(key);
       }
       await saveLocalRoutes([...merged.values()]);
+      const areaResult = await syncDeliveryAreas(userId);
 
       const now = Date.now();
       localStorage.setItem(LAST_SYNC_KEY, String(now));
@@ -738,8 +1043,8 @@
       setStatus(
         'synced',
         showComplete
-          ? `Cloud backup complete - ${merged.size} routes protected`
-          : `${merged.size} routes protected in cloud`
+          ? `Cloud backup complete - ${merged.size} routes and ${areaResult.count} Areas protected`
+          : `${merged.size} routes · ${areaResult.count} Areas protected in cloud`
       );
     } catch (error) {
       setStatus('error', friendlyError(error));
@@ -913,6 +1218,7 @@
       rememberRestore(event.detail?.route);
       syncNow();
     });
+    window.addEventListener('routeheat:delivery-areas-changed', rememberDeliveryAreaChange);
     window.addEventListener('routeheat:request-deleted-routes', () => {
       requestDeletedRoutes();
     });
@@ -921,9 +1227,17 @@
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') syncNow();
     });
+    window.addEventListener('storage', event => {
+      if (event.key !== DELIVERY_AREAS_KEY && event.key !== AREA_DELETIONS_KEY) return;
+      knownDeliveryAreas = new Map(localDeliveryAreas().map(area => [area.id, area]));
+      syncNow();
+    });
   }
 
   async function init() {
+    try { await window.RouteHeatStorageReady; }
+    catch {}
+    knownDeliveryAreas = new Map(localDeliveryAreas().map(area => [area.id, area]));
     bindUi();
     if (!CONFIG.url || !CONFIG.publishableKey || !window.supabase?.createClient) {
       setStatus('error', 'Cloud backup could not load. Route tracking still works locally.');
