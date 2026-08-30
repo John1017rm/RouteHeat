@@ -1,8 +1,30 @@
-# RouteHeat 6.5.0
+# RouteHeat 7.0.0
 
 RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone and Android. It records stops, locations, totes, rescues, packages, timing, and GPS breadcrumbs; compares a driver only with their own history; and turns finished workdays into maps, reports, replay, and long-term insights.
 
 > **Safety:** Use every RouteHeat control only while safely parked. Forecasts, Ghost comparisons, coaching, achievements, and historical pace are personal context—not targets or reasons to rush.
+
+## 7.0.0 The Story Update
+
+RouteHeat 7.0 adds four expressive tools without changing the route-saving core:
+
+- **Route Atmosphere:** After a finished route is safely stored, RouteHeat can automatically attach modeled temperature, apparent temperature, conditions, precipitation, wind, daylight, sunrise/sunset, and moon phase. A compact chip appears in History and full cards appear in Map & Replay and the end-of-day report. Existing eligible routes are filled gradually in bounded background batches, with a parked-only manual backfill button in Settings.
+- **Privacy-bounded weather lookup:** Only one representative route location rounded to `0.01°` (roughly 1 km) and the route date are sent to Open-Meteo. Route IDs, full paths, stops, addresses, package totals, screenshots, Amazon data, and account data are never included. Saved values are aggregates, not raw hourly responses. Cards clearly identify the information as approximate modeled conditions and include Open-Meteo / CC BY 4.0 attribution.
+- **Pace Orchestra:** Every saved route can become a deterministic 22–42 second Web Audio composition. Faster sections rise into higher, shorter notes; slower stretches settle lower; multi-location stops add harmony; tote changes ring; rescues shift key; and the route ends on a finish chord. It uses no downloaded audio files, starts only after an explicit parked tap, and stops whenever RouteHeat is hidden, blurred, or closed.
+- **Watercolor Atlas:** An eighth Delivery Atlas view paints recorded GPS street trails as translucent, recency-colored washes. It never connects stops or substitutes circles when a real trail is missing. iPhone-safe geometry caps, deterministic two-pass Lite and three-pass Full rendering, and a path-only emergency preview keep the effect lightweight.
+- **Private Amazon summary intake:** The pre-route setup can read a screenshot containing Stops, Multi-location stops, Total locations, Total packages, Stops to do, Stops successful, and Packages to deliver. OCR is loaded lazily only when requested, runs on-device, downsizes the temporary image to at most 1600 px, and terminates immediately after the scan. Every result opens as an editable review; nothing is applied until confirmed. The screenshot and OCR text are never saved or uploaded.
+- **What’s New:** A polished, once-per-version 7.0 introduction explains the additions without interrupting an active or recovered route. It can always be reopened from Settings.
+
+### About the tabletop AR idea
+
+The coffee-table 3D route replay is intentionally **not** bundled into the 7.0 PWA. A convincing version needs a native iPhone module built with ARKit and RealityKit for reliable plane detection, anchoring, depth, and camera lifecycle behavior. Adding a web-AR runtime here would introduce camera permissions and substantial 3D weight for an experimental feature. RouteHeat’s existing timestamped GPS trails already provide the right source data for a future native AR viewer, so 7.0 stays fast while preserving that path.
+
+### 7.0 network and offline behavior
+
+- Core route tracking, saved history, reports, Pace Orchestra, and previously saved Atmosphere cards continue to work offline.
+- The first screenshot scan needs internet access to load the pinned Tesseract.js `7.0.0` reader from jsDelivr. Manual entry and Apple Live Text paste remain available if it cannot load.
+- New Atmosphere cards need internet access. Failed or timed-out lookups do not change the route and can be retried later.
+- This personal build uses Open-Meteo’s public endpoints. Before operating RouteHeat commercially, review Open-Meteo’s current commercial licensing and move weather requests behind a server-side licensed endpoint rather than placing a commercial API key in this static client.
 
 ## 6.5.0 Atlas layers, Stop Time, and App themes
 
@@ -123,7 +145,7 @@ RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone an
 - **Historic reanalysis:** Adding, editing, reordering, or deleting a boundary immediately reclassifies saved history without changing raw stops, GPS breadcrumbs, route revisions, or cloud rows.
 - **Area intelligence:** History, Live, Drive, route detail, finish reports, All-time filters, ETA, Ghost selection, weekly recaps, Moments, Delivery Year, and Area Profile pages use drawn boundaries first.
 - **Suggested Areas:** Older automatic GPS clusters can provide a reviewable starting outline. They remain suggestions until the driver explicitly checks and saves them.
-- **Private boundaries:** Names and polygons stay in device storage and `.routeheat` backups. They are not uploaded to Supabase or included in privacy-safe shared summaries.
+- **Private boundaries:** Names and polygons stay in protected device state and `.routeheat` backups. When Cloud is signed in and the latest setup has been applied, they also sync through that account's RLS-protected `routeheat_delivery_areas` table; they are never published, sent to the map tile provider, or included in privacy-safe shared summaries.
 
 ## RouteHeat 6 foundation
 
@@ -239,7 +261,7 @@ Recently Deleted lists only entries that still contain a complete finished-route
 
 - After one successful online load, the service worker caches the application shell for offline route entry and history access.
 - GPS stop logging, device snapshots, `.routeheat` export/import, and finished history can work without cloud connectivity.
-- Supabase sign-in/sync, Neighborhood Snapshot generation/refresh, first-time library loading, application updates, and OpenStreetMap tiles require a network connection.
+- Supabase sign-in/sync, Neighborhood Snapshot generation/refresh, new Route Atmosphere lookups, the first screenshot-reader load, application updates, and OpenStreetMap tiles require a network connection.
 - An uncached or offline map may be blank while stop totals and GPS data continue recording.
 - Mobile operating systems can suspend GPS or audio after backgrounding. Return to RouteHeat and use the next parked tap if the OS requires a fresh audio gesture.
 
@@ -261,6 +283,8 @@ On iPhone, open the published URL in Safari and use **Share → Add to Home Scre
 - Neighborhood Snapshot is optional and off by default. When enabled and requested, Supabase reads only the required fields from the already cloud-synced finished route and temporarily sends valid stop coordinates to U.S. Census services to identify Census tracts. The returned route card stores aggregate tract estimates, coverage, and source metadata—not addresses, individual property records, or another copy of stop coordinates.
 - Neighborhood values use the 2020–2024 American Community Survey 5-year Detailed Tables. They can lag current market conditions and carry sampling uncertainty. “Typical delivered-area median value” is a stop-weighted median of tract estimates, not a value for any house on the route.
 - This product uses the Census Bureau Data API but is not endorsed or certified by the Census Bureau.
+- Route Atmosphere uses a date and one representative coordinate rounded to `0.01°` with Open-Meteo; it never sends the full trail, stop list, address, packages, Amazon summary, screenshot, or account identifier. Open-Meteo receives normal network metadata and may apply its own retention policy. Saved weather values are approximate modeled aggregates under CC BY 4.0, not observations from a weather station on the route.
+- Amazon summary screenshots and raw OCR text stay ephemeral in the browser. Tesseract.js and its English model are loaded from jsDelivr only after an explicit scan request; they read the temporary downsized canvas on the device. Only user-confirmed numeric summary fields can be saved with the route.
 - Shared summaries deliberately omit precise route geometry and private identifiers, but always review generated text before sharing.
 - OpenStreetMap tiles are fetched from an external tile service. That provider can receive normal network metadata and the geographic tile coordinates requested for the visible map. RouteHeat does not send stop notes, package counts, Area names/boundaries, or full saved route records to the tile provider.
 - Repeat Stops groups approximate GPS areas, not verified street addresses.
@@ -269,8 +293,13 @@ On iPhone, open the published URL in Safari and use **Share → Add to Home Scre
 ## Main files
 
 - `index.html` — accessible mobile interface and modal shells
-- `assets/styles.css` — Dark/Light appearance, app-theme accents, responsive, reduced-motion, and map presentation
-- `assets/app.js` — route workflow, intelligence, local recovery, backup/import, history, reports, and maps
+- `assets/styles.css` — established Dark/Light appearance, app-theme accents, responsive, reduced-motion, and map presentation
+- `assets/routeheat-7.css` — Route Atmosphere, scanner, Pace Orchestra, Watercolor, and What’s New presentation
+- `assets/app.js` — route workflow, 7.0 integration, intelligence, local recovery, backup/import, history, reports, and maps
+- `assets/route-atmosphere.js` — coarse-location modeled conditions, aggregation, moon phase, and cards
+- `assets/route-intake.js` — editable summary parser and lazy on-device screenshot OCR
+- `assets/pace-orchestra.js` — deterministic local Web Audio route compositions
+- `assets/watercolor-atlas.js` — bounded GPS-trail-only layered street painting
 - `assets/routeheat-storage.js` — IndexedDB transactional snapshots and metadata journal
 - `assets/cloud.js` — Supabase authentication, finished-route sync, deletion, and restore conflict handling
 - `assets/supabase-config.js` — Supabase project URL and browser-safe publishable key
