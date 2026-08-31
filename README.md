@@ -1,8 +1,17 @@
-# RouteHeat 7.0.0
+# RouteHeat 7.0.1
 
 RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone and Android. It records stops, locations, totes, rescues, packages, timing, and GPS breadcrumbs; compares a driver only with their own history; and turns finished workdays into maps, reports, replay, and long-term insights.
 
 > **Safety:** Use every RouteHeat control only while safely parked. Forecasts, Ghost comparisons, coaching, achievements, and historical pace are personal context—not targets or reasons to rush.
+
+## 7.0.1 Trophy Expansion
+
+- **59-award trophy case:** Fifteen new lifetime trophies recognize confirmed package totals, meaningful rescue workdays, extra multi-location doors, repeat work in the same saved Delivery Area, all four seasons, all 12 calendar months, excellent route-map quality, and long-term tote use.
+- **History-based and hard to farm:** New awards count finished routes only. Package awards exclude incomplete or partial totals; rescue workdays require at least one logged rescue stop and either three rescue stops total or 15 active rescue minutes; same-Area awards require a finished 50+ stop workday with at least 70% of stops in one current saved Area; and Clean Cartographer requires 75+ stops with Route Quality 90 or better.
+- Same-Area trophies are recalculated from current saved routes and current Delivery Area boundaries, so deliberate history or boundary edits are reflected honestly.
+- **Accurate tote ladder:** Tote Veteran and Tote Dynasty count one valid tote-opening checkpoint per stop position, preventing repeated taps at the same stop from inflating progress.
+- **New trophy artwork:** Package, rescue, seasonal, Area, map-quality, extra-door, and tote families have distinct medal scenes and premium color treatments in both Dark and Light appearance.
+- These additions are calculated from private saved history and do not change XP, active-route coaching, pace targets, or the parked-use safety model.
 
 ## 7.0.0 The Story Update
 
