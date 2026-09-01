@@ -16,6 +16,7 @@
     .notice{padding:15px 17px;margin:16px 0;color:var(--muted)}.notice b{display:block;color:var(--text);margin-bottom:3px}.notice[data-state="good"]{border-color:#248e61}.notice[data-state="warn"]{border-color:#8a6b2e}.notice[data-state="error"]{border-color:#8a3b3b}.notice[data-state="good"] b{color:var(--green)}.notice[data-state="warn"] b{color:var(--warn)}.notice[data-state="error"] b{color:var(--danger)}
     #candidates{display:grid;gap:12px;margin:18px 0}.card{padding:18px}.card.best{border-color:var(--green);box-shadow:0 0 0 1px #22df8d44,0 18px 48px #0006}.card-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.source{font-size:13px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}.badge{padding:5px 9px;border-radius:999px;background:#174834;color:var(--green);font-size:12px;font-weight:800}.stops{font-size:38px;line-height:1;font-weight:900;margin:18px 0 5px}.stops span{font-size:15px;color:var(--muted);font-weight:700}.meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}.meta div{padding:11px;border-radius:14px;background:#081b14}.meta small{display:block;color:var(--muted);font-size:11px;letter-spacing:.08em;text-transform:uppercase}.meta b{display:block;margin-top:2px;font-size:14px}
     .actions{display:grid;gap:10px;margin-top:18px}button{width:100%;min-height:54px;border:0;border-radius:17px;padding:13px 17px;font:inherit;font-weight:850;cursor:pointer}button.primary{background:linear-gradient(135deg,var(--green),#13bd73);color:#032216}button.secondary{background:#17362b;color:var(--text);border:1px solid var(--line)}button:disabled{opacity:.45;cursor:not-allowed}.fine{font-size:13px;color:var(--muted);margin:14px 2px 0}.hidden{display:none!important}
+    .repair-panel{margin-top:16px}.repair-panel h2{margin:0 0 6px}.repair-panel>p{margin:0 0 16px;color:var(--muted)}.repair-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.repair-grid label:first-child{grid-column:1/-1}.repair-grid label{display:grid;gap:6px;color:var(--muted);font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}.repair-grid input{width:100%;min-height:50px;border:1px solid var(--line);border-radius:14px;background:#081b14;color:var(--text);padding:10px 12px;font:inherit;font-weight:750}.repair-note{padding:12px;border-radius:14px;background:#081b14;color:var(--muted);font-size:13px;margin:14px 0!important}.repair-note b{color:var(--text)}@media(max-width:480px){.repair-grid{grid-template-columns:1fr}.repair-grid label:first-child{grid-column:auto}}
   </style>
 </head>
 <body>
@@ -32,6 +33,13 @@
     <button id="restore" class="primary" type="button" disabled>Restore fuller checkpoint</button>
     <button id="download" class="secondary" type="button">Download safety copy first</button>
   </div>
+  <section id="repairPanel" class="card repair-panel hidden" aria-labelledby="repairTitle">
+    <p class="eyebrow">COUNT-ONLY RECOVERY</p><h2 id="repairTitle">Repair the saved route total</h2>
+    <p>The missing stop details are gone, but this can preserve the real saved route and add count-only normal-route stops without GPS locations.</p>
+    <div class="repair-grid"><label>Final stop total<input id="repairStops" type="number" min="1" max="9999" inputmode="numeric"></label><label>Route finished<input id="repairFinished" type="datetime-local" step="60"></label><label>Packages<input id="repairPackages" type="number" min="0" max="9999" inputmode="numeric"></label></div>
+    <p class="repair-note"><b>Not rescue stops.</b> Added entries are marked as recovered original-route counts. Times between the last real stop and the finish time are interpolated; locations remain unavailable.</p>
+    <button id="repairRoute" class="primary" type="button">Repair saved route</button>
+  </section>
   <p class="fine">Nothing is uploaded. GPS coordinates are not displayed. A downloaded safety copy can contain private route locations, so keep it private.</p>
 </main>
 <script>
@@ -39,7 +47,7 @@
   'use strict';
   const DB_NAME='routeheat-storage',DB_VERSION=1,STATE_STORE='state',JOURNAL_STORE='journal';
   const PRIMARY_KEY='primary',PREVIOUS_KEY='previous',ACTIVE_KEY='routeheat.active',HISTORY_KEY='routeheat.routes.v2',DELETED_KEY='routeheat.cloud.deletedRoutes.v1',MARKER_KEY='routeheat.storage.commit.v1';
-  const status=document.getElementById('status'),candidatesNode=document.getElementById('candidates'),actions=document.getElementById('actions'),restoreButton=document.getElementById('restore'),downloadButton=document.getElementById('download');
+  const status=document.getElementById('status'),candidatesNode=document.getElementById('candidates'),actions=document.getElementById('actions'),restoreButton=document.getElementById('restore'),downloadButton=document.getElementById('download'),repairPanel=document.getElementById('repairPanel'),repairStops=document.getElementById('repairStops'),repairFinished=document.getElementById('repairFinished'),repairPackages=document.getElementById('repairPackages'),repairRouteButton=document.getElementById('repairRoute');
   let database=null,records={primary:null,previous:null},localRoute=null,localHistory=[],candidates=[],best=null;
 
   const parse=value=>{try{return value==null?null:JSON.parse(value);}catch{return null;}};
@@ -53,6 +61,8 @@
   const sameRoute=(first,second)=>String(first?.id||'')===String(second?.id||'')||(Number(first?.startedAt)>0&&Number(first.startedAt)===Number(second?.startedAt));
   const clock=value=>Number.isFinite(Number(value))?Number(value):Date.parse(value);
   const time=value=>{const number=clock(value);return Number.isFinite(number)&&number>0?new Date(number).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'Unknown';};
+  const dateTimeInput=value=>{const date=new Date(Number(value)||Date.now()),local=new Date(date.getTime()-date.getTimezoneOffset()*60000);return local.toISOString().slice(0,16);};
+  const eventId=prefix=>`${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`;
   const setStatus=(state,title,copy)=>{status.dataset.state=state;status.querySelector('b').textContent=title;status.querySelector('span').textContent=copy;};
   const request=request=>new Promise((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('Device storage request failed'));});
   const transactionDone=transaction=>new Promise((resolve,reject)=>{transaction.oncomplete=resolve;transaction.onabort=()=>reject(transaction.error||new Error('Device storage update was cancelled'));transaction.onerror=()=>reject(transaction.error||new Error('Device storage update failed'));});
@@ -112,6 +122,8 @@
     else if(best)setStatus('good',`${bestStops}-stop saved route copy found`,'A protected History or Recently Deleted copy can be restored without changing unrelated routes.');
     else if(records.primary||records.previous)setStatus('error','No recent route copy remains','The current and previous device snapshots contain no active, History, or Recently Deleted copy from the last 72 hours.');
     else setStatus('error','No RouteHeat snapshots found','This installation does not currently contain protected RouteHeat snapshots.');
+    const canRepair=!!(best&&alreadyInHistory&&best.kind==='history'&&bestStops>0);repairPanel.classList.toggle('hidden',!canRepair);
+    if(canRepair){repairStops.value=String(Math.max(bestStops+1,Number(best.route.plannedStops)||0));repairFinished.value=dateTimeInput(best.route.endedAt||savedAt(best.route));repairPackages.value=best.route.totalPackages==null?'':String(best.route.totalPackages);}
   }
 
   function downloadSafetyCopy(){
@@ -153,8 +165,35 @@
     records={primary:snapshot,previous:primaryValid?records.primary:records.previous};localHistory=localUpdated?history:localHistory;setStatus('good',`${targetStops}-stop route restored`,localUpdated?'Return to RouteHeat and open History.':'The route is protected in the device journal. Return to RouteHeat and open History; the full History copy will load from the journal.');restoreButton.textContent='Route restored to History';downloadButton.textContent='Download updated safety copy';
   }
 
+  async function repairSavedRouteCount(){
+    if(!best||best.kind!=='history')throw new Error('Open a saved History route before using count-only recovery.');
+    const targetStops=Math.round(Number(repairStops.value)||0),finishAt=new Date(repairFinished.value).getTime(),packages=repairPackages.value===''?null:Math.round(Number(repairPackages.value)),beforeStops=best.route.stops.length,lastRealAt=Math.max(Number(best.route.startedAt)||0,...best.route.stops.map(stop=>Number(stop?.timestamp)||0));
+    if(targetStops<=beforeStops)throw new Error(`Final stops must be greater than the saved ${beforeStops} stops.`);
+    if(targetStops>9999)throw new Error('Final stops must be below 10,000.');
+    if(!Number.isFinite(finishAt)||finishAt<=lastRealAt)throw new Error('Choose a finish time after the last real saved stop.');
+    if(packages!=null&&(!Number.isFinite(packages)||packages<0||packages>9999))throw new Error('Packages must be between 0 and 9,999.');
+    const missing=targetStops-beforeStops,finishLabel=new Date(finishAt).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+    if(!confirm(`Repair this saved route from ${beforeStops} to ${targetStops} stops, finishing ${finishLabel}? ${missing} count-only original-route stops will be added without GPS locations. This will not label them as rescue stops.`))return;
+    repairRouteButton.disabled=true;repairRouteButton.textContent='Protecting repaired route…';
+    const now=Date.now(),recovered=typeof structuredClone==='function'?structuredClone(best.route):JSON.parse(JSON.stringify(best.route)),phase=(Array.isArray(recovered.phases)?recovered.phases:[]).find(item=>item&&item.type!=='rescue')||{id:'phase-main',type:'original',label:'Original route',startedAt:recovered.startedAt,startStopIndex:0},phaseId=phase.id||'phase-main',maxAmazon=Math.max(0,...recovered.stops.map(stop=>Number(stop?.amazonStopNumber??stop?.number)||0)),insertedStopIds=[];
+    recovered.phases=Array.isArray(recovered.phases)?recovered.phases:[];if(!recovered.phases.includes(phase))recovered.phases.unshift(phase);phase.id=phaseId;phase.type='original';phase.label=phase.label||'Original route';phase.endedAt=finishAt;phase.endStopIndex=targetStops;phase.plannedStopsAdded=Math.max(Number(phase.plannedStopsAdded)||0,targetStops);
+    let previousAt=lastRealAt;
+    for(let offset=0;offset<missing;offset++){
+      const timestamp=Math.round(lastRealAt+(finishAt-lastRealAt)*(offset+1)/missing),id=eventId('stop');insertedStopIds.push(id);
+      recovered.stops.push({id,number:recovered.stops.length+1,amazonStopNumber:maxAmazon+offset+1,phaseId,timestamp,segmentMs:Math.max(1000,timestamp-previousAt),activeElapsed:Math.max(0,timestamp-Number(recovered.startedAt||timestamp)),source:'recovered-main-checkpoint',corrected:true,estimatedLocation:false,locationSource:'unavailable',locationReason:'count-only-recovery',gpsAgeMs:null,locationCount:1,trackIndex:Math.max(0,(recovered.track?.length||1)-1),lat:null,lng:null,accuracy:null});previousAt=timestamp;
+    }
+    recovered.endedAt=finishAt;recovered.plannedStops=targetStops;recovered.amazon={...(recovered.amazon||{}),nextStopNumber:maxAmazon+missing+1};if(packages!=null){recovered.totalPackages=packages;recovered.packageCountComplete=false;}
+    recovered.corrections=Array.isArray(recovered.corrections)?recovered.corrections:[];recovered.corrections.push({id:eventId('correction'),type:'main-route-count-recovery',timestamp:now,beforeStopCount:beforeStops,targetStopCount:targetStops,checkpointAt:finishAt,insertedStopIds});recovered.updatedAt=now;recovered.draftSavedAt=now;recovered.revision=Math.max(0,Number(recovered.revision)||0)+1;recovered.forecastOutcome=null;recovered.routeQuality=null;
+    const primaryValid=validSnapshot(records.primary),baseValues={...(primaryValid?records.primary.values:best.snapshot?.values||{})},history=arrayFromValues(baseValues,HISTORY_KEY),index=history.findIndex(item=>validRoute(item)&&sameRoute(item,recovered));if(index<0)history.push(recovered);else history[index]=recovered;baseValues[HISTORY_KEY]=JSON.stringify(history);
+    const values=normalizedValues(baseValues),sequence=Math.max(Number(records.primary?.sequence)||0,Number(records.previous?.sequence)||0,Number(best.snapshot?.sequence)||0)+1,snapshot={key:PRIMARY_KEY,formatVersion:1,sequence,committedAt:now,logicalClock:now,reason:'emergency-main-route-count-repair',values,checksum:checksum(values)};
+    const transaction=database.transaction([STATE_STORE,JOURNAL_STORE],'readwrite'),done=transactionDone(transaction),stateStore=transaction.objectStore(STATE_STORE),journalStore=transaction.objectStore(JOURNAL_STORE);if(primaryValid)stateStore.put({...records.primary,key:PREVIOUS_KEY});stateStore.put(snapshot);journalStore.put({sequence,committedAt:now,logicalClock:now,reason:snapshot.reason,checksum:snapshot.checksum,changedKeys:[HISTORY_KEY]});await done;
+    let localUpdated=false;try{localStorage.setItem(HISTORY_KEY,values[HISTORY_KEY]);localUpdated=true;}catch{}try{localStorage.setItem(MARKER_KEY,JSON.stringify({formatVersion:1,sequence,committedAt:now,logicalClock:now,checksum:snapshot.checksum}));}catch{}
+    records={primary:snapshot,previous:primaryValid?records.primary:records.previous};if(localUpdated)localHistory=history;repairPanel.classList.add('hidden');setStatus('good',`${targetStops}-stop route repaired`,localUpdated?'Return to RouteHeat and open History. The repaired route is saved on this device.':'The repaired route is protected in the device journal. Return to RouteHeat and open History; the journal copy will load even if the local mirror is full.');restoreButton.disabled=true;restoreButton.textContent=`${targetStops}-stop route protected`;downloadButton.textContent='Download repaired safety copy';
+  }
+
   downloadButton.addEventListener('click',downloadSafetyCopy);
   restoreButton.addEventListener('click',()=>((best?.kind==='active'?promoteBest():restoreSavedRoute())).catch(error=>{restoreButton.disabled=false;restoreButton.textContent='Try recovery again';setStatus('error','Recovery was not changed',error.message||String(error));}));
+  repairRouteButton.addEventListener('click',()=>repairSavedRouteCount().catch(error=>{repairRouteButton.disabled=false;repairRouteButton.textContent='Repair saved route';setStatus('error','Route repair was not changed',error.message||String(error));}));
   (async()=>{try{database=await openDatabase();records=await readRecords();collectCandidates();render();}catch(error){setStatus('error','Device snapshots could not be read',error.message||String(error));}})();
 })();
 </script>
