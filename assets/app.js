@@ -329,7 +329,7 @@
   }
   async function initDurableStorage(){
     try{
-      const module=await import('./routeheat-storage.js?v=7.0.1');
+      const module=await import('./routeheat-storage.js?v=7.0.2');
       durableStorage=module.createRouteHeatStorage({keys:DURABLE_STORAGE_KEYS,arrayKeys:DURABLE_ARRAY_KEYS,objectKeys:DURABLE_OBJECT_KEYS,journalLimit:60,getLogicalClock:durableLogicalClock,onStatus:setDurableStorageStatus});
       const result=await durableStorage.init();durableStorageReady=true;
       const historyFailure=(result.failures||[]).some(item=>item?.key===STORE),journalHistoryRaw=result.snapshot?.values?.[STORE];
@@ -632,7 +632,7 @@
     let previousRoutesRaw=null,previousActiveRaw=fallbackActiveRaw,activeReleased=false;
     try{
       previousRoutesRaw=localStorage.getItem(STORE);
-      previousActiveRaw=localStorage.getItem(ACTIVE_ROUTE_STORE)??fallbackActiveRaw;
+      previousActiveRaw=fallbackActiveRaw??localStorage.getItem(ACTIVE_ROUTE_STORE);
       localStorage.removeItem(ACTIVE_ROUTE_STORE);
       activeReleased=true;
       const result=writeLocalRouteHistory(normalized);
