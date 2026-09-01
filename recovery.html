@@ -38,17 +38,18 @@
 (() => {
   'use strict';
   const DB_NAME='routeheat-storage',DB_VERSION=1,STATE_STORE='state',JOURNAL_STORE='journal';
-  const PRIMARY_KEY='primary',PREVIOUS_KEY='previous',ACTIVE_KEY='routeheat.active',MARKER_KEY='routeheat.storage.commit.v1';
+  const PRIMARY_KEY='primary',PREVIOUS_KEY='previous',ACTIVE_KEY='routeheat.active',HISTORY_KEY='routeheat.routes.v2',DELETED_KEY='routeheat.cloud.deletedRoutes.v1',MARKER_KEY='routeheat.storage.commit.v1';
   const status=document.getElementById('status'),candidatesNode=document.getElementById('candidates'),actions=document.getElementById('actions'),restoreButton=document.getElementById('restore'),downloadButton=document.getElementById('download');
-  let database=null,records={primary:null,previous:null},localRoute=null,candidates=[],best=null;
+  let database=null,records={primary:null,previous:null},localRoute=null,localHistory=[],candidates=[],best=null;
 
   const parse=value=>{try{return value==null?null:JSON.parse(value);}catch{return null;}};
   const normalizedValues=values=>Object.fromEntries(Object.keys(values||{}).sort().map(key=>[key,values[key]==null?null:String(values[key])]));
   const checksum=values=>{const text=JSON.stringify(normalizedValues(values));let hash=2166136261;for(let index=0;index<text.length;index++){hash^=text.charCodeAt(index);hash=Math.imul(hash,16777619);}return `fnv1a-${(hash>>>0).toString(16).padStart(8,'0')}`;};
   const validSnapshot=snapshot=>!!(snapshot&&snapshot.formatVersion===1&&snapshot.values&&snapshot.checksum===checksum(snapshot.values));
   const activeFromValues=values=>parse(values&&values[ACTIVE_KEY]);
-  const validRoute=route=>!!(route&&route.id&&Number(route.startedAt)>0&&!route.endedAt&&Array.isArray(route.stops));
-  const savedAt=route=>Number(route?.draftSavedAt||route?.updatedAt||route?.lastPosition?.timestamp||route?.stops?.at(-1)?.timestamp||route?.startedAt||0);
+  const validRoute=route=>!!(route&&route.id&&Number(route.startedAt)>0&&Array.isArray(route.stops));
+  const activeRoute=route=>validRoute(route)&&!route.endedAt;
+  const savedAt=route=>Number(route?.draftSavedAt||route?.updatedAt||route?.endedAt||route?.lastPosition?.timestamp||route?.stops?.at(-1)?.timestamp||route?.startedAt||0);
   const sameRoute=(first,second)=>String(first?.id||'')===String(second?.id||'')||(Number(first?.startedAt)>0&&Number(first.startedAt)===Number(second?.startedAt));
   const clock=value=>Number.isFinite(Number(value))?Number(value):Date.parse(value);
   const time=value=>{const number=clock(value);return Number.isFinite(number)&&number>0?new Date(number).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'Unknown';};
@@ -72,29 +73,45 @@
     const card=document.createElement('section');card.className=`card${candidate===best?' best':''}`;
     const head=document.createElement('div');head.className='card-head';
     const source=document.createElement('span');source.className='source';source.textContent=candidate.label;
-    const badge=document.createElement('span');badge.className='badge';badge.textContent=candidate===best?'Fullest copy':'Protected copy';head.append(source,badge);
+    const badge=document.createElement('span');badge.className='badge';badge.textContent=candidate===best?'Best match':candidate.kind==='history'?'History copy':candidate.kind==='deleted'?'Deleted copy':'Active copy';head.append(source,badge);
     const count=document.createElement('div');count.className='stops';count.textContent=String(candidate.route.stops.length);const unit=document.createElement('span');unit.textContent=' stops';count.append(unit);
     const meta=document.createElement('div');meta.className='meta';
     [['Started',time(candidate.route.startedAt)],['Last saved',time(savedAt(candidate.route))],['Packages',candidate.route.totalPackages==null?'Unknown':String(candidate.route.totalPackages)],['Snapshot',candidate.sequence==null?'Working copy':`#${candidate.sequence}`]].forEach(([label,value])=>{const box=document.createElement('div'),small=document.createElement('small'),strong=document.createElement('b');small.textContent=label;strong.textContent=value;box.append(small,strong);meta.append(box);});
     card.append(head,count,meta);card.dataset.index=String(index);return card;
   }
 
+  const arrayFromValues=(values,key)=>{const value=parse(values&&values[key]);return Array.isArray(value)?value:[];};
+  const deletedRoutesFromValues=values=>arrayFromValues(values,DELETED_KEY).map(item=>item?.routeData||item?.route||null).filter(validRoute);
+  function entriesFromValues(label,values,snapshot=null){
+    const sequence=snapshot?.sequence??null,entries=[],active=activeFromValues(values);
+    if(activeRoute(active))entries.push({label:`${label} · active`,kind:'active',route:active,snapshot,sequence});
+    arrayFromValues(values,HISTORY_KEY).filter(validRoute).forEach(route=>entries.push({label:`${label} · History`,kind:'history',route,snapshot,sequence}));
+    deletedRoutesFromValues(values).forEach(route=>entries.push({label:`${label} · Recently Deleted`,kind:'deleted',route,snapshot,sequence}));
+    return entries;
+  }
   function collectCandidates(){
-    localRoute=parse(localStorage.getItem(ACTIVE_KEY));
-    const primaryValid=validSnapshot(records.primary),previousValid=validSnapshot(records.previous);
-    const raw=[{label:'Current local draft',route:localRoute,snapshot:null,sequence:null},{label:'Protected current snapshot',route:primaryValid?activeFromValues(records.primary.values):null,snapshot:primaryValid?records.primary:null,sequence:primaryValid?records.primary.sequence:null},{label:'Protected previous snapshot',route:previousValid?activeFromValues(records.previous.values):null,snapshot:previousValid?records.previous:null,sequence:previousValid?records.previous.sequence:null}];
-    const anchor=validRoute(localRoute)?localRoute:raw.map(item=>item.route).find(validRoute);
-    candidates=raw.filter(item=>validRoute(item.route)&&(!anchor||sameRoute(item.route,anchor))&&Date.now()-savedAt(item.route)<7*86400000);
-    const unique=new Map();candidates.forEach(item=>{const key=`${item.route.stops.length}:${savedAt(item.route)}:${item.route.id}`;if(!unique.has(key)||item.snapshot)unique.set(key,item);});candidates=[...unique.values()].sort((a,b)=>b.route.stops.length-a.route.stops.length||savedAt(b.route)-savedAt(a.route));best=candidates[0]||null;
+    const localValues={[ACTIVE_KEY]:localStorage.getItem(ACTIVE_KEY),[HISTORY_KEY]:localStorage.getItem(HISTORY_KEY),[DELETED_KEY]:localStorage.getItem(DELETED_KEY)};
+    localRoute=parse(localValues[ACTIVE_KEY]);localHistory=arrayFromValues(localValues,HISTORY_KEY).filter(validRoute);
+    const primaryValid=validSnapshot(records.primary),previousValid=validSnapshot(records.previous),raw=[...entriesFromValues('Current device data',localValues)];
+    if(primaryValid)raw.push(...entriesFromValues('Protected current snapshot',records.primary.values,records.primary));
+    if(previousValid)raw.push(...entriesFromValues('Protected previous snapshot',records.previous.values,records.previous));
+    const recent=raw.filter(item=>Date.now()-Math.max(Number(item.route.startedAt)||0,savedAt(item.route))<72*3600000),newest=recent.sort((a,b)=>Number(b.route.startedAt)-Number(a.route.startedAt))[0]?.route;
+    candidates=recent.filter(item=>newest&&sameRoute(item.route,newest));
+    const unique=new Map();candidates.forEach(item=>{const key=`${item.kind}:${item.route.stops.length}:${savedAt(item.route)}:${item.route.id}`;const prior=unique.get(key);if(!prior||(!prior.snapshot&&item.snapshot))unique.set(key,item);});
+    candidates=[...unique.values()].sort((a,b)=>b.route.stops.length-a.route.stops.length||Number(!!b.route.endedAt)-Number(!!a.route.endedAt)||savedAt(b.route)-savedAt(a.route));best=candidates[0]||null;
   }
 
   function render(){
-    candidatesNode.replaceChildren(...candidates.map(routeCard));actions.classList.toggle('hidden',!candidates.length);
-    const localStops=validRoute(localRoute)?localRoute.stops.length:0,bestStops=best?.route?.stops?.length||0;
-    restoreButton.disabled=!(best&&best.snapshot&&bestStops>localStops);restoreButton.textContent=bestStops>localStops?`Restore ${bestStops}-stop checkpoint`:'No fuller checkpoint available';
-    if(bestStops>localStops)setStatus('good',`${bestStops}-stop checkpoint found`,`This device still has a fuller protected copy. The current ${localStops}-stop draft will be preserved as the previous snapshot.`);
-    else if(candidates.length)setStatus('warn','No fuller complete snapshot remains',`The largest recoverable active draft on this installation currently has ${bestStops} stops.`);
-    else setStatus('error','No active-route snapshot found','This browser installation does not currently contain a recoverable unfinished RouteHeat route.');
+    candidatesNode.replaceChildren(...candidates.map(routeCard));actions.classList.toggle('hidden',!candidates.length&&!records.primary&&!records.previous);
+    const localStops=activeRoute(localRoute)?localRoute.stops.length:0,bestStops=best?.route?.stops?.length||0,alreadyInHistory=!!best&&localHistory.some(route=>sameRoute(route,best.route)&&route.stops.length>=bestStops);
+    if(best?.kind==='active'){restoreButton.disabled=!(best.snapshot&&bestStops>localStops);restoreButton.textContent=bestStops>localStops?`Restore ${bestStops}-stop active checkpoint`:'No fuller active checkpoint available';}
+    else if(best){restoreButton.disabled=alreadyInHistory||!best.snapshot;restoreButton.textContent=alreadyInHistory?`${bestStops}-stop route is already in History`:`Restore ${bestStops}-stop route to History`;}
+    else{restoreButton.disabled=true;restoreButton.textContent='No recent route copy available';}
+    if(best&&alreadyInHistory)setStatus('good',`${bestStops}-stop route found in History`,'Return to RouteHeat and open History. This saved copy is already on the device.');
+    else if(best?.kind==='active')setStatus('good',`${bestStops}-stop active checkpoint found`,`This protected copy can replace the current ${localStops}-stop draft while preserving the current snapshot.`);
+    else if(best)setStatus('good',`${bestStops}-stop saved route copy found`,'A protected History or Recently Deleted copy can be restored without changing unrelated routes.');
+    else if(records.primary||records.previous)setStatus('error','No recent route copy remains','The current and previous device snapshots contain no active, History, or Recently Deleted copy from the last 72 hours.');
+    else setStatus('error','No RouteHeat snapshots found','This installation does not currently contain protected RouteHeat snapshots.');
   }
 
   function downloadSafetyCopy(){
@@ -104,7 +121,7 @@
 
   async function promoteBest(){
     if(!best?.snapshot||!validSnapshot(best.snapshot))throw new Error('The selected checkpoint did not pass its integrity check.');
-    const localStops=validRoute(localRoute)?localRoute.stops.length:0,targetStops=best.route.stops.length;
+    const localStops=activeRoute(localRoute)?localRoute.stops.length:0,targetStops=best.route.stops.length;
     if(targetStops<=localStops)throw new Error('The selected checkpoint is not fuller than the current draft.');
     if(!confirm(`Restore the protected ${targetStops}-stop checkpoint? RouteHeat History is not deleted, and the current ${localStops}-stop snapshot is retained as the previous copy.`))return;
     restoreButton.disabled=true;restoreButton.textContent='Protecting checkpoint…';
@@ -119,8 +136,25 @@
     restoreButton.textContent='Checkpoint ready';downloadButton.textContent='Download updated safety copy';
   }
 
+  async function restoreSavedRoute(){
+    if(!best?.snapshot||!validSnapshot(best.snapshot)||best.kind==='active')throw new Error('No protected saved-route copy is selected.');
+    const targetStops=best.route.stops.length;
+    if(!confirm(`Restore the protected ${targetStops}-stop route to RouteHeat History? Unrelated saved routes will not be changed.`))return;
+    restoreButton.disabled=true;restoreButton.textContent='Restoring route to History…';
+    const now=Date.now(),route=typeof structuredClone==='function'?structuredClone(best.route):JSON.parse(JSON.stringify(best.route)),primaryValid=validSnapshot(records.primary),baseValues={...(primaryValid?records.primary.values:best.snapshot.values)},history=arrayFromValues(baseValues,HISTORY_KEY),index=history.findIndex(item=>validRoute(item)&&sameRoute(item,route));
+    if(index<0)history.push(route);else if((history[index]?.stops?.length||0)<targetStops)history[index]=route;
+    baseValues[HISTORY_KEY]=JSON.stringify(history);
+    if(best.kind==='deleted')baseValues[DELETED_KEY]=JSON.stringify(arrayFromValues(baseValues,DELETED_KEY).filter(item=>!sameRoute(item?.routeData||item?.route,route)));
+    const values=normalizedValues(baseValues),sequence=Math.max(Number(records.primary?.sequence)||0,Number(records.previous?.sequence)||0,Number(best.snapshot.sequence)||0)+1,snapshot={key:PRIMARY_KEY,formatVersion:1,sequence,committedAt:now,logicalClock:now,reason:'emergency-history-route-recovery',values,checksum:checksum(values)};
+    const transaction=database.transaction([STATE_STORE,JOURNAL_STORE],'readwrite'),done=transactionDone(transaction),stateStore=transaction.objectStore(STATE_STORE),journalStore=transaction.objectStore(JOURNAL_STORE);
+    if(primaryValid)stateStore.put({...records.primary,key:PREVIOUS_KEY});stateStore.put(snapshot);journalStore.put({sequence,committedAt:now,logicalClock:now,reason:snapshot.reason,checksum:snapshot.checksum,changedKeys:[HISTORY_KEY,...(best.kind==='deleted'?[DELETED_KEY]:[])]});await done;
+    let localUpdated=false;try{localStorage.setItem(HISTORY_KEY,values[HISTORY_KEY]);if(best.kind==='deleted')localStorage.setItem(DELETED_KEY,values[DELETED_KEY]);localUpdated=true;}catch{}
+    try{localStorage.setItem(MARKER_KEY,JSON.stringify({formatVersion:1,sequence,committedAt:now,logicalClock:now,checksum:snapshot.checksum}));}catch{}
+    records={primary:snapshot,previous:primaryValid?records.primary:records.previous};localHistory=localUpdated?history:localHistory;setStatus('good',`${targetStops}-stop route restored`,localUpdated?'Return to RouteHeat and open History.':'The route is protected in the device journal. Return to RouteHeat and open History; the full History copy will load from the journal.');restoreButton.textContent='Route restored to History';downloadButton.textContent='Download updated safety copy';
+  }
+
   downloadButton.addEventListener('click',downloadSafetyCopy);
-  restoreButton.addEventListener('click',()=>promoteBest().catch(error=>{restoreButton.disabled=false;restoreButton.textContent='Try recovery again';setStatus('error','Recovery was not changed',error.message||String(error));}));
+  restoreButton.addEventListener('click',()=>((best?.kind==='active'?promoteBest():restoreSavedRoute())).catch(error=>{restoreButton.disabled=false;restoreButton.textContent='Try recovery again';setStatus('error','Recovery was not changed',error.message||String(error));}));
   (async()=>{try{database=await openDatabase();records=await readRecords();collectCandidates();render();}catch(error){setStatus('error','Device snapshots could not be read',error.message||String(error));}})();
 })();
 </script>
