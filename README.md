@@ -1,12 +1,33 @@
-# RouteHeat 7.0.1
+# RouteHeat 7.1.0
 
 RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone and Android. It records stops, locations, totes, rescues, packages, timing, and GPS breadcrumbs; compares a driver only with their own history; and turns finished workdays into maps, reports, replay, and long-term insights.
 
 > **Safety:** Use every RouteHeat control only while safely parked. Forecasts, Ghost comparisons, coaching, achievements, and historical pace are personal context—not targets or reasons to rush.
 
+## 7.1.0 Route Vault, auto multistops, and History calendar
+
+- **Offline Route Vault:** An IndexedDB checkpoint ring now stores full unfinished-route copies throughout the day. Retention always protects the checkpoint with the highest stop count and the checkpoint with the richest GPS trail, in addition to recent copies.
+- **Durable finish:** Finishing a route commits the finished History record and active-route tombstone to device storage before RouteHeat reports success or starts cloud work. Internet and Supabase are not required to finish safely.
+- **Stale-sync protection:** A cloud sync that began from an older local snapshot cannot replace route progress made while the request was in flight. A strict stop superset wins unless a later explicit deletion or undo proves the reduction was intentional.
+- **Richer recovery:** Startup compares stop progress, GPS geometry, totes, phases, and save times across the active mirror and protected checkpoints. When compatible copies differ, it can preserve the fullest progress together with the richest recorded trail.
+- **Weak-connection instructions:** A prominent banner explains that stops and GPS continue saving locally, cloud sync can wait, and a driver should not start over or repeatedly close RouteHeat after a finish error.
+- **Auto multistop arming:** In Suggest or Auto mode, 2, 3, 4, and 5-location buttons surround the Drive stop circle. The armed count survives switching to Flex, attaches to the current Amazon stop, and is consumed by either verified vehicle departure or a manual Stop tap.
+- **Walking safeguard:** Pedestrian movement around a multi-location delivery no longer counts as departure. Automatic completion requires repeated vehicle-speed fixes and meaningful distance; a large gap after returning from another app becomes a review suggestion instead of a silent save.
+- **Fast correction:** Every saved stop offers a 15-second 1–5 location correction strip that edits the existing stop without advancing Amazon numbering.
+- **Connection Experience:** The Delivery Atlas can now show a seamless green-to-red surface of RouteHeat’s own reachability and response time. It is an app-connectivity history—not carrier bars—and the tiny probe receives no GPS coordinates.
+- **History rebuilt:** The newest four routes sit above a month calendar. Highlighted dates open saved workdays quickly, while the full sortable/filterable route browser remains available in a collapsible archive.
+- **Larger route check-ins:** Optional random feedback cards are easier to read, stay visible for 8.5 seconds, and remain silent, dismissible, and nonblocking.
+- **67-award trophy case:** Eight new live multi-location awards cover the first multi, 5/10/20 multis in one route, 3+ location stops, and 3/5/10 consecutive multi-stop streaks. Existing trophies and progress are unchanged.
+- **Clearer private route patterns:** Automatic GPS comparisons are labeled as similar route patterns, never as a user-created Delivery Area. Suggested outlines require a deliberate name before saving, so legacy labels such as “Pine Trail Suggested Area” no longer appear.
+- **Android lifecycle protection:** The Android wrapper asks the web app for a critical checkpoint whenever the activity pauses or stops, then safely reconciles GPS and armed multistop state on resume.
+
+### What to do with poor data service
+
+Keep the active route open and continue logging stops normally; each stop and periodic GPS trail checkpoint saves on the device. Cloud status may remain Offline, but it does not control local tracking. If Finish ever reports that the route is still active, do not create a replacement route, repeatedly close the app, clear browser data, or reinstall. Leave that route active, move to better service if practical, and retry once. On the next launch, choose the recovery copy with the expected stop count and GPS-point total.
+
 ## 7.0.1 Trophy Expansion
 
-- **59-award trophy case:** Fifteen new lifetime trophies recognize confirmed package totals, meaningful rescue workdays, extra multi-location doors, repeat work in the same saved Delivery Area, all four seasons, all 12 calendar months, excellent route-map quality, and long-term tote use.
+- **Original 59-award trophy case:** Fifteen lifetime trophies added in 7.0.1 recognize confirmed package totals, meaningful rescue workdays, extra multi-location doors, repeat work in the same saved Delivery Area, all four seasons, all 12 calendar months, excellent route-map quality, and long-term tote use. RouteHeat 7.1 retains all of them and adds eight active multistop awards.
 - **History-based and hard to farm:** New awards count finished routes only. Package awards exclude incomplete or partial totals; rescue workdays require at least one logged rescue stop and either three rescue stops total or 15 active rescue minutes; same-Area awards require a finished 50+ stop workday with at least 70% of stops in one current saved Area; and Clean Cartographer requires 75+ stops with Route Quality 90 or better.
 - Same-Area trophies are recalculated from current saved routes and current Delivery Area boundaries, so deliberate history or boundary edits are reflected honestly.
 - **Accurate tote ladder:** Tote Veteran and Tote Dynasty count one valid tote-opening checkpoint per stop position, preventing repeated taps at the same stop from inflating progress.
@@ -153,7 +174,7 @@ The coffee-table 3D route replay is intentionally **not** bundled into the 7.0 P
 - **Rescue-aware Areas:** Original and rescue phases receive separate Area breakdowns, so a Middleton rescue does not change a North Star original route into one mixed identity.
 - **Historic reanalysis:** Adding, editing, reordering, or deleting a boundary immediately reclassifies saved history without changing raw stops, GPS breadcrumbs, route revisions, or cloud rows.
 - **Area intelligence:** History, Live, Drive, route detail, finish reports, All-time filters, ETA, Ghost selection, weekly recaps, Moments, Delivery Year, and Area Profile pages use drawn boundaries first.
-- **Suggested Areas:** Older automatic GPS clusters can provide a reviewable starting outline. They remain suggestions until the driver explicitly checks and saves them.
+- **Suggested outlines:** Older automatic GPS route patterns can provide a reviewable starting boundary. They remain unnamed drafts until the driver explicitly checks, names, and saves one as a Delivery Area.
 - **Private boundaries:** Names and polygons stay in protected device state and `.routeheat` backups. When Cloud is signed in and the latest setup has been applied, they also sync through that account's RLS-protected `routeheat_delivery_areas` table; they are never published, sent to the map tile provider, or included in privacy-safe shared summaries.
 
 ## RouteHeat 6 foundation
@@ -211,7 +232,7 @@ Open **History → Manage Areas** or **Settings → Delivery Areas** while parke
 - Stops outside every saved boundary remain **Unassigned**. They are never removed from totals or maps.
 - Multi-location counts stay attached to their completed stop. Original and rescue phases are summarized independently.
 - Editing a stop location or an Area boundary recalculates derived Area analytics. RouteHeat never rewrites the immutable raw route merely to change an Area match.
-- Suggested Areas are conservative drafts based on legacy route patterns. Review their shape and name before saving.
+- Suggested outlines are conservative drafts based on legacy GPS route patterns. Review their shape and deliberately name one before saving it as a Delivery Area.
 
 Area definitions are stored under the private `routeheat.deliveryAreas.v1` device state, included in checksummed transactional snapshots, and included in `.routeheat` backup files. When Cloud is signed in and the latest `supabase-setup.sql` has been run, definitions also merge through the account's private `routeheat_delivery_areas` table. Offline edits and deletions queue safely; revisions and update time select the newer copy without replacing unrelated local Areas.
 
@@ -238,8 +259,9 @@ RouteHeat uses several intentionally separate protection layers:
 | Layer | What it does | Important limit |
 | --- | --- | --- |
 | `localStorage` | Fast working mirror for finished routes, the active draft, recovery records, Delivery Area definitions, and selected settings | Clearing website data removes it |
-| IndexedDB `routeheat-storage` | Transactionally stores the current full protected snapshot and the previous valid full snapshot, each with a checksum and logical clock | It belongs to this browser installation and can also be cleared or evicted |
-| IndexedDB journal | Keeps bounded commit metadata such as sequence, time, reason, checksum, logical clock, and changed key names | It is metadata-only, not a stack of full route-history copies |
+| IndexedDB `routeheat-storage` | Transactionally stores full History and active-route state with checksums and logical clocks | It belongs to this browser installation and can also be cleared or evicted |
+| Route Vault checkpoint ring | Keeps up to 20 full active-route checkpoints while independently retaining the highest verified stop progress and richest compatible GPS trail | It protects poor-data and app-switch recovery, but remains device-local |
+| IndexedDB commit journal | Keeps bounded metadata such as sequence, time, reason, checksum, logical clock, and changed key names | The journal metadata is separate from the full Route Vault checkpoints |
 | Supabase | Mirrors signed-in finished routes, Delivery Area definitions and tombstones, route deletion/restoration state, and any completed aggregate Neighborhood Snapshot with revision-aware conflict handling | It does **not** upload an unfinished active-route draft; Snapshot generation also needs the Edge Function setup |
 | `.routeheat` file | Portable, restorable export of finished routes, an eligible active draft, recovery state, private Delivery Area names/boundaries, and selected route/auto settings | The file contains sensitive route data and must be stored securely |
 

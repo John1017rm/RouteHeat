@@ -1,7 +1,7 @@
 {
   "name": "RouteHeat — Delivery Pace",
   "short_name": "RouteHeat",
-  "description": "Private GPS delivery intelligence with 59 lifetime trophies, Route Atmosphere, Pace Orchestra, Watercolor Atlas, recovery, and offline-ready tracking.",
+  "description": "Private GPS delivery intelligence with 67 lifetime trophies, offline Route Vault recovery, auto multistops, Connection Experience, and calendar-based route history.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
