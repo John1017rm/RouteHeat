@@ -252,6 +252,49 @@
     && !(Array.isArray(route?.neighborhoodSnapshot?.phases) && route.neighborhoodSnapshot.phases.length);
   const hasNeighborhoodDetail = route => (Array.isArray(route?.neighborhoodSnapshot?.areas) && route.neighborhoodSnapshot.areas.length > 0)
     || (Array.isArray(route?.neighborhoodSnapshot?.phases) && route.neighborhoodSnapshot.phases.length > 0);
+  const compactConnectionOnly = route => route?.localMirrorConnectionSamplesOmitted === true
+    && !(Array.isArray(route?.connectionSamples) && route.connectionSamples.length);
+  const hasConnectionDetail = route => Array.isArray(route?.connectionSamples) && route.connectionSamples.length > 0;
+  const sameRouteIdentity = (firstRoute, secondRoute) => {
+    const firstId = routeIdOf(firstRoute), secondId = routeIdOf(secondRoute);
+    if (firstId && secondId) return firstId === secondId;
+    return timeKey(firstRoute?.startedAt) && timeKey(firstRoute?.startedAt) === timeKey(secondRoute?.startedAt);
+  };
+  const stopIdentity = stop => stop?.id != null && String(stop.id)
+    ? `id:${String(stop.id)}`
+    : timeKey(stop?.timestamp) ? `time:${timeKey(stop.timestamp)}` : '';
+  function isStrictStopSuperset(firstRoute, secondRoute) {
+    const firstStops = Array.isArray(firstRoute?.stops) ? firstRoute.stops : [];
+    const secondStops = Array.isArray(secondRoute?.stops) ? secondRoute.stops : [];
+    if (!sameRouteIdentity(firstRoute, secondRoute) || firstStops.length <= secondStops.length) return false;
+    if (!secondStops.length) return firstStops.length > 0;
+    const firstKeys = new Set(firstStops.map(stopIdentity).filter(Boolean));
+    const secondKeys = secondStops.map(stopIdentity);
+    return secondKeys.every(Boolean) && secondKeys.every(key => firstKeys.has(key));
+  }
+  function hasExplicitStopReduction(reducedRoute, fullerRoute) {
+    const reducedStops = Array.isArray(reducedRoute?.stops) ? reducedRoute.stops : [];
+    const fullerStops = Array.isArray(fullerRoute?.stops) ? fullerRoute.stops : [];
+    const missingCount = Math.max(0, fullerStops.length - reducedStops.length);
+    if (!missingCount) return false;
+    const fullerSavedAt = Math.max(
+      versionTime(fullerRoute?.updatedAt),
+      versionTime(fullerRoute?.draftSavedAt),
+      ...((fullerRoute?.stops || []).map(stop => versionTime(stop?.timestamp)))
+    );
+    const reductions = (reducedRoute?.corrections || []).filter(correction => {
+      const type = String(correction?.type || '');
+      return ['deleted-stop', 'undo-stop'].includes(type)
+        && versionTime(correction?.timestamp) >= fullerSavedAt;
+    });
+    const reducedKeys = new Set(reducedStops.map(stopIdentity).filter(Boolean));
+    const missingKeys = fullerStops.map(stopIdentity).filter(key => key && !reducedKeys.has(key));
+    const correctedKeys = new Set(reductions.map(correction => correction?.stopId == null ? '' : `id:${String(correction.stopId)}`).filter(Boolean));
+    if (missingKeys.length === missingCount && missingKeys.every(key => key.startsWith('id:'))) {
+      return missingKeys.every(key => correctedKeys.has(key));
+    }
+    return new Set(reductions.map(correction => String(correction?.stopId ?? correction?.id ?? correction?.timestamp ?? ''))).size >= missingCount;
+  }
   function routeCopiesCanShareTrail(firstRoute, secondRoute) {
     if (!firstRoute || !secondRoute) return false;
     return exactRouteContentMatch(routeSignature(firstRoute), routeSignature(secondRoute));
@@ -287,15 +330,25 @@
         changed = true;
       }
     }
+    if (compactConnectionOnly(enriched) && hasConnectionDetail(alternateRoute)) {
+      if (!changed) enriched = {...enriched};
+      enriched.connectionSamples = alternateRoute.connectionSamples;
+      enriched.localMirrorConnectionSamplesOmitted = false;
+      changed = true;
+    }
     return changed ? enriched : preferredRoute;
   }
   function compareRouteCopies(firstRoute, secondRoute, firstCloudUpdatedAt = null, secondCloudUpdatedAt = null) {
+    if (isStrictStopSuperset(firstRoute, secondRoute) && !hasExplicitStopReduction(secondRoute, firstRoute)) return 1;
+    if (isStrictStopSuperset(secondRoute, firstRoute) && !hasExplicitStopReduction(firstRoute, secondRoute)) return -1;
     const version = compareRouteVersions(firstRoute, secondRoute, firstCloudUpdatedAt, secondCloudUpdatedAt);
     if (version) return version;
     if (compactMirrorOnly(firstRoute) && hasRecordedTrail(secondRoute)) return -1;
     if (compactMirrorOnly(secondRoute) && hasRecordedTrail(firstRoute)) return 1;
     if (compactNeighborhoodOnly(firstRoute) && hasNeighborhoodDetail(secondRoute)) return -1;
     if (compactNeighborhoodOnly(secondRoute) && hasNeighborhoodDetail(firstRoute)) return 1;
+    if (compactConnectionOnly(firstRoute) && hasConnectionDetail(secondRoute)) return -1;
+    if (compactConnectionOnly(secondRoute) && hasConnectionDetail(firstRoute)) return 1;
     return 0;
   }
   function signaturesMatch(first, second) {
@@ -403,6 +456,16 @@
     localStorage.setItem(ROUTES_KEY, after);
     window.dispatchEvent(new CustomEvent('routeheat:cloud-merged', {detail: {count: sorted.length}}));
     return true;
+  }
+
+  const routeSnapshotFingerprint = items => JSON.stringify(Array.isArray(items) ? items : []);
+  async function localRoutesChangedSince(fingerprint) {
+    return routeSnapshotFingerprint(await fullLocalRoutes()) !== fingerprint;
+  }
+
+  function restartForNewerLocalRoute() {
+    syncRequested = true;
+    setStatus('syncing', 'A newer device checkpoint was saved while syncing · restarting with that copy');
   }
 
   function routeRow(route, userId) {
@@ -882,7 +945,7 @@
       return;
     }
     if (!navigator.onLine) {
-      setStatus('offline', 'Offline. New changes will sync automatically when service returns.');
+      setStatus('offline', 'No connection · stops and GPS remain saved on this device and will sync later.');
       return;
     }
     syncing = true;
@@ -890,6 +953,7 @@
     try {
       const userId = session.user.id;
       const localSnapshot = await fullLocalRoutes();
+      const localSnapshotFingerprint = routeSnapshotFingerprint(localSnapshot);
       ensureOwner(userId, localSnapshot, localDeliveryAreas({strict: true}), areaDeletionQueue({strict: true}));
       await flushRestores(userId);
       await flushDeletions(userId, localSnapshot);
@@ -1019,6 +1083,13 @@
         }
       });
 
+      // A route can keep changing while a slow request is in flight. Never upload or
+      // apply a merge built from an older active/finished checkpoint.
+      if (await localRoutesChangedSince(localSnapshotFingerprint)) {
+        restartForNewerLocalRoute();
+        return;
+      }
+
       const rows = upload.map(route => routeRow(route, userId));
       for (const group of chunks(rows)) {
         const {error} = await client.from(TABLE).upsert(group, {onConflict: 'user_id,route_id'});
@@ -1033,6 +1104,10 @@
       const finalBlocked = deletionBlocklist().map(item => item.signature || routeSignature(item.routeData));
       for (const [key, saved] of merged) {
         if (finalBlocked.some(signature => signaturesMatch(routeSignature(saved), signature))) merged.delete(key);
+      }
+      if (await localRoutesChangedSince(localSnapshotFingerprint)) {
+        restartForNewerLocalRoute();
+        return;
       }
       await saveLocalRoutes([...merged.values()]);
       const areaResult = await syncDeliveryAreas(userId);

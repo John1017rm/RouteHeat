@@ -1,7 +1,8 @@
 const DB_NAME = 'routeheat-storage';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STATE_STORE = 'state';
 const JOURNAL_STORE = 'journal';
+const ACTIVE_CHECKPOINT_STORE = 'activeCheckpoints';
 const PRIMARY_KEY = 'primary';
 const PREVIOUS_KEY = 'previous';
 const MARKER_KEY = 'routeheat.storage.commit.v1';
@@ -48,6 +49,7 @@ function openDatabase(indexedDb) {
       const database = request.result;
       if (!database.objectStoreNames.contains(STATE_STORE)) database.createObjectStore(STATE_STORE, {keyPath: 'key'});
       if (!database.objectStoreNames.contains(JOURNAL_STORE)) database.createObjectStore(JOURNAL_STORE, {keyPath: 'sequence'});
+      if (!database.objectStoreNames.contains(ACTIVE_CHECKPOINT_STORE)) database.createObjectStore(ACTIVE_CHECKPOINT_STORE, {keyPath: 'sequence'});
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error || new Error('IndexedDB could not open'));
@@ -69,6 +71,8 @@ export function createRouteHeatStorage(options = {}) {
   const arrayKeys = new Set(options.arrayKeys || []);
   const objectKeys = new Set(options.objectKeys || []);
   const journalLimit = Math.max(5, Math.min(100, Number(options.journalLimit) || 40));
+  const activeKey = String(options.activeKey || '');
+  const activeCheckpointLimit = Math.max(6, Math.min(30, Number(options.activeCheckpointLimit) || 16));
   const local = options.localStorage || globalThis.localStorage;
   const indexedDb = options.indexedDB || globalThis.indexedDB;
   const emit = typeof options.onStatus === 'function' ? options.onStatus : () => {};
@@ -114,18 +118,59 @@ export function createRouteHeatStorage(options = {}) {
   };
 
   const stateRecords = async () => {
-    if (!database) return {primary: null, previous: null, journal: []};
-    const transaction = database.transaction([STATE_STORE, JOURNAL_STORE], 'readonly');
+    if (!database) return {primary: null, previous: null, journal: [], activeCheckpoints: []};
+    const transaction = database.transaction([STATE_STORE, JOURNAL_STORE, ACTIVE_CHECKPOINT_STORE], 'readonly');
     const completed = transactionDone(transaction);
     const state = transaction.objectStore(STATE_STORE);
     const journal = transaction.objectStore(JOURNAL_STORE);
-    const [primary, previous, entries] = await Promise.all([
+    const activeCheckpoints = transaction.objectStore(ACTIVE_CHECKPOINT_STORE);
+    const [primary, previous, entries, checkpoints] = await Promise.all([
       requestResult(state.get(PRIMARY_KEY)),
       requestResult(state.get(PREVIOUS_KEY)),
-      requestResult(journal.getAll())
+      requestResult(journal.getAll()),
+      requestResult(activeCheckpoints.getAll())
     ]);
     await completed;
-    return {primary, previous, journal: (entries || []).sort((first, second) => second.sequence - first.sequence)};
+    return {
+      primary,
+      previous,
+      journal: (entries || []).sort((first, second) => second.sequence - first.sequence),
+      activeCheckpoints: (checkpoints || []).sort((first, second) => second.sequence - first.sequence)
+    };
+  };
+
+  const activeRouteMeta = raw => {
+    if (!activeKey || raw == null || raw === '') return null;
+    try {
+      const saved = JSON.parse(raw);
+      if (!saved || typeof saved !== 'object' || Array.isArray(saved) || saved.endedAt || !saved.id) return null;
+      const stops = Array.isArray(saved.stops) ? saved.stops.length : 0;
+      const trackPoints = Array.isArray(saved.track) ? saved.track.length : 0;
+      const totes = Array.isArray(saved.totes) ? saved.totes.length : 0;
+      const phases = Array.isArray(saved.phases) ? saved.phases.length : 0;
+      const updatedAt = Math.max(0, Number(saved.draftSavedAt || saved.updatedAt || saved.lastPosition?.timestamp || saved.stops?.at?.(-1)?.timestamp || saved.startedAt) || 0);
+      return {routeId: String(saved.id), stops, trackPoints, totes, phases, updatedAt};
+    } catch {
+      return null;
+    }
+  };
+
+  const checkpointSnapshot = checkpoint => {
+    if (!checkpoint || checkpoint.formatVersion !== 1 || !activeKey || typeof checkpoint.activeRaw !== 'string') return null;
+    const values = {[activeKey]: checkpoint.activeRaw};
+    if (checkpoint.activeChecksum !== routeHeatChecksum(values)) return null;
+    return {
+      key: `active-${checkpoint.sequence}`,
+      formatVersion: 1,
+      sequence: checkpoint.sequence,
+      committedAt: checkpoint.committedAt,
+      logicalClock: checkpoint.logicalClock,
+      reason: checkpoint.reason,
+      values,
+      checksum: checkpoint.activeChecksum,
+      activeCheckpoint: true,
+      activeMeta: checkpoint.activeMeta || null
+    };
   };
 
   const bestValidSnapshot = records => {
@@ -141,9 +186,10 @@ export function createRouteHeatStorage(options = {}) {
     const normalized = normalizedValues(values);
     if (!validateValues(normalized)) throw new Error('RouteHeat refused to journal an invalid storage snapshot');
     const snapshot = await new Promise((resolve, reject) => {
-      const transaction = database.transaction([STATE_STORE, JOURNAL_STORE], 'readwrite');
+      const transaction = database.transaction([STATE_STORE, JOURNAL_STORE, ACTIVE_CHECKPOINT_STORE], 'readwrite');
       const state = transaction.objectStore(STATE_STORE);
       const journal = transaction.objectStore(JOURNAL_STORE);
+      const activeCheckpoints = transaction.objectStore(ACTIVE_CHECKPOINT_STORE);
       let nextSnapshot = null;
       const primaryRequest = state.get(PRIMARY_KEY);
       primaryRequest.onerror = () => transaction.abort();
@@ -172,10 +218,37 @@ export function createRouteHeatStorage(options = {}) {
           checksum: nextSnapshot.checksum,
           changedKeys
         });
+        const activeRaw = activeKey ? normalized[activeKey] : null;
+        const activeMeta = meta.activeCheckpoint ? activeRouteMeta(activeRaw) : null;
+        if (activeMeta) {
+          const activeValues = {[activeKey]: activeRaw};
+          activeCheckpoints.put({
+            formatVersion: 1,
+            sequence: nextSnapshot.sequence,
+            committedAt: nextSnapshot.committedAt,
+            logicalClock: nextSnapshot.logicalClock,
+            reason: nextSnapshot.reason,
+            actionSignature: `${activeMeta.routeId}:${activeMeta.stops}:${activeMeta.trackPoints}:${nextSnapshot.reason}`,
+            activeMeta,
+            activeRaw,
+            activeChecksum: routeHeatChecksum(activeValues)
+          });
+        }
         const keysRequest = journal.getAllKeys();
         keysRequest.onsuccess = () => {
           const journalKeys = (keysRequest.result || []).map(Number).filter(Number.isFinite).sort((a, b) => a - b);
           journalKeys.slice(0, Math.max(0, journalKeys.length - journalLimit)).forEach(key => journal.delete(key));
+        };
+        const checkpointRecordsRequest = activeCheckpoints.getAll();
+        checkpointRecordsRequest.onsuccess = () => {
+          const records = (checkpointRecordsRequest.result || []).filter(item => Number.isFinite(Number(item?.sequence))).sort((a, b) => Number(b.sequence) - Number(a.sequence));
+          const keep = new Set(), currentRouteId = activeMeta?.routeId || records[0]?.activeMeta?.routeId || '';
+          const sameRoute = records.filter(item => String(item?.activeMeta?.routeId || '') === String(currentRouteId));
+          const mostStops = sameRoute.slice().sort((a, b) => Number(b.activeMeta?.stops || 0) - Number(a.activeMeta?.stops || 0) || Number(b.sequence) - Number(a.sequence))[0];
+          const richestTrail = sameRoute.slice().sort((a, b) => Number(b.activeMeta?.trackPoints || 0) - Number(a.activeMeta?.trackPoints || 0) || Number(b.sequence) - Number(a.sequence))[0];
+          [mostStops, richestTrail].filter(Boolean).forEach(item => keep.add(Number(item.sequence)));
+          records.forEach(item => { if (keep.size < activeCheckpointLimit) keep.add(Number(item.sequence)); });
+          records.filter(item => !keep.has(Number(item.sequence))).forEach(item => activeCheckpoints.delete(Number(item.sequence)));
         };
       };
       transaction.oncomplete = () => resolve(nextSnapshot);
@@ -195,7 +268,7 @@ export function createRouteHeatStorage(options = {}) {
     const values = capture(overrides);
     emit({state: 'saving', backend, message: backend === 'indexedDB' ? 'Protecting route data…' : 'Saving on this device…'});
     commitQueue = commitQueue.catch(() => {}).then(() => commitNow(values, meta)).catch(error => {
-      emit({state: 'error', backend, error, message: 'Durable route save needs attention'});
+      emit({state: 'error', backend, error, message: 'New checkpoint could not be written · keep this route open; earlier verified checkpoints remain safe'});
       throw error;
     });
     return commitQueue;
@@ -212,7 +285,7 @@ export function createRouteHeatStorage(options = {}) {
       database = await openDatabase(indexedDb);
       backend = 'indexedDB';
       const records = await stateRecords();
-      initialRecoverySnapshots=[records.primary,records.previous].filter(snapshot=>snapshotValid(snapshot,validateValues));
+      initialRecoverySnapshots=[records.primary,records.previous,...records.activeCheckpoints.map(checkpointSnapshot)].filter(snapshot=>snapshotValid(snapshot,validateValues));
       const primary = bestValidSnapshot(records);
       sequence = Math.max(0, Number(primary?.sequence) || 0);
       const localChecksum = routeHeatChecksum(localValues);
@@ -267,11 +340,42 @@ export function createRouteHeatStorage(options = {}) {
   };
 
   const recoverySnapshots = async () => {
-    const current=database?await stateRecords():{primary:null,previous:null};
-    const snapshots=[...initialRecoverySnapshots,current.primary,current.previous].filter(snapshot=>snapshotValid(snapshot,validateValues));
+    const current=database?await stateRecords():{primary:null,previous:null,activeCheckpoints:[]};
+    const activeSnapshots=(current.activeCheckpoints||[]).map(checkpointSnapshot);
+    const snapshots=[...initialRecoverySnapshots,current.primary,current.previous,...activeSnapshots].filter(snapshot=>snapshotValid(snapshot,validateValues));
     const unique=new Map();
     snapshots.forEach(snapshot=>unique.set(`${snapshot.sequence}:${snapshot.checksum}`,snapshot));
     return [...unique.values()].sort((first,second)=>(Number(second.logicalClock)||0)-(Number(first.logicalClock)||0)||(Number(second.sequence)||0)-(Number(first.sequence)||0));
+  };
+
+  const discardActiveCheckpoints = async routeId => {
+    const target = String(routeId || '');
+    if (!target) return {discarded: 0, reason: 'route-id-required'};
+    const belongsToTarget = snapshot => {
+      try {
+        const raw = snapshot?.values?.[activeKey];
+        return typeof raw === 'string' && String(JSON.parse(raw)?.id || '') === target;
+      } catch {
+        return false;
+      }
+    };
+    initialRecoverySnapshots = initialRecoverySnapshots.filter(snapshot => !belongsToTarget(snapshot));
+    if (!database) return {discarded: 0, reason: 'indexeddb-unavailable'};
+    let discarded = 0;
+    const transaction = database.transaction(ACTIVE_CHECKPOINT_STORE, 'readwrite');
+    const completed = transactionDone(transaction);
+    const store = transaction.objectStore(ACTIVE_CHECKPOINT_STORE);
+    const request = store.getAll();
+    request.onerror = () => transaction.abort();
+    request.onsuccess = () => {
+      (request.result || []).forEach(checkpoint => {
+        if (String(checkpoint?.activeMeta?.routeId || '') !== target) return;
+        discarded += 1;
+        store.delete(checkpoint.sequence);
+      });
+    };
+    await completed;
+    return {discarded};
   };
 
   const close = () => { database?.close(); database = null; };
@@ -282,6 +386,7 @@ export function createRouteHeatStorage(options = {}) {
     capture,
     recoverLatest,
     recoverySnapshots,
+    discardActiveCheckpoints,
     close,
     validateValues,
     checksum: routeHeatChecksum,
