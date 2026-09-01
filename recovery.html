@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#071712">
+  <title>RouteHeat Emergency Recovery</title>
+  <style>
+    :root{color-scheme:dark;--bg:#06130f;--panel:#0d211a;--panel2:#112b22;--line:#285141;--text:#f4fff9;--muted:#a8c3b8;--green:#22df8d;--green2:#0ca968;--warn:#ffcb66;--danger:#ff7676}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% -10%,#164937 0,#071b14 38%,var(--bg) 75%);color:var(--text);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    main{width:min(720px,100%);margin:0 auto;padding:max(24px,env(safe-area-inset-top)) 18px max(38px,env(safe-area-inset-bottom))}
+    .brand{display:flex;align-items:center;gap:12px;margin-bottom:28px}.mark{display:grid;place-items:center;width:46px;height:46px;border-radius:15px;background:#163d2f;color:var(--green);font-size:27px}.brand b{font-size:19px}.brand small{display:block;color:var(--muted)}
+    .hero,.card,.notice{border:1px solid var(--line);background:linear-gradient(160deg,rgba(17,43,34,.96),rgba(8,27,20,.96));border-radius:24px;box-shadow:0 22px 60px #0007}
+    .hero{padding:24px;margin-bottom:16px}.eyebrow{margin:0 0 8px;color:var(--green);font-size:12px;font-weight:800;letter-spacing:.18em}.hero h1{font-size:clamp(29px,8vw,46px);line-height:1.03;margin:0 0 14px}.hero p{margin:0;color:var(--muted)}
+    .notice{padding:15px 17px;margin:16px 0;color:var(--muted)}.notice b{display:block;color:var(--text);margin-bottom:3px}.notice[data-state="good"]{border-color:#248e61}.notice[data-state="warn"]{border-color:#8a6b2e}.notice[data-state="error"]{border-color:#8a3b3b}.notice[data-state="good"] b{color:var(--green)}.notice[data-state="warn"] b{color:var(--warn)}.notice[data-state="error"] b{color:var(--danger)}
+    #candidates{display:grid;gap:12px;margin:18px 0}.card{padding:18px}.card.best{border-color:var(--green);box-shadow:0 0 0 1px #22df8d44,0 18px 48px #0006}.card-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.source{font-size:13px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}.badge{padding:5px 9px;border-radius:999px;background:#174834;color:var(--green);font-size:12px;font-weight:800}.stops{font-size:38px;line-height:1;font-weight:900;margin:18px 0 5px}.stops span{font-size:15px;color:var(--muted);font-weight:700}.meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}.meta div{padding:11px;border-radius:14px;background:#081b14}.meta small{display:block;color:var(--muted);font-size:11px;letter-spacing:.08em;text-transform:uppercase}.meta b{display:block;margin-top:2px;font-size:14px}
+    .actions{display:grid;gap:10px;margin-top:18px}button{width:100%;min-height:54px;border:0;border-radius:17px;padding:13px 17px;font:inherit;font-weight:850;cursor:pointer}button.primary{background:linear-gradient(135deg,var(--green),#13bd73);color:#032216}button.secondary{background:#17362b;color:var(--text);border:1px solid var(--line)}button:disabled{opacity:.45;cursor:not-allowed}.fine{font-size:13px;color:var(--muted);margin:14px 2px 0}.hidden{display:none!important}
+  </style>
+</head>
+<body>
+<main>
+  <div class="brand"><div class="mark" aria-hidden="true">↻</div><div><b>RouteHeat</b><small>Device snapshot rescue</small></div></div>
+  <section class="hero">
+    <p class="eyebrow">EMERGENCY RECOVERY</p>
+    <h1>Find the fuller route copy</h1>
+    <p>This page reads RouteHeat's current and previous protected device snapshots without starting route tracking or changing anything automatically.</p>
+  </section>
+  <section id="status" class="notice" role="status" aria-live="polite"><b>Checking this device…</b><span>Keep this page open while RouteHeat storage is inspected.</span></section>
+  <div id="candidates" aria-live="polite"></div>
+  <div id="actions" class="actions hidden">
+    <button id="restore" class="primary" type="button" disabled>Restore fuller checkpoint</button>
+    <button id="download" class="secondary" type="button">Download safety copy first</button>
+  </div>
+  <p class="fine">Nothing is uploaded. GPS coordinates are not displayed. A downloaded safety copy can contain private route locations, so keep it private.</p>
+</main>
+<script>
+(() => {
+  'use strict';
+  const DB_NAME='routeheat-storage',DB_VERSION=1,STATE_STORE='state',JOURNAL_STORE='journal';
+  const PRIMARY_KEY='primary',PREVIOUS_KEY='previous',ACTIVE_KEY='routeheat.active',MARKER_KEY='routeheat.storage.commit.v1';
+  const status=document.getElementById('status'),candidatesNode=document.getElementById('candidates'),actions=document.getElementById('actions'),restoreButton=document.getElementById('restore'),downloadButton=document.getElementById('download');
+  let database=null,records={primary:null,previous:null},localRoute=null,candidates=[],best=null;
+
+  const parse=value=>{try{return value==null?null:JSON.parse(value);}catch{return null;}};
+  const normalizedValues=values=>Object.fromEntries(Object.keys(values||{}).sort().map(key=>[key,values[key]==null?null:String(values[key])]));
+  const checksum=values=>{const text=JSON.stringify(normalizedValues(values));let hash=2166136261;for(let index=0;index<text.length;index++){hash^=text.charCodeAt(index);hash=Math.imul(hash,16777619);}return `fnv1a-${(hash>>>0).toString(16).padStart(8,'0')}`;};
+  const validSnapshot=snapshot=>!!(snapshot&&snapshot.formatVersion===1&&snapshot.values&&snapshot.checksum===checksum(snapshot.values));
+  const activeFromValues=values=>parse(values&&values[ACTIVE_KEY]);
+  const validRoute=route=>!!(route&&route.id&&Number(route.startedAt)>0&&!route.endedAt&&Array.isArray(route.stops));
+  const savedAt=route=>Number(route?.draftSavedAt||route?.updatedAt||route?.lastPosition?.timestamp||route?.stops?.at(-1)?.timestamp||route?.startedAt||0);
+  const sameRoute=(first,second)=>String(first?.id||'')===String(second?.id||'')||(Number(first?.startedAt)>0&&Number(first.startedAt)===Number(second?.startedAt));
+  const clock=value=>Number.isFinite(Number(value))?Number(value):Date.parse(value);
+  const time=value=>{const number=clock(value);return Number.isFinite(number)&&number>0?new Date(number).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'Unknown';};
+  const setStatus=(state,title,copy)=>{status.dataset.state=state;status.querySelector('b').textContent=title;status.querySelector('span').textContent=copy;};
+  const request=request=>new Promise((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('Device storage request failed'));});
+  const transactionDone=transaction=>new Promise((resolve,reject)=>{transaction.oncomplete=resolve;transaction.onabort=()=>reject(transaction.error||new Error('Device storage update was cancelled'));transaction.onerror=()=>reject(transaction.error||new Error('Device storage update failed'));});
+
+  async function openDatabase(){
+    if(!('indexedDB' in window))throw new Error('This browser does not expose the RouteHeat device journal.');
+    if(indexedDB.databases){try{const list=await indexedDB.databases();if(!list.some(item=>item.name===DB_NAME))throw new Error('No RouteHeat device journal was found in this browser.');}catch(error){if(error&&/No RouteHeat device journal/.test(error.message||''))throw error;}}
+    return new Promise((resolve,reject)=>{const open=indexedDB.open(DB_NAME,DB_VERSION);open.onupgradeneeded=()=>{open.transaction.abort();};open.onsuccess=()=>resolve(open.result);open.onerror=()=>reject(open.error||new Error('RouteHeat device journal could not be opened'));open.onblocked=()=>reject(new Error('Close other RouteHeat windows, then try this page again.'));});
+  }
+
+  async function readRecords(){
+    const transaction=database.transaction(STATE_STORE,'readonly'),done=transactionDone(transaction),store=transaction.objectStore(STATE_STORE);
+    const [primary,previous]=await Promise.all([request(store.get(PRIMARY_KEY)),request(store.get(PREVIOUS_KEY))]);
+    await done;return{primary,previous};
+  }
+
+  function routeCard(candidate,index){
+    const card=document.createElement('section');card.className=`card${candidate===best?' best':''}`;
+    const head=document.createElement('div');head.className='card-head';
+    const source=document.createElement('span');source.className='source';source.textContent=candidate.label;
+    const badge=document.createElement('span');badge.className='badge';badge.textContent=candidate===best?'Fullest copy':'Protected copy';head.append(source,badge);
+    const count=document.createElement('div');count.className='stops';count.textContent=String(candidate.route.stops.length);const unit=document.createElement('span');unit.textContent=' stops';count.append(unit);
+    const meta=document.createElement('div');meta.className='meta';
+    [['Started',time(candidate.route.startedAt)],['Last saved',time(savedAt(candidate.route))],['Packages',candidate.route.totalPackages==null?'Unknown':String(candidate.route.totalPackages)],['Snapshot',candidate.sequence==null?'Working copy':`#${candidate.sequence}`]].forEach(([label,value])=>{const box=document.createElement('div'),small=document.createElement('small'),strong=document.createElement('b');small.textContent=label;strong.textContent=value;box.append(small,strong);meta.append(box);});
+    card.append(head,count,meta);card.dataset.index=String(index);return card;
+  }
+
+  function collectCandidates(){
+    localRoute=parse(localStorage.getItem(ACTIVE_KEY));
+    const primaryValid=validSnapshot(records.primary),previousValid=validSnapshot(records.previous);
+    const raw=[{label:'Current local draft',route:localRoute,snapshot:null,sequence:null},{label:'Protected current snapshot',route:primaryValid?activeFromValues(records.primary.values):null,snapshot:primaryValid?records.primary:null,sequence:primaryValid?records.primary.sequence:null},{label:'Protected previous snapshot',route:previousValid?activeFromValues(records.previous.values):null,snapshot:previousValid?records.previous:null,sequence:previousValid?records.previous.sequence:null}];
+    const anchor=validRoute(localRoute)?localRoute:raw.map(item=>item.route).find(validRoute);
+    candidates=raw.filter(item=>validRoute(item.route)&&(!anchor||sameRoute(item.route,anchor))&&Date.now()-savedAt(item.route)<7*86400000);
+    const unique=new Map();candidates.forEach(item=>{const key=`${item.route.stops.length}:${savedAt(item.route)}:${item.route.id}`;if(!unique.has(key)||item.snapshot)unique.set(key,item);});candidates=[...unique.values()].sort((a,b)=>b.route.stops.length-a.route.stops.length||savedAt(b.route)-savedAt(a.route));best=candidates[0]||null;
+  }
+
+  function render(){
+    candidatesNode.replaceChildren(...candidates.map(routeCard));actions.classList.toggle('hidden',!candidates.length);
+    const localStops=validRoute(localRoute)?localRoute.stops.length:0,bestStops=best?.route?.stops?.length||0;
+    restoreButton.disabled=!(best&&best.snapshot&&bestStops>localStops);restoreButton.textContent=bestStops>localStops?`Restore ${bestStops}-stop checkpoint`:'No fuller checkpoint available';
+    if(bestStops>localStops)setStatus('good',`${bestStops}-stop checkpoint found`,`This device still has a fuller protected copy. The current ${localStops}-stop draft will be preserved as the previous snapshot.`);
+    else if(candidates.length)setStatus('warn','No fuller complete snapshot remains',`The largest recoverable active draft on this installation currently has ${bestStops} stops.`);
+    else setStatus('error','No active-route snapshot found','This browser installation does not currently contain a recoverable unfinished RouteHeat route.');
+  }
+
+  function downloadSafetyCopy(){
+    const payload={format:'routeheat-emergency-snapshot-copy',formatVersion:1,exportedAt:new Date().toISOString(),localActive:localStorage.getItem(ACTIVE_KEY),primary:records.primary,previous:records.previous};
+    const blob=new Blob([JSON.stringify(payload)],{type:'application/json'}),link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`routeheat-emergency-${new Date().toISOString().replace(/[:.]/g,'-')}.json`;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+  }
+
+  async function promoteBest(){
+    if(!best?.snapshot||!validSnapshot(best.snapshot))throw new Error('The selected checkpoint did not pass its integrity check.');
+    const localStops=validRoute(localRoute)?localRoute.stops.length:0,targetStops=best.route.stops.length;
+    if(targetStops<=localStops)throw new Error('The selected checkpoint is not fuller than the current draft.');
+    if(!confirm(`Restore the protected ${targetStops}-stop checkpoint? RouteHeat History is not deleted, and the current ${localStops}-stop snapshot is retained as the previous copy.`))return;
+    restoreButton.disabled=true;restoreButton.textContent='Protecting checkpoint…';
+    const now=Date.now(),route=typeof structuredClone==='function'?structuredClone(best.route):JSON.parse(JSON.stringify(best.route));route.draftSavedAt=now;route.updatedAt=Math.max(now,Number(route.updatedAt)||0);
+    const primaryValid=validSnapshot(records.primary),baseValues={...(primaryValid?records.primary.values:best.snapshot.values),[ACTIVE_KEY]:JSON.stringify(route)},values=normalizedValues(baseValues),sequence=Math.max(Number(records.primary?.sequence)||0,Number(records.previous?.sequence)||0,Number(best.snapshot.sequence)||0)+1;
+    const snapshot={key:PRIMARY_KEY,formatVersion:1,sequence,committedAt:now,logicalClock:now,reason:'emergency-active-route-recovery',values,checksum:checksum(values)};
+    const transaction=database.transaction([STATE_STORE,JOURNAL_STORE],'readwrite'),done=transactionDone(transaction),stateStore=transaction.objectStore(STATE_STORE),journalStore=transaction.objectStore(JOURNAL_STORE);
+    if(primaryValid)stateStore.put({...records.primary,key:PREVIOUS_KEY});stateStore.put(snapshot);journalStore.put({sequence,committedAt:now,logicalClock:now,reason:snapshot.reason,checksum:snapshot.checksum,changedKeys:[ACTIVE_KEY]});await done;
+    let localUpdated=false;try{localStorage.setItem(ACTIVE_KEY,values[ACTIVE_KEY]);localUpdated=true;}catch{}
+    try{localStorage.setItem(MARKER_KEY,JSON.stringify({formatVersion:1,sequence,committedAt:now,logicalClock:now,checksum:snapshot.checksum}));}catch{}
+    records={primary:snapshot,previous:primaryValid?records.primary:records.previous};localRoute=localUpdated?route:localRoute;setStatus('good',`${targetStops}-stop checkpoint protected`,localUpdated?'Close this page and open RouteHeat. It should offer the restored route.':'The fuller copy is protected in the device journal. Close this page and open RouteHeat; choose the fuller recovery when prompted.');
+    restoreButton.textContent='Checkpoint ready';downloadButton.textContent='Download updated safety copy';
+  }
+
+  downloadButton.addEventListener('click',downloadSafetyCopy);
+  restoreButton.addEventListener('click',()=>promoteBest().catch(error=>{restoreButton.disabled=false;restoreButton.textContent='Try recovery again';setStatus('error','Recovery was not changed',error.message||String(error));}));
+  (async()=>{try{database=await openDatabase();records=await readRecords();collectCandidates();render();}catch(error){setStatus('error','Device snapshots could not be read',error.message||String(error));}})();
+})();
+</script>
+</body>
+</html>
