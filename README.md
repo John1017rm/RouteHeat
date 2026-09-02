@@ -1,8 +1,25 @@
-# RouteHeat 7.1.0
+# RouteHeat 7.2.0
 
 RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone and Android. It records stops, locations, totes, rescues, packages, timing, and GPS breadcrumbs; compares a driver only with their own history; and turns finished workdays into maps, reports, replay, and long-term insights.
 
 > **Safety:** Use every RouteHeat control only while safely parked. Forecasts, Ghost comparisons, coaching, achievements, and historical pace are personal context—not targets or reasons to rush.
+
+## 7.2.0 Lean saves, quicker auto stops, and a real workday debrief
+
+- **Lean live-route persistence:** GPS updates replace one compact `active-current` record instead of rewriting all finished History. Route actions create a bounded eight-copy checkpoint ring, while routine GPS changes are coalesced to at most one browser-mirror write every 15 seconds and one protected trail checkpoint per minute.
+- **Safer reconciliation:** Startup preserves the union of browser-mirror and journal History, restores full GPS/connection detail behind compact mirrors, prefers the newest valid active route, and will not revive a stale active draft after a verified finish. An unfinished rescue phase is never mistaken for its earlier finished route.
+- **Storage that tells the truth:** Settings now separates RouteHeat's measured logical records from the browser's approximate origin estimate. **Optimize safely** removes only redundant checkpoint and journal records; it never removes finished routes, the active route, backups, or cloud queues.
+- **Finish without the filler movie:** The end-of-day celebration now opens directly into a useful debrief with the best fair stretch, toughest fair stretch, first/second-half momentum, yesterday comparison, achievements, records, and transparent GPS/data-quality context. The normal History replay remains available whenever a map replay is wanted.
+- **Richer live insight cards:** Optional parked-only cards can show top-of-hour progress versus the exact previous local day, rare same-place/same-time coincidences, and familiar recorded road sections that have historically run quicker or slower. Every comparison cites its personal-history sample instead of guessing a street name.
+- **Faster passenger-seat auto detection:** Candidate dwell adapts between roughly 18 and 32 seconds, departure can confirm on a strong native-speed fix or repeated derived movement, and the saved stop time is anchored to the beginning of departure. An interrupted in-progress stop needs either two fresh parked fixes near its saved anchor or a review suggestion; uncertain motion never becomes a blind automatic stop.
+- **Cleaner Drive controls:** The 2–5 location choices are more distinct around the main stop control, their armed state is clearer, and the universal 30-second Undo is a compact centered action instead of a full-width bar.
+- **Lower write amplification:** Starting, finishing, history edits, and settings still receive transactional full snapshots, but normal GPS, stop, tote, and Undo-expiry activity no longer serializes every saved route repeatedly.
+
+### If service or device storage is poor
+
+Keep RouteHeat open and continue the active route; stop and GPS checkpoints are device-local and do not require Supabase. If **Route save needs attention** appears, do not start a replacement route, repeatedly force-close RouteHeat, clear Safari/site data, remove the Home Screen app, or reinstall. Free some general device space if iOS reports the phone is full, remain parked, and use **Retry save** once. If Finish pauses, leave that same route active and retry after storage is available; on a later launch, choose the recovery copy with the expected stop and GPS-point totals.
+
+Before clearing any browser or app data, confirm a successful Cloud sync for finished routes and create a `.routeheat` backup. For route-summary intake on iPhone, Apple Live Text copy/paste is the lowest-storage option; the screenshot file itself is temporary and RouteHeat never saves it.
 
 ## 7.1.0 Route Vault, auto multistops, and History calendar
 
@@ -189,7 +206,7 @@ The coffee-table 3D route replay is intentionally **not** bundled into the 7.0 P
 - **Route quality review:** Mapped-stop coverage, GPS quality and continuity, gaps, ignored jumps, and manual corrections produce a transparent confidence review. Package completeness and forecast coverage remain visible as separate report facts. A limited score never removes completed stops.
 - **Private Story Studio:** Moments highlights personal turning points; Ghost Rivalries revisit comparable routes from the same driver's history; Personal Seasons summarize Winter, Spring, Summer, and Fall; and Delivery Year animates saved workdays across one calendar year.
 - **Area profiles:** Drawn delivery boundaries receive private maps, trends, aggregate metrics, rescue totals, and route visit lists using only stops inside that Area.
-- **Finish movie and celebration:** The finish report can play a parked-only route movie before the full end-of-day review. Active-route achievements use a compact, nonblocking banner; the large celebration is reserved for the finished workday.
+- **Finish celebration and debrief:** A brief celebration leads directly to the full end-of-day review. Active-route achievements use a compact, nonblocking banner; the large celebration is reserved for the finished workday.
 - **Reliability controls:** RouteHeat reports save health, offers a universal short-lived Undo, waits for a parked moment before applying an update, and prevents two tabs from writing the same active route unless the driver explicitly takes over.
 - **Restorable backups:** Settings can create and preview a portable `.routeheat` backup. Import validates its format and checksum, previews additions and conflicts, and applies the result transactionally.
 
@@ -248,7 +265,7 @@ Area definitions are stored under the private `routeheat.deliveryAreas.v1` devic
 
 ### Finish and review
 
-Finishing opens the optional route movie and full report with workload, pace, package totals, forecast review, Where Time Went, quality confidence, Ghost result, records, awards, and the optional Neighborhood Snapshot card. When Snapshot is enabled, its separate network request starts only after the route has finished and saved; the report remains usable while it builds.
+Finishing opens a brief celebration and a full debrief with fair best/toughest stretches, day-over-day context, workload, pace, package totals, forecast review, Where Time Went, quality confidence, Ghost result, records, awards, and the optional Neighborhood Snapshot card. The regular History replay remains the place for map animation. When Snapshot is enabled, its separate network request starts only after the route has finished and saved; the report remains usable while it builds.
 
 History contains sortable workdays, Area filters and breakdowns, replay, weekly recaps, Moments, Ghost Rivalries, Personal Seasons, and Delivery Area profiles. **All time → Delivery Year** opens the yearly time-lapse. Shared recap and Area summaries are aggregate text and omit maps, coordinates, route IDs, exact workday times, and private Area names.
 
@@ -260,7 +277,7 @@ RouteHeat uses several intentionally separate protection layers:
 | --- | --- | --- |
 | `localStorage` | Fast working mirror for finished routes, the active draft, recovery records, Delivery Area definitions, and selected settings | Clearing website data removes it |
 | IndexedDB `routeheat-storage` | Transactionally stores full History and active-route state with checksums and logical clocks | It belongs to this browser installation and can also be cleared or evicted |
-| Route Vault checkpoint ring | Keeps up to 20 full active-route checkpoints while independently retaining the highest verified stop progress and richest compatible GPS trail | It protects poor-data and app-switch recovery, but remains device-local |
+| Active-current + Route Vault ring | Replaces one compact live record during normal tracking and keeps up to eight action/trail checkpoints, independently anchoring the highest verified stop progress and richest compatible GPS trail | It protects poor-data and app-switch recovery, but remains device-local |
 | IndexedDB commit journal | Keeps bounded metadata such as sequence, time, reason, checksum, logical clock, and changed key names | The journal metadata is separate from the full Route Vault checkpoints |
 | Supabase | Mirrors signed-in finished routes, Delivery Area definitions and tombstones, route deletion/restoration state, and any completed aggregate Neighborhood Snapshot with revision-aware conflict handling | It does **not** upload an unfinished active-route draft; Snapshot generation also needs the Edge Function setup |
 | `.routeheat` file | Portable, restorable export of finished routes, an eligible active draft, recovery state, private Delivery Area names/boundaries, and selected route/auto settings | The file contains sensitive route data and must be stored securely |

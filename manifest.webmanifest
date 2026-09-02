@@ -1,7 +1,7 @@
 {
   "name": "RouteHeat — Delivery Pace",
   "short_name": "RouteHeat",
-  "description": "Private GPS delivery intelligence with 67 lifetime trophies, offline Route Vault recovery, auto multistops, Connection Experience, and calendar-based route history.",
+  "description": "Private GPS delivery intelligence with lean Route Vault recovery, quicker automatic multistops, live route insights, end-of-day coaching, and 67 lifetime trophies.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
