@@ -5,6 +5,7 @@ const JOURNAL_STORE = 'journal';
 const ACTIVE_CHECKPOINT_STORE = 'activeCheckpoints';
 const PRIMARY_KEY = 'primary';
 const PREVIOUS_KEY = 'previous';
+const ACTIVE_CURRENT_KEY = 'active-current';
 const MARKER_KEY = 'routeheat.storage.commit.v1';
 
 const requestResult = request => new Promise((resolve, reject) => {
@@ -72,6 +73,7 @@ export function createRouteHeatStorage(options = {}) {
   const objectKeys = new Set(options.objectKeys || []);
   const journalLimit = Math.max(5, Math.min(100, Number(options.journalLimit) || 40));
   const activeKey = String(options.activeKey || '');
+  const historyKey = String(options.historyKey || '');
   const activeCheckpointLimit = Math.max(6, Math.min(30, Number(options.activeCheckpointLimit) || 16));
   const local = options.localStorage || globalThis.localStorage;
   const indexedDb = options.indexedDB || globalThis.indexedDB;
@@ -118,15 +120,16 @@ export function createRouteHeatStorage(options = {}) {
   };
 
   const stateRecords = async () => {
-    if (!database) return {primary: null, previous: null, journal: [], activeCheckpoints: []};
+    if (!database) return {primary: null, previous: null, activeCurrent: null, journal: [], activeCheckpoints: []};
     const transaction = database.transaction([STATE_STORE, JOURNAL_STORE, ACTIVE_CHECKPOINT_STORE], 'readonly');
     const completed = transactionDone(transaction);
     const state = transaction.objectStore(STATE_STORE);
     const journal = transaction.objectStore(JOURNAL_STORE);
     const activeCheckpoints = transaction.objectStore(ACTIVE_CHECKPOINT_STORE);
-    const [primary, previous, entries, checkpoints] = await Promise.all([
+    const [primary, previous, activeCurrent, entries, checkpoints] = await Promise.all([
       requestResult(state.get(PRIMARY_KEY)),
       requestResult(state.get(PREVIOUS_KEY)),
+      requestResult(state.get(ACTIVE_CURRENT_KEY)),
       requestResult(journal.getAll()),
       requestResult(activeCheckpoints.getAll())
     ]);
@@ -134,6 +137,7 @@ export function createRouteHeatStorage(options = {}) {
     return {
       primary,
       previous,
+      activeCurrent,
       journal: (entries || []).sort((first, second) => second.sequence - first.sequence),
       activeCheckpoints: (checkpoints || []).sort((first, second) => second.sequence - first.sequence)
     };
@@ -155,6 +159,111 @@ export function createRouteHeatStorage(options = {}) {
     }
   };
 
+  const parsedJson = raw => {
+    if (typeof raw !== 'string' || !raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+  };
+
+  const routeIdentity = saved => String(saved?.id || (Number(saved?.startedAt) > 0 ? `started:${Number(saved.startedAt)}` : ''));
+
+  const stopIdentity = stop => String(stop?.id || (Number(stop?.timestamp) > 0 ? `time:${Number(stop.timestamp)}` : ''));
+
+  const compactFallbackCompatible = (preferred, fallback) => {
+    const preferredStops = Array.isArray(preferred?.stops) ? preferred.stops : [];
+    const fallbackStops = Array.isArray(fallback?.stops) ? fallback.stops : [];
+    if (preferredStops.length !== fallbackStops.length) return false;
+    const preferredKeys = preferredStops.map(stopIdentity);
+    const fallbackKeys = fallbackStops.map(stopIdentity);
+    if (preferredKeys.some(key => !key) || fallbackKeys.some(key => !key) || preferredKeys.some((key, index) => key !== fallbackKeys[index])) return false;
+    const preferredRevision = Math.max(0, Number(preferred?.revision) || 0);
+    const fallbackRevision = Math.max(0, Number(fallback?.revision) || 0);
+    return preferredRevision === fallbackRevision;
+  };
+
+  const restoreCompactHistoryFields = (preferred, fallback) => {
+    if (!preferred || !fallback || typeof preferred !== 'object' || typeof fallback !== 'object') return preferred;
+    const restored = {...preferred};
+    const compatible = compactFallbackCompatible(preferred, fallback);
+    if (compatible && preferred.localMirrorTrackOmitted === true && Array.isArray(fallback.track) && fallback.track.length) {
+      restored.track = fallback.track;
+      restored.trackBreakTimes = Array.isArray(fallback.trackBreakTimes) ? fallback.trackBreakTimes : [];
+      if (Array.isArray(fallback.trackBreaks)) restored.trackBreaks = fallback.trackBreaks;
+      const fallbackStops = new Map((fallback.stops || []).map(stop => [stopIdentity(stop), stop]));
+      restored.stops = (preferred.stops || []).map(stop => {
+        const fallbackIndex = Number(fallbackStops.get(stopIdentity(stop))?.trackIndex);
+        return Number.isInteger(fallbackIndex) && fallbackIndex >= 0 ? {...stop, trackIndex: fallbackIndex} : stop;
+      });
+      delete restored.localMirrorTrackOmitted;
+    }
+    if (compatible && preferred.localMirrorConnectionSamplesOmitted === true && Array.isArray(fallback.connectionSamples)) {
+      restored.connectionSamples = fallback.connectionSamples;
+      delete restored.localMirrorConnectionSamplesOmitted;
+    }
+    if (compatible && preferred.localMirrorNeighborhoodDetailOmitted === true && fallback.neighborhoodSnapshot && typeof fallback.neighborhoodSnapshot === 'object') {
+      restored.neighborhoodSnapshot = fallback.neighborhoodSnapshot;
+      delete restored.localMirrorNeighborhoodDetailOmitted;
+    }
+    return restored;
+  };
+
+  const mergedHistoryRaw = (preferredRaw, fallbackRaw) => {
+    const preferred = parsedJson(preferredRaw);
+    const fallback = parsedJson(fallbackRaw);
+    if (!Array.isArray(preferred)) return Array.isArray(fallback) ? JSON.stringify(fallback) : preferredRaw;
+    if (!Array.isArray(fallback) || !fallback.length) return preferredRaw;
+    const fallbackById = new Map(fallback.map(saved => [routeIdentity(saved), saved]).filter(([id]) => id));
+    const seen = new Set();
+    const merged = preferred.map(saved => {
+      const id = routeIdentity(saved);
+      if (id) seen.add(id);
+      return restoreCompactHistoryFields(saved, fallbackById.get(id));
+    });
+    fallback.forEach(saved => {
+      const id = routeIdentity(saved);
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      merged.push(saved);
+    });
+    merged.sort((first, second) => Number(second?.startedAt || 0) - Number(first?.startedAt || 0)
+      || Number(second?.endedAt || 0) - Number(first?.endedAt || 0)
+      || routeIdentity(first).localeCompare(routeIdentity(second)));
+    return JSON.stringify(merged);
+  };
+
+  const newestActiveRaw = (...rawValues) => {
+    const candidates = rawValues.map((raw, order) => ({raw, order, meta: activeRouteMeta(raw)})).filter(item => item.meta);
+    candidates.sort((first, second) => second.meta.updatedAt - first.meta.updatedAt
+      || second.meta.stops - first.meta.stops
+      || second.meta.trackPoints - first.meta.trackPoints
+      || second.meta.totes - first.meta.totes
+      || first.order - second.order);
+    return candidates[0]?.raw ?? null;
+  };
+
+  const activeCoveredByFinishedHistory = (activeRaw, historyRaw) => {
+    const active = parsedJson(activeRaw);
+    const history = parsedJson(historyRaw);
+    if (!active || !Array.isArray(history)) return false;
+    const hasOpenRescue = active.reopenedForRescue === true
+      || (Array.isArray(active.phases) && active.phases.some(phase => phase?.type === 'rescue' && !phase?.endedAt));
+    const id = routeIdentity(active);
+    const activeStops = Array.isArray(active.stops) ? active.stops.length : 0;
+    const activeUpdatedAt = Math.max(Number(active.draftSavedAt) || 0, Number(active.updatedAt) || 0, Number(active.startedAt) || 0);
+    return history.some(saved => {
+      if (!saved?.endedAt || routeIdentity(saved) !== id || (Array.isArray(saved.stops) ? saved.stops.length : 0) < activeStops) return false;
+      const finishedUpdatedAt = Math.max(Number(saved.updatedAt) || 0, Number(saved.endedAt) || 0, Number(saved.startedAt) || 0);
+      if (hasOpenRescue && activeUpdatedAt > finishedUpdatedAt) return false;
+      if (saved.localMirrorTrackOmitted === true && Array.isArray(active.track) && active.track.length) return false;
+      if (saved.localMirrorConnectionSamplesOmitted === true && Array.isArray(active.connectionSamples) && active.connectionSamples.length) return false;
+      return true;
+    });
+  };
+
+  const unsupersededActiveRaw = (historyRaw, ...rawValues) => {
+    const raw = newestActiveRaw(...rawValues);
+    return activeCoveredByFinishedHistory(raw, historyRaw) ? null : raw;
+  };
+
   const checkpointSnapshot = checkpoint => {
     if (!checkpoint || checkpoint.formatVersion !== 1 || !activeKey || typeof checkpoint.activeRaw !== 'string') return null;
     const values = {[activeKey]: checkpoint.activeRaw};
@@ -171,6 +280,44 @@ export function createRouteHeatStorage(options = {}) {
       activeCheckpoint: true,
       activeMeta: checkpoint.activeMeta || null
     };
+  };
+
+  const activeCurrentSnapshot = record => {
+    if (record?.cleared === true && record.activeRaw == null && activeKey) {
+      const values = {[activeKey]: null};
+      if (record.activeChecksum !== routeHeatChecksum(values)) return null;
+      return {
+        key: ACTIVE_CURRENT_KEY,
+        formatVersion: 1,
+        sequence: record.sequence,
+        committedAt: record.committedAt,
+        logicalClock: record.logicalClock,
+        reason: record.reason,
+        values,
+        checksum: record.activeChecksum,
+        activeCurrent: true,
+        activeCleared: true,
+        clearedRouteId: String(record.clearedRouteId || '')
+      };
+    }
+    const snapshot = checkpointSnapshot(record);
+    return snapshot ? {...snapshot, key: ACTIVE_CURRENT_KEY, activeCurrent: true} : null;
+  };
+
+  const pruneCheckpointStore = (store, currentRouteId = '') => {
+    const request = store.getAll();
+    request.onsuccess = () => {
+      const records = (request.result || []).filter(item => Number.isFinite(Number(item?.sequence))).sort((a, b) => Number(b.sequence) - Number(a.sequence));
+      const keep = new Set();
+      const routeId = String(currentRouteId || records[0]?.activeMeta?.routeId || '');
+      const sameRoute = records.filter(item => String(item?.activeMeta?.routeId || '') === routeId);
+      const mostStops = sameRoute.slice().sort((a, b) => Number(b.activeMeta?.stops || 0) - Number(a.activeMeta?.stops || 0) || Number(b.sequence) - Number(a.sequence))[0];
+      const richestTrail = sameRoute.slice().sort((a, b) => Number(b.activeMeta?.trackPoints || 0) - Number(a.activeMeta?.trackPoints || 0) || Number(b.sequence) - Number(a.sequence))[0];
+      [mostStops, richestTrail].filter(Boolean).forEach(item => keep.add(Number(item.sequence)));
+      records.forEach(item => { if (keep.size < activeCheckpointLimit) keep.add(Number(item.sequence)); });
+      records.filter(item => !keep.has(Number(item.sequence))).forEach(item => store.delete(Number(item.sequence)));
+    };
+    request.onerror = () => {};
   };
 
   const bestValidSnapshot = records => {
@@ -219,7 +366,38 @@ export function createRouteHeatStorage(options = {}) {
           changedKeys
         });
         const activeRaw = activeKey ? normalized[activeKey] : null;
-        const activeMeta = meta.activeCheckpoint ? activeRouteMeta(activeRaw) : null;
+        const currentActiveMeta = activeRouteMeta(activeRaw);
+        if (activeKey && currentActiveMeta) {
+          const activeValues = {[activeKey]: activeRaw};
+          state.put({
+            key: ACTIVE_CURRENT_KEY,
+            formatVersion: 1,
+            sequence: nextSnapshot.sequence,
+            committedAt: nextSnapshot.committedAt,
+            logicalClock: nextSnapshot.logicalClock,
+            reason: nextSnapshot.reason,
+            actionSignature: `${currentActiveMeta.routeId}:${currentActiveMeta.stops}:${currentActiveMeta.trackPoints}:${nextSnapshot.reason}`,
+            activeMeta: currentActiveMeta,
+            activeRaw,
+            activeChecksum: routeHeatChecksum(activeValues)
+          });
+        } else if (activeKey) {
+          const activeValues = {[activeKey]: null};
+          state.put({
+            key: ACTIVE_CURRENT_KEY,
+            formatVersion: 1,
+            sequence: nextSnapshot.sequence,
+            committedAt: nextSnapshot.committedAt,
+            logicalClock: nextSnapshot.logicalClock,
+            reason: nextSnapshot.reason,
+            cleared: true,
+            clearedRouteId: String(meta.clearedRouteId || ''),
+            activeMeta: null,
+            activeRaw: null,
+            activeChecksum: routeHeatChecksum(activeValues)
+          });
+        }
+        const activeMeta = meta.activeCheckpoint ? currentActiveMeta : null;
         if (activeMeta) {
           const activeValues = {[activeKey]: activeRaw};
           activeCheckpoints.put({
@@ -239,17 +417,7 @@ export function createRouteHeatStorage(options = {}) {
           const journalKeys = (keysRequest.result || []).map(Number).filter(Number.isFinite).sort((a, b) => a - b);
           journalKeys.slice(0, Math.max(0, journalKeys.length - journalLimit)).forEach(key => journal.delete(key));
         };
-        const checkpointRecordsRequest = activeCheckpoints.getAll();
-        checkpointRecordsRequest.onsuccess = () => {
-          const records = (checkpointRecordsRequest.result || []).filter(item => Number.isFinite(Number(item?.sequence))).sort((a, b) => Number(b.sequence) - Number(a.sequence));
-          const keep = new Set(), currentRouteId = activeMeta?.routeId || records[0]?.activeMeta?.routeId || '';
-          const sameRoute = records.filter(item => String(item?.activeMeta?.routeId || '') === String(currentRouteId));
-          const mostStops = sameRoute.slice().sort((a, b) => Number(b.activeMeta?.stops || 0) - Number(a.activeMeta?.stops || 0) || Number(b.sequence) - Number(a.sequence))[0];
-          const richestTrail = sameRoute.slice().sort((a, b) => Number(b.activeMeta?.trackPoints || 0) - Number(a.activeMeta?.trackPoints || 0) || Number(b.sequence) - Number(a.sequence))[0];
-          [mostStops, richestTrail].filter(Boolean).forEach(item => keep.add(Number(item.sequence)));
-          records.forEach(item => { if (keep.size < activeCheckpointLimit) keep.add(Number(item.sequence)); });
-          records.filter(item => !keep.has(Number(item.sequence))).forEach(item => activeCheckpoints.delete(Number(item.sequence)));
-        };
+        if (activeMeta) pruneCheckpointStore(activeCheckpoints, activeMeta.routeId);
       };
       transaction.oncomplete = () => resolve(nextSnapshot);
       transaction.onabort = () => reject(transaction.error || primaryRequest.error || new Error('IndexedDB transaction aborted'));
@@ -274,6 +442,73 @@ export function createRouteHeatStorage(options = {}) {
     return commitQueue;
   };
 
+  const commitActiveNow = async (activeRaw, meta = {}) => {
+    if (!database) return {backend, committed: false, reason: 'indexeddb-unavailable'};
+    const raw = activeRaw == null || activeRaw === '' ? null : String(activeRaw);
+    const activeMeta = activeRouteMeta(raw);
+    if (raw != null && !activeMeta) throw new Error('RouteHeat refused to journal an invalid active route');
+    const committedAt = Date.now();
+    const nextSequence = sequence + 1;
+    const reason = String(meta.reason || 'active-route-checkpoint').slice(0, 80);
+    const logicalClock = Math.max(0, Number(meta.logicalClock) || activeMeta?.updatedAt || 0);
+    await new Promise((resolve, reject) => {
+      const transaction = database.transaction([STATE_STORE, ACTIVE_CHECKPOINT_STORE], 'readwrite');
+      const state = transaction.objectStore(STATE_STORE);
+      const activeCheckpoints = transaction.objectStore(ACTIVE_CHECKPOINT_STORE);
+      if (!activeMeta) {
+        const activeValues = {[activeKey]: null};
+        state.put({
+          key: ACTIVE_CURRENT_KEY,
+          formatVersion: 1,
+          sequence: nextSequence,
+          committedAt,
+          logicalClock,
+          reason,
+          cleared: true,
+          clearedRouteId: String(meta.clearedRouteId || ''),
+          activeMeta: null,
+          activeRaw: null,
+          activeChecksum: routeHeatChecksum(activeValues)
+        });
+      } else {
+        const activeValues = {[activeKey]: raw};
+        const record = {
+          key: ACTIVE_CURRENT_KEY,
+          formatVersion: 1,
+          sequence: nextSequence,
+          committedAt,
+          logicalClock,
+          reason,
+          actionSignature: `${activeMeta.routeId}:${activeMeta.stops}:${activeMeta.trackPoints}:${reason}`,
+          activeMeta,
+          activeRaw: raw,
+          activeChecksum: routeHeatChecksum(activeValues)
+        };
+        state.put(record);
+        if (meta.activeCheckpoint) {
+          const {key, ...checkpoint} = record;
+          activeCheckpoints.put(checkpoint);
+          pruneCheckpointStore(activeCheckpoints, activeMeta.routeId);
+        }
+      }
+      transaction.oncomplete = () => resolve();
+      transaction.onabort = () => reject(transaction.error || new Error('IndexedDB active-route transaction aborted'));
+      transaction.onerror = () => reject(transaction.error || new Error('IndexedDB active-route transaction failed'));
+    });
+    sequence = nextSequence;
+    emit({state: 'saved', backend, sequence, at: committedAt, reason, message: activeMeta ? 'Live route checkpoint protected on this device' : 'Finished route checkpoint cleared'});
+    return {backend, committed: true, activeMeta, sequence, committedAt};
+  };
+
+  const commitActive = (activeRaw, meta = {}) => {
+    emit({state: 'saving', backend, message: backend === 'indexedDB' ? 'Protecting live route…' : 'Saving live route…'});
+    commitQueue = commitQueue.catch(() => {}).then(() => commitActiveNow(activeRaw, meta)).catch(error => {
+      emit({state: 'error', backend, error, message: 'Live route checkpoint could not be written · keep RouteHeat open; the earlier verified checkpoint remains safe'});
+      throw error;
+    });
+    return commitQueue;
+  };
+
   const init = async () => {
     const localValues = capture();
     const localValid = validateValues(localValues);
@@ -285,40 +520,61 @@ export function createRouteHeatStorage(options = {}) {
       database = await openDatabase(indexedDb);
       backend = 'indexedDB';
       const records = await stateRecords();
-      initialRecoverySnapshots=[records.primary,records.previous,...records.activeCheckpoints.map(checkpointSnapshot)].filter(snapshot=>snapshotValid(snapshot,validateValues));
+      initialRecoverySnapshots=[records.primary,records.previous,activeCurrentSnapshot(records.activeCurrent),...records.activeCheckpoints.map(checkpointSnapshot)].filter(snapshot=>snapshotValid(snapshot,validateValues));
       const primary = bestValidSnapshot(records);
-      sequence = Math.max(0, Number(primary?.sequence) || 0);
+      sequence = Math.max(0, Number(primary?.sequence) || 0, Number(records.activeCurrent?.sequence) || 0, ...(records.activeCheckpoints || []).map(item => Number(item?.sequence) || 0));
       const localChecksum = routeHeatChecksum(localValues);
       const localClock = Math.max(0, Number(getLogicalClock(localValues)) || 0);
       const marker = markerFromStorage(local);
+      const activeCurrent = activeCurrentSnapshot(records.activeCurrent);
+      const activeCurrentRaw = activeCurrent?.activeCleared ? null : activeCurrent?.values?.[activeKey] ?? null;
+      const clearedAt = activeCurrent?.activeCleared ? Math.max(Number(activeCurrent.committedAt) || 0, Number(activeCurrent.logicalClock) || 0) : 0;
+      const eligibleAfterClear = raw => {
+        if (!clearedAt) return raw;
+        const meta = activeRouteMeta(raw);
+        return meta && meta.updatedAt > clearedAt ? raw : null;
+      };
       if (!primary) {
-        if (localValid) {
-          await commitNow(localValues, {reason: 'legacy-localStorage-migration', logicalClock: localClock});
+        const migrationHistory = historyKey ? localValues[historyKey] : null;
+        const migrationValues = normalizedValues({...localValues, ...(activeKey ? {[activeKey]: unsupersededActiveRaw(migrationHistory, activeCurrentRaw, eligibleAfterClear(localValues[activeKey]))} : {})});
+        if (localValid && validateValues(migrationValues)) {
+          const snapshot = await commitNow(migrationValues, {reason: 'legacy-localStorage-migration', logicalClock: Math.max(localClock, activeRouteMeta(migrationValues[activeKey])?.updatedAt || 0)});
+          const failures = apply(migrationValues);
           emit({state: 'saved', backend, sequence, message: 'Device protection ready'});
-          return {backend, source: 'migration', recovered: false, localValid: true};
+          return {backend, source: 'migration', recovered: false, localValid: true, failures, snapshot};
         }
         emit({state: 'degraded', backend, sequence, message: 'No verified device copy yet · local route data needs attention'});
         return {backend, source: 'invalid-local-without-recovery', recovered: false, localValid: false};
       }
       if (!localValid) {
-        const failures = apply(primary.values);
+        const recoveredValues = normalizedValues({...primary.values, ...(activeKey ? {[activeKey]: unsupersededActiveRaw(primary.values[historyKey], activeCurrentRaw, eligibleAfterClear(primary.values[activeKey]))} : {})});
+        let snapshot = primary;
+        if (routeHeatChecksum(recoveredValues) !== primary.checksum) snapshot = await commitNow(recoveredValues, {reason: 'invalid-local-active-merge', logicalClock: Math.max(Number(primary.logicalClock) || 0, activeRouteMeta(recoveredValues[activeKey])?.updatedAt || 0)});
+        const failures = apply(recoveredValues);
         emit({state: failures.length ? 'degraded' : 'recovered', backend, sequence: primary.sequence, message: failures.length ? 'Recovery copy is safe, but the local mirror is full' : 'Recovered the last verified device copy'});
-        return {backend, source: 'indexeddb-recovery', recovered: !failures.length, failures, snapshot: primary};
-      }
-      if (localChecksum === primary.checksum) {
-        emit({state: 'saved', backend, sequence: primary.sequence, message: 'Device protection ready'});
-        return {backend, source: 'verified', recovered: false, snapshot: primary};
+        return {backend, source: 'indexeddb-recovery', recovered: !failures.length, failures, snapshot};
       }
       const primaryClock = Math.max(0, Number(primary.logicalClock) || 0);
       const markerMatchesLocal = marker?.checksum === localChecksum;
       const markerMatchesPrimary = marker?.checksum === primary.checksum;
-      if ((primaryClock > localClock || (primaryClock === localClock && markerMatchesPrimary)) && !markerMatchesLocal) {
-        const failures = apply(primary.values);
-        emit({state: failures.length ? 'degraded' : 'recovered', backend, sequence: primary.sequence, message: failures.length ? 'Newer recovery copy is safe, but the local mirror is full' : 'Recovered a newer verified device checkpoint'});
-        return {backend, source: 'indexeddb-newer', recovered: !failures.length, failures, snapshot: primary};
-      }
-      await commitNow(localValues, {reason: 'valid-newer-local-reconciliation', logicalClock: localClock});
-      return {backend, source: 'local-newer', recovered: false, snapshot: primary};
+      const preferPrimary = (primaryClock > localClock || (primaryClock === localClock && markerMatchesPrimary)) && !markerMatchesLocal;
+      const preferred = preferPrimary ? primary.values : localValues;
+      const fallback = preferPrimary ? localValues : primary.values;
+      const reconciledObject = Object.fromEntries(keys.map(key => {
+        if (key === activeKey) return [key, null];
+        if (key === historyKey) return [key, mergedHistoryRaw(preferred[key], fallback[key])];
+        return [key, preferred[key] == null && fallback[key] != null ? fallback[key] : preferred[key]];
+      }));
+      if (activeKey) reconciledObject[activeKey] = unsupersededActiveRaw(reconciledObject[historyKey], activeCurrentRaw, eligibleAfterClear(localValues[activeKey]), eligibleAfterClear(primary.values[activeKey]));
+      const reconciled = normalizedValues(reconciledObject);
+      if (!validateValues(reconciled)) throw new Error('RouteHeat could not reconcile a valid device snapshot');
+      const reconciledChecksum = routeHeatChecksum(reconciled);
+      let snapshot = primary;
+      if (reconciledChecksum !== primary.checksum) snapshot = await commitNow(reconciled, {reason: preferPrimary ? 'durable-state-active-merge' : 'valid-newer-local-reconciliation', logicalClock: Math.max(primaryClock, localClock, activeRouteMeta(reconciled[activeKey])?.updatedAt || 0)});
+      const failures = apply(reconciled);
+      const changed = reconciledChecksum !== localChecksum;
+      emit({state: failures.length ? 'degraded' : changed ? 'recovered' : 'saved', backend, sequence: snapshot.sequence, message: failures.length ? 'Full device copy is safe, but the compact browser mirror is full' : changed ? 'Reconciled the newest verified route data' : 'Device protection ready'});
+      return {backend, source: preferPrimary ? 'indexeddb-newer' : reconciledChecksum === primary.checksum ? 'verified' : 'local-newer', recovered: changed&&!failures.length, failures, snapshot};
     } catch (error) {
       database?.close();
       database = null;
@@ -330,25 +586,36 @@ export function createRouteHeatStorage(options = {}) {
 
   const recoverLatest = async () => {
     if (!database) return {recovered: false, reason: 'indexeddb-unavailable'};
-    const snapshot = bestValidSnapshot(await stateRecords());
+    const records = await stateRecords();
+    const snapshot = bestValidSnapshot(records);
     if (!snapshot) return {recovered: false, reason: 'no-valid-snapshot'};
     const current = capture();
     const currentClock = validateValues(current) ? Math.max(0, Number(getLogicalClock(current)) || 0) : 0;
     if (currentClock > (Number(snapshot.logicalClock) || 0)) return {recovered: false, reason: 'newer-local-state-preserved'};
-    const failures = apply(snapshot.values);
-    return {recovered: !failures.length, failures, snapshot};
+    const activeCurrent = activeCurrentSnapshot(records.activeCurrent);
+    const values = {...snapshot.values};
+    if (activeCurrent?.activeCleared && activeKey) {
+      const meta = activeRouteMeta(values[activeKey]);
+      const clearedAt = Math.max(Number(activeCurrent.committedAt) || 0, Number(activeCurrent.logicalClock) || 0);
+      const sameTarget = !activeCurrent.clearedRouteId || String(meta?.routeId || '') === activeCurrent.clearedRouteId;
+      if (meta && sameTarget && (Number(snapshot.sequence) <= Number(activeCurrent.sequence) || meta.updatedAt <= clearedAt)) values[activeKey] = null;
+    }
+    const failures = apply(values);
+    return {recovered: !failures.length, failures, snapshot: {...snapshot, values: normalizedValues(values), checksum: routeHeatChecksum(values)}};
   };
 
   const recoverySnapshots = async () => {
-    const current=database?await stateRecords():{primary:null,previous:null,activeCheckpoints:[]};
+    const current=database?await stateRecords():{primary:null,previous:null,activeCurrent:null,activeCheckpoints:[]};
     const activeSnapshots=(current.activeCheckpoints||[]).map(checkpointSnapshot);
-    const snapshots=[...initialRecoverySnapshots,current.primary,current.previous,...activeSnapshots].filter(snapshot=>snapshotValid(snapshot,validateValues));
+    const activeCurrent=activeCurrentSnapshot(current.activeCurrent),clearedAt=activeCurrent?.activeCleared?Math.max(Number(activeCurrent.committedAt)||0,Number(activeCurrent.logicalClock)||0):0,clearedSequence=activeCurrent?.activeCleared?Number(activeCurrent.sequence)||0:0,clearedRouteId=activeCurrent?.activeCleared?String(activeCurrent.clearedRouteId||''):'';
+    const recoverable=snapshot=>{if(!snapshotValid(snapshot,validateValues))return false;const meta=activeRouteMeta(snapshot?.values?.[activeKey]);if(!meta)return false;if(!clearedAt)return true;const sameTarget=!clearedRouteId||meta.routeId===clearedRouteId;return !sameTarget||Number(snapshot.sequence)>clearedSequence&&meta.updatedAt>clearedAt;};
+    const snapshots=[...initialRecoverySnapshots,current.primary,current.previous,activeCurrent,...activeSnapshots].filter(recoverable);
     const unique=new Map();
     snapshots.forEach(snapshot=>unique.set(`${snapshot.sequence}:${snapshot.checksum}`,snapshot));
     return [...unique.values()].sort((first,second)=>(Number(second.logicalClock)||0)-(Number(first.logicalClock)||0)||(Number(second.sequence)||0)-(Number(first.sequence)||0));
   };
 
-  const discardActiveCheckpoints = async routeId => {
+  const discardActiveCheckpointsNow = async routeId => {
     const target = String(routeId || '');
     if (!target) return {discarded: 0, reason: 'route-id-required'};
     const belongsToTarget = snapshot => {
@@ -362,9 +629,36 @@ export function createRouteHeatStorage(options = {}) {
     initialRecoverySnapshots = initialRecoverySnapshots.filter(snapshot => !belongsToTarget(snapshot));
     if (!database) return {discarded: 0, reason: 'indexeddb-unavailable'};
     let discarded = 0;
-    const transaction = database.transaction(ACTIVE_CHECKPOINT_STORE, 'readwrite');
+    let clearedCurrent = false;
+    const committedAt = Date.now();
+    const nextSequence = sequence + 1;
+    const transaction = database.transaction([STATE_STORE, ACTIVE_CHECKPOINT_STORE], 'readwrite');
     const completed = transactionDone(transaction);
+    const state = transaction.objectStore(STATE_STORE);
     const store = transaction.objectStore(ACTIVE_CHECKPOINT_STORE);
+    const activeRequest = state.get(ACTIVE_CURRENT_KEY);
+    activeRequest.onsuccess = () => {
+      const current = activeRequest.result;
+      const currentRouteId = String(current?.activeMeta?.routeId || '');
+      const clearedRouteId = String(current?.clearedRouteId || '');
+      if (current && currentRouteId && currentRouteId !== target) return;
+      if (current?.cleared === true && clearedRouteId && clearedRouteId !== target) return;
+      const activeValues = {[activeKey]: null};
+      state.put({
+        key: ACTIVE_CURRENT_KEY,
+        formatVersion: 1,
+        sequence: nextSequence,
+        committedAt,
+        logicalClock: committedAt,
+        reason: 'active-route-discarded',
+        cleared: true,
+        clearedRouteId: target,
+        activeMeta: null,
+        activeRaw: null,
+        activeChecksum: routeHeatChecksum(activeValues)
+      });
+      clearedCurrent = true;
+    };
     const request = store.getAll();
     request.onerror = () => transaction.abort();
     request.onsuccess = () => {
@@ -375,7 +669,52 @@ export function createRouteHeatStorage(options = {}) {
       });
     };
     await completed;
-    return {discarded};
+    if (clearedCurrent) sequence = Math.max(sequence, nextSequence);
+    return {discarded, clearedCurrent};
+  };
+
+  const discardActiveCheckpoints = routeId => {
+    commitQueue = commitQueue.catch(() => {}).then(() => discardActiveCheckpointsNow(routeId));
+    return commitQueue;
+  };
+
+  const activeSnapshot = async () => {
+    if (!database) return null;
+    const records = await stateRecords();
+    const current = activeCurrentSnapshot(records.activeCurrent);
+    return current?.activeCleared ? null : snapshotValid(current, validateValues) ? current : null;
+  };
+
+  const utf8Bytes = value => {
+    const text = typeof value === 'string' ? value : JSON.stringify(value ?? null);
+    try { return new TextEncoder().encode(text).byteLength; } catch { return text.length * 2; }
+  };
+
+  const stats = async () => {
+    if (!database) return {backend, logicalBytes: 0, stateBytes: 0, checkpointBytes: 0, journalBytes: 0, checkpoints: 0, journalEntries: 0};
+    const records = await stateRecords();
+    const stateBytes = [records.primary, records.previous, records.activeCurrent].filter(Boolean).reduce((total, item) => total + utf8Bytes(item), 0);
+    const checkpointBytes = (records.activeCheckpoints || []).reduce((total, item) => total + utf8Bytes(item), 0);
+    const journalBytes = (records.journal || []).reduce((total, item) => total + utf8Bytes(item), 0);
+    return {backend, logicalBytes: stateBytes + checkpointBytes + journalBytes, stateBytes, checkpointBytes, journalBytes, checkpoints: records.activeCheckpoints.length, journalEntries: records.journal.length};
+  };
+
+  const optimize = async () => {
+    if (!database) return {optimized: false, reason: 'indexeddb-unavailable'};
+    const records = await stateRecords();
+    const activeRouteId = String(records.activeCurrent?.activeMeta?.routeId || '');
+    let removedCheckpoints = 0;
+    let removedJournal = 0;
+    const transaction = database.transaction([JOURNAL_STORE, ACTIVE_CHECKPOINT_STORE], 'readwrite');
+    const completed = transactionDone(transaction);
+    const journal = transaction.objectStore(JOURNAL_STORE);
+    const checkpoints = transaction.objectStore(ACTIVE_CHECKPOINT_STORE);
+    const keepCheckpointSequences = new Set((records.activeCheckpoints || []).filter(item => activeRouteId && String(item?.activeMeta?.routeId || '') === activeRouteId).slice(0, 6).map(item => Number(item.sequence)));
+    (records.activeCheckpoints || []).forEach(item => { if (!keepCheckpointSequences.has(Number(item.sequence))) { checkpoints.delete(item.sequence); removedCheckpoints += 1; } });
+    (records.journal || []).slice(20).forEach(item => { journal.delete(item.sequence); removedJournal += 1; });
+    await completed;
+    initialRecoverySnapshots = initialRecoverySnapshots.filter(snapshot => !snapshot.activeCheckpoint || activeRouteId && String(snapshot.activeMeta?.routeId || '') === activeRouteId);
+    return {optimized: true, removedCheckpoints, removedJournal};
   };
 
   const close = () => { database?.close(); database = null; };
@@ -383,10 +722,14 @@ export function createRouteHeatStorage(options = {}) {
   return {
     init,
     commit,
+    commitActive,
     capture,
     recoverLatest,
     recoverySnapshots,
+    activeSnapshot,
     discardActiveCheckpoints,
+    stats,
+    optimize,
     close,
     validateValues,
     checksum: routeHeatChecksum,
