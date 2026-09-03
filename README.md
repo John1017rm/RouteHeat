@@ -1,8 +1,24 @@
-# RouteHeat 7.2.0
+# RouteHeat 8.0.0
 
 RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone and Android. It records stops, locations, totes, rescues, packages, timing, and GPS breadcrumbs; compares a driver only with their own history; and turns finished workdays into maps, reports, replay, and long-term insights.
 
 > **Safety:** Use every RouteHeat control only while safely parked. Forecasts, Ghost comparisons, coaching, achievements, and historical pace are personal context—not targets or reasons to rush.
+
+## 8.0.0 The Clarity Update
+
+- **One professional visual system:** RouteHeat now uses shared spacing, typography, surface, radius, elevation, focus, control-height, and semantic-color tokens across every screen instead of stacking unrelated presentation styles.
+- **Glanceable active route:** Stop count, pace, progress, projected finish, Auto Stop, recent activity, and the fixed Stop/Multi/Tote controls have a clearer information hierarchy. The main action remains reachable while transient route-protection messages sit safely above it.
+- **Refined Drive mode:** Route progress reads first, the Stop Complete instrument remains the visual center, supporting controls have more breathing room, and all live values use stable tabular numbers that remain readable into 200+ stops.
+- **History built for scanning:** Recent routes, the calendar, weekly summaries, story cards, achievements, tote analytics, the archive, and route actions now share consistent cards and readable metadata. Long Area names and large totals wrap without breaking their containers.
+- **Delivery Atlas polish:** Map views and filters are easier to understand, the map receives more usable space, 44 px map controls scroll safely instead of overlapping, status/readout treatments are consistent, and pace legends also use line patterns instead of color alone.
+- **Useful data presentation:** Summary tiles, report metrics, route details, finish highlights, tote details, Ghost comparisons, and dynamic story grids reflow intentionally rather than leaving orphan cards or clipped labels.
+- **Daylight mode that feels designed:** A cool mist canvas, crisp white and softly tinted surfaces, darker supporting text, restrained elevation, and corrected purple accents replace the plain, low-contrast white presentation.
+- **Comfortable controls:** Interactive controls meet a 44 px mobile target wherever practical, iPhone form fields use 16 px text to avoid focus zoom, switches receive visible keyboard focus, and primary, utility, and destructive actions are visually distinct.
+- **Polished system states:** Empty panels, loading indicators, wrapped toasts, save/connection/update banners, success confirmations, recovery dialogs, and generic errors now feel like parts of the same app.
+- **Responsive and accessible:** Small phones, larger iPhones, tablets, desktop, text zoom, reduced motion, increased contrast, forced colors, safe areas, long labels, and large statistics receive dedicated handling.
+- **Compatibility preserved:** This release changes presentation and a few non-data UI behaviors only. Existing routes, active-route recovery, stops, totes, GPS trails, cloud backup, Supabase, Neighborhood Snapshot, imports, exports, achievements, and offline storage remain compatible.
+
+The full visual system is in `assets/routeheat-8.css`, intentionally loaded last so the proven route and storage logic remains isolated from the redesign.
 
 ## 7.2.0 Lean saves, quicker auto stops, and a real workday debrief
 
@@ -342,7 +358,8 @@ On iPhone, open the published URL in Safari and use **Share → Add to Home Scre
 
 - `index.html` — accessible mobile interface and modal shells
 - `assets/styles.css` — established Dark/Light appearance, app-theme accents, responsive, reduced-motion, and map presentation
-- `assets/routeheat-7.css` — Route Atmosphere, scanner, Pace Orchestra, Watercolor, and What’s New presentation
+- `assets/routeheat-7.css` — Route Atmosphere, scanner, Pace Orchestra, Watercolor, and story-feature presentation
+- `assets/routeheat-8.css` — shared RouteHeat 8.0 visual system, responsive polish, and accessibility layer
 - `assets/app.js` — route workflow, 7.0 integration, intelligence, local recovery, backup/import, history, reports, and maps
 - `assets/route-atmosphere.js` — coarse-location modeled conditions, aggregation, moon phase, and cards
 - `assets/route-intake.js` — editable summary parser and lazy on-device screenshot OCR
