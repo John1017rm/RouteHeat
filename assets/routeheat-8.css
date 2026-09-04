@@ -1387,8 +1387,7 @@ html[data-theme="sunlight"] .whats-new-settings-button > i { color: var(--rh-pur
 .ghost-metrics b,
 .awards-quick-stats b { display: block; margin-top: 5px; font-size: clamp(14px,4vw,19px); line-height: 1.2; white-space: normal; overflow: visible; text-overflow: clip; }
 
-.neighborhood-inline-status,
-.watercolor-atlas-fallback {
+.neighborhood-inline-status {
   min-height: 64px;
   padding: 12px;
   border: 1px solid var(--rh-border-soft);
@@ -1410,16 +1409,6 @@ html[data-theme="sunlight"] .whats-new-settings-button > i { color: var(--rh-pur
 .neighborhood-area-row > span:last-child { min-width: 88px; font-variant-numeric: tabular-nums; }
 .neighborhood-actions { flex-wrap: wrap; }
 .neighborhood-actions button { flex: 1 1 148px; }
-.watercolor-atlas-fallback {
-  min-height: 160px;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: 6px;
-  text-align: center;
-}
-.watercolor-atlas-fallback strong { color: var(--text); font-size: 14px; }
-.watercolor-atlas-fallback span { max-width: 34ch; }
 .story-empty {
   min-width: 0;
   min-height: 220px;
@@ -1430,10 +1419,6 @@ html[data-theme="sunlight"] .whats-new-settings-button > i { color: var(--rh-pur
 }
 .story-empty h3 { font-size: 16px; line-height: 1.25; }
 .story-empty p { max-width: 36ch; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
-.watercolor-atlas-legend { display: flex; flex-wrap: wrap; gap: 8px 12px; padding: 10px 12px; }
-.watercolor-atlas-legend-item { min-width: 0; display: inline-flex; align-items: center; gap: 6px; color: var(--rh-text-subtle); font-size: 11px; }
-.watercolor-atlas-legend-item b { min-width: 0; white-space: normal; }
-.watercolor-atlas-legend-swatch { width: 18px; height: 8px; border-radius: 99px; background: var(--swatch, var(--accent)); }
 .atmosphere-hero > div:nth-child(2) { min-width: 0; padding-top: 18px; }
 .atmosphere-hero small { white-space: normal; overflow-wrap: anywhere; }
 .atmosphere-source-badge { max-width: calc(100% - 26px); white-space: normal; text-align: right; }
@@ -1913,4 +1898,670 @@ html[data-theme="sunlight"] .modal { background: rgba(14,33,25,.52); }
   .action-dock .multi-stop-button,
   .action-dock .tote-button { width: 100%; }
   .bottom-nav .nav-label { font-size: 10px; }
+}
+
+/* ---------- 15. RouteHeat 8.1 Drive focus and Route Moments ---------- */
+/* Pro mode is opt-in. Standard Drive keeps its established layout. */
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) {
+  --drive-edge-color: var(--accent);
+  position: relative;
+  isolation: isolate;
+  padding-top: 16px;
+}
+
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView):is([data-pace-state="fast"], [data-pace-state="ahead"], [data-pace="fast"], .pace-fast, .pace-ahead) {
+  --drive-edge-color: var(--green);
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView):is([data-pace-state="steady"], [data-pace-state="on-goal"], [data-pace="steady"], .pace-steady, .pace-on-goal) {
+  --drive-edge-color: var(--amber, var(--rh-warning));
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView):is([data-pace-state="slow"], [data-pace-state="behind"], [data-pace="slow"], .pace-slow, .pace-behind) {
+  --drive-edge-color: var(--red, var(--rh-danger));
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView):is([data-pace-state="waiting"], [data-pace-state="neutral"], [data-pace="waiting"], .pace-waiting, .pace-neutral) {
+  --drive-edge-color: var(--rh-info);
+}
+
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView).active:not(:has(> .drive-pro-edge))::before {
+  content: '';
+  position: fixed;
+  z-index: 860;
+  pointer-events: none;
+  top: calc(66px + env(safe-area-inset-top));
+  right: max(6px, env(safe-area-inset-right));
+  bottom: calc(var(--rh-nav-height) + 7px + env(safe-area-inset-bottom));
+  left: max(6px, env(safe-area-inset-left));
+  border: 2px solid color-mix(in srgb, var(--drive-edge-color) 58%, transparent);
+  border-radius: 28px;
+  box-shadow:
+    inset 0 0 24px color-mix(in srgb, var(--drive-edge-color) 16%, transparent),
+    0 0 13px color-mix(in srgb, var(--drive-edge-color) 28%, transparent),
+    0 0 32px color-mix(in srgb, var(--drive-edge-color) 15%, transparent);
+  opacity: .82;
+  animation: rh-drive-edge-breathe 3.2s ease-in-out infinite;
+}
+
+.drive-pro-edge { display: none; }
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView).active > .drive-pro-edge {
+  position: fixed;
+  z-index: 860;
+  pointer-events: none;
+  top: calc(66px + env(safe-area-inset-top));
+  right: max(6px, env(safe-area-inset-right));
+  bottom: calc(var(--rh-nav-height) + 7px + env(safe-area-inset-bottom));
+  left: max(6px, env(safe-area-inset-left));
+  display: block;
+  border: 2px solid color-mix(in srgb, var(--drive-edge-color) 58%, transparent);
+  border-radius: 28px;
+  box-shadow:
+    inset 0 0 24px color-mix(in srgb, var(--drive-edge-color) 16%, transparent),
+    0 0 13px color-mix(in srgb, var(--drive-edge-color) 28%, transparent),
+    0 0 32px color-mix(in srgb, var(--drive-edge-color) 15%, transparent);
+  opacity: .82;
+  animation: rh-drive-edge-breathe 3.2s ease-in-out infinite;
+}
+
+@keyframes rh-drive-edge-breathe {
+  0%, 100% { opacity: .66; filter: saturate(.94); }
+  50% { opacity: .96; filter: saturate(1.14); }
+}
+
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-top {
+  margin-bottom: 10px;
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-top .eyebrow {
+  color: color-mix(in srgb, var(--drive-edge-color) 84%, var(--rh-text-subtle));
+}
+.drive-pro-badge { display: none; }
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-pro-badge {
+  min-height: 20px;
+  margin-left: 5px;
+  padding: 3px 6px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--drive-edge-color) 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--drive-edge-color) 12%, transparent);
+  color: var(--drive-edge-color);
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: .8px;
+  vertical-align: 1px;
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-progress {
+  margin-bottom: 10px;
+  padding: 12px 14px;
+  border-color: color-mix(in srgb, var(--drive-edge-color) 34%, var(--rh-border-soft));
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--drive-edge-color) 8%, transparent), transparent 55%),
+    var(--rh-surface-raised);
+  box-shadow: 0 10px 28px rgba(0,0,0,.14);
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-progress-track {
+  height: 10px;
+  margin-block: 8px 7px;
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-progress-track i {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--drive-edge-color) 72%, var(--accent-strong)), var(--drive-edge-color));
+  box-shadow: 0 0 15px color-mix(in srgb, var(--drive-edge-color) 36%, transparent);
+}
+
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) :is(
+  #ghostCard,
+  #driveToteAssistant,
+  #driveContextTags,
+  #driveDeliveryAreaChip,
+  #driveDeliveryArea,
+  #driveCoach,
+  #driveGoal,
+  .drive-stats
+) {
+  display: none !important;
+}
+
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .speedometer {
+  margin: 0 0 8px;
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-stop-stage {
+  min-height: 318px;
+  padding-block: 18px;
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-speed-stop {
+  width: min(75vw, 292px);
+  border-color: color-mix(in srgb, var(--drive-edge-color) 44%, transparent);
+  box-shadow:
+    0 18px 54px rgba(0,0,0,.25),
+    0 0 34px color-mix(in srgb, var(--drive-edge-color) 20%, transparent),
+    inset 0 0 42px rgba(0,0,0,.26);
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-speed-action {
+  width: 88%;
+  border-color: color-mix(in srgb, var(--drive-edge-color) 42%, transparent);
+  background: color-mix(in srgb, var(--drive-edge-color) 12%, var(--rh-surface-inset));
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-actions {
+  gap: 9px;
+  margin-bottom: 10px;
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) :is(.drive-multi, .drive-tote) {
+  min-height: 70px;
+  border-radius: 16px;
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) :is(.drive-multi, .drive-tote) > span {
+  width: 30px;
+  height: 30px;
+  font-size: 14px;
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) :is(.drive-multi, .drive-tote) b {
+  margin-top: 3px;
+  font-size: 11px;
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) :is(.drive-multi, .drive-tote) small {
+  margin-top: 1px;
+  font-size: 10px;
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-controls {
+  margin-top: 8px;
+}
+
+/* Compact Pro telemetry supplied by renderDrive(). */
+:is(#driveProRibbon, .drive-pro-ribbon, .drive-pro-metrics) {
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 10px;
+  padding: 7px;
+  display: none;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  border: 1px solid color-mix(in srgb, var(--drive-edge-color, var(--accent)) 28%, var(--rh-border-soft));
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--drive-edge-color, var(--accent)) 5%, var(--rh-surface-raised));
+  box-shadow: inset 0 1px rgba(255,255,255,.035);
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) :is(#driveProRibbon, .drive-pro-ribbon, .drive-pro-metrics) {
+  display: grid;
+}
+:is(#driveProRibbon, .drive-pro-ribbon, .drive-pro-metrics)[hidden] { display: none !important; }
+:is(#driveProRibbon, .drive-pro-ribbon, .drive-pro-metrics) > * {
+  min-width: 0;
+  min-height: 50px;
+  padding: 7px 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  background: var(--rh-surface-inset);
+  text-align: center;
+}
+:is(#driveProRibbon, .drive-pro-ribbon, .drive-pro-metrics) :is(span, small) {
+  max-width: 100%;
+  color: var(--rh-text-subtle);
+  font-size: 9px;
+  font-weight: 850;
+  line-height: 1.25;
+  letter-spacing: .55px;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+:is(#driveProRibbon, .drive-pro-ribbon, .drive-pro-metrics) b {
+  max-width: 100%;
+  margin-top: 3px;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* Multi-location arming stays clear around the center stop control. */
+.auto-multi-count {
+  width: 54px;
+  height: 54px;
+  min-height: 54px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--map-multi) 58%, var(--rh-border-strong));
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 25% 14%, rgba(255,255,255,.11), transparent 31%),
+    color-mix(in srgb, var(--map-multi) 12%, var(--rh-surface-raised));
+  color: color-mix(in srgb, var(--map-multi) 78%, var(--text));
+  box-shadow: 0 10px 26px rgba(0,0,0,.25), inset 0 1px rgba(255,255,255,.07);
+  isolation: isolate;
+}
+.auto-multi-count b { font-size: 22px; line-height: .85; }
+.auto-multi-count small { margin-top: -1px; font-size: 9px; line-height: 1; letter-spacing: .75px; }
+.auto-multi-count.selected,
+.auto-multi-count[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--map-multi) 82%, white 18%);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--map-multi) 83%, white 8%), var(--map-multi));
+  color: #261204;
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--map-multi) 20%, transparent),
+    0 12px 30px color-mix(in srgb, var(--map-multi) 27%, transparent);
+}
+.auto-multi-count:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--map-multi) 74%, white 26%);
+  outline-offset: 3px;
+}
+.auto-multi-count:not(:disabled):active { transform: scale(.96); }
+.auto-multi-status {
+  max-width: min(350px, calc(100% - 22px));
+  min-height: 34px;
+  margin-top: -7px;
+  padding: 7px 12px;
+  border-radius: 12px;
+  font-size: 10px;
+}
+.auto-multi-status.armed {
+  border-color: color-mix(in srgb, var(--map-multi) 56%, transparent);
+  background: color-mix(in srgb, var(--map-multi) 12%, var(--rh-surface-raised));
+  color: color-mix(in srgb, var(--map-multi) 66%, var(--text));
+}
+
+/* On Drive, Undo becomes a small corner wedge; its aria-label remains complete. */
+:where(body.drive-active, body.drive-view-active, body:has(#driveView.active)) .route-trust-stack {
+  left: 0;
+  width: 100%;
+  padding-inline: 8px;
+  transform: none;
+  align-items: center;
+}
+:where(body.drive-active, body.drive-view-active, body:has(#driveView.active)) .route-trust-stack > .route-trust-banner:not(#universalUndoBanner) {
+  width: min(620px, calc(100% - 16px));
+}
+:where(body.drive-active, body.drive-view-active, body:has(#driveView.active)) #universalUndoBanner:not([hidden]) {
+  position: fixed;
+  z-index: 1180;
+  left: max(7px, env(safe-area-inset-left));
+  right: auto;
+  bottom: calc(var(--rh-nav-height) + 8px + env(safe-area-inset-bottom));
+  width: 60px;
+  min-width: 60px;
+  height: 60px;
+  min-height: 60px !important;
+  padding: 0 !important;
+  display: block;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+:where(body.drive-active, body.drive-view-active, body:has(#driveView.active)) #universalUndoBanner .undo-action-button {
+  position: relative;
+  width: 60px !important;
+  min-width: 60px !important;
+  height: 60px !important;
+  min-height: 60px !important;
+  padding: 0 !important;
+  display: block !important;
+  overflow: visible;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+:where(body.drive-active, body.drive-view-active, body:has(#driveView.active)) #universalUndoBanner .undo-action-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--rh-info) 82%, white 6%), color-mix(in srgb, var(--rh-info) 65%, #174e86));
+  filter: drop-shadow(0 7px 10px rgba(0,0,0,.28));
+}
+:where(body.drive-active, body.drive-view-active, body:has(#driveView.active)) #universalUndoBanner .undo-action-symbol {
+  position: absolute;
+  z-index: 1;
+  left: 5px;
+  bottom: 5px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(3,18,31,.24);
+  color: white;
+  font-size: 19px;
+  line-height: 1;
+}
+:where(body.drive-active, body.drive-view-active, body:has(#driveView.active)) #universalUndoBanner :is(.undo-action-copy, #dismissUndo) {
+  display: none !important;
+}
+:where(body.drive-active, body.drive-view-active, body:has(#driveView.active)) #universalUndoBanner::after {
+  left: 4px !important;
+  right: auto !important;
+  bottom: 2px;
+  width: 53px;
+  height: 3px;
+  background: rgba(255,255,255,.78);
+  box-shadow: 0 0 8px rgba(255,255,255,.38);
+}
+:where(body.drive-active, body.drive-view-active, body:has(#driveView.active)) #universalUndoBanner .undo-action-button:focus-visible {
+  outline: 3px solid white !important;
+  outline-offset: 2px;
+}
+
+/* The rare last-stop location correction now lives in parked Route Tools. */
+.route-tools-sheet :is(.route-tool-location-choices, .location-correction-choices, #toolsLastStopLocationChoices) {
+  width: 100%;
+  margin-top: 10px;
+  padding: 5px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(44px, 1fr));
+  gap: 5px;
+  border: 1px solid var(--rh-border-soft);
+  border-radius: 14px;
+  background: var(--rh-surface-inset);
+}
+.route-tools-sheet :is(.route-tool-location-choices, .location-correction-choices, #toolsLastStopLocationChoices) button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--rh-border-strong);
+  border-radius: 10px;
+  background: var(--rh-surface-raised);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+}
+.route-tools-sheet :is(.route-tool-location-choices, .location-correction-choices, #toolsLastStopLocationChoices) button:is(.selected, [aria-pressed="true"]) {
+  border-color: color-mix(in srgb, var(--map-multi) 72%, transparent);
+  background: var(--map-multi);
+  color: #241104;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--map-multi) 16%, transparent);
+}
+.route-tools-sheet :is(.route-tool-location-choices, .location-correction-choices, #toolsLastStopLocationChoices) button:focus-visible {
+  outline: 3px solid var(--map-multi);
+  outline-offset: 2px;
+}
+.route-tool-last-stop-status,
+#toolsLastStopLocationStatus {
+  margin: 8px 2px 0;
+  color: var(--rh-text-subtle);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+/* Passive Route Moments: large, glanceable, and never require a tap while moving. */
+.delivery-feedback-banner,
+.delivery-feedback-banner.route-moment {
+  --route-moment-color: var(--rh-info);
+  --route-moment-duration: 13s;
+  position: fixed;
+  z-index: 1175;
+  top: calc(72px + env(safe-area-inset-top));
+  left: 50%;
+  width: min(640px, calc(100% - 18px));
+  min-height: 164px;
+  padding: 18px 18px 16px;
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  align-items: center;
+  gap: 15px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--route-moment-color) 62%, transparent);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 8% 6%, color-mix(in srgb, var(--route-moment-color) 29%, transparent), transparent 34%),
+    radial-gradient(circle at 96% 116%, color-mix(in srgb, var(--route-moment-color) 16%, transparent), transparent 40%),
+    linear-gradient(145deg, #102720, #071410 72%);
+  color: var(--text);
+  box-shadow:
+    0 24px 70px rgba(0,0,0,.52),
+    0 0 0 1px color-mix(in srgb, var(--route-moment-color) 10%, transparent),
+    0 0 34px color-mix(in srgb, var(--route-moment-color) 16%, transparent);
+  transform: translateX(-50%);
+  pointer-events: none;
+  animation: rh-route-moment-arrive .42s cubic-bezier(.2,.78,.24,1);
+}
+.delivery-feedback-banner::before {
+  content: '';
+  position: absolute;
+  top: -48px;
+  right: -28px;
+  width: 150px;
+  height: 150px;
+  border: 1px solid color-mix(in srgb, var(--route-moment-color) 18%, transparent);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 22px color-mix(in srgb, var(--route-moment-color) 4%, transparent);
+  pointer-events: none;
+}
+.delivery-feedback-banner.positive { --route-moment-color: var(--green); }
+.delivery-feedback-banner.notice { --route-moment-color: var(--red, var(--rh-danger)); }
+.delivery-feedback-banner.steady { --route-moment-color: var(--rh-info); }
+.delivery-feedback-banner.data { --route-moment-color: var(--accent-2, var(--rh-info)); }
+.delivery-feedback-banner.rare { --route-moment-color: var(--rh-purple); }
+.delivery-feedback-banner.hourly { --route-moment-color: var(--amber, var(--rh-warning)); }
+.delivery-feedback-banner .route-trust-icon {
+  position: relative;
+  z-index: 1;
+  width: 64px;
+  height: 64px;
+  border: 1px solid color-mix(in srgb, var(--route-moment-color) 45%, transparent);
+  border-radius: 21px;
+  background: color-mix(in srgb, var(--route-moment-color) 15%, var(--rh-surface-inset));
+  color: color-mix(in srgb, var(--route-moment-color) 78%, white 22%);
+  box-shadow: inset 0 1px rgba(255,255,255,.11), 0 10px 28px rgba(0,0,0,.23);
+  font-size: 30px;
+}
+.delivery-feedback-banner > div {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  padding: 0 0 11px;
+  overflow: visible;
+}
+.delivery-feedback-banner em {
+  display: block;
+  margin-bottom: 5px;
+  color: color-mix(in srgb, var(--route-moment-color) 82%, white 18%);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1.2;
+  letter-spacing: 1.55px;
+}
+.delivery-feedback-banner b {
+  display: block;
+  max-width: 28ch;
+  color: var(--text);
+  font-size: clamp(20px, 5vw, 25px);
+  line-height: 1.08;
+  letter-spacing: -.45px;
+  overflow-wrap: anywhere;
+}
+.delivery-feedback-banner small {
+  display: block;
+  max-width: 54ch;
+  margin-top: 8px;
+  color: var(--rh-text-subtle);
+  font-size: 13px;
+  line-height: 1.42;
+  overflow-wrap: anywhere;
+}
+.delivery-feedback-metrics {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.delivery-feedback-metrics:empty { display: none; }
+.delivery-feedback-metrics span {
+  min-height: 31px;
+  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--route-moment-color) 28%, var(--rh-border-soft));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--route-moment-color) 8%, rgba(255,255,255,.035));
+  color: var(--text);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.delivery-feedback-evidence {
+  display: block;
+  margin-top: 7px;
+  color: color-mix(in srgb, var(--rh-text-subtle) 82%, var(--route-moment-color));
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: .25px;
+}
+.delivery-feedback-evidence:empty { display: none; }
+.delivery-feedback-banner > .trust-dismiss,
+.delivery-feedback-banner #dismissDeliveryFeedback { display: none !important; }
+.delivery-feedback-timer {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--route-moment-color), color-mix(in srgb, var(--route-moment-color) 46%, white));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--route-moment-color) 55%, transparent);
+  opacity: .88;
+  transform-origin: left;
+  animation: rh-route-moment-countdown var(--route-moment-duration) linear forwards !important;
+}
+
+@keyframes rh-route-moment-arrive {
+  from { opacity: 0; transform: translate(-50%, -26px) scale(.96); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+@keyframes rh-route-moment-countdown {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+html[data-theme="sunlight"] :where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView).active::before,
+html[data-theme="sunlight"] :where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView).active > .drive-pro-edge {
+  opacity: .67;
+  box-shadow:
+    inset 0 0 20px color-mix(in srgb, var(--drive-edge-color) 10%, transparent),
+    0 0 12px color-mix(in srgb, var(--drive-edge-color) 24%, transparent);
+}
+html[data-theme="sunlight"] .auto-multi-count {
+  background: color-mix(in srgb, var(--map-multi) 10%, white);
+  color: color-mix(in srgb, var(--map-multi) 72%, #402008);
+  box-shadow: 0 8px 20px rgba(52,38,25,.14), inset 0 1px white;
+}
+html[data-theme="sunlight"] .delivery-feedback-banner {
+  background:
+    radial-gradient(circle at 8% 6%, color-mix(in srgb, var(--route-moment-color) 16%, transparent), transparent 34%),
+    linear-gradient(145deg, #ffffff, #eef5f1 74%);
+  color: var(--text);
+  box-shadow: 0 20px 52px rgba(28,58,46,.2), 0 0 0 1px color-mix(in srgb, var(--route-moment-color) 9%, transparent);
+}
+html[data-theme="sunlight"] .delivery-feedback-banner .route-trust-icon {
+  color: color-mix(in srgb, var(--route-moment-color) 72%, #173428);
+  background: color-mix(in srgb, var(--route-moment-color) 11%, white);
+}
+html[data-theme="sunlight"] .delivery-feedback-metrics span {
+  background: color-mix(in srgb, var(--route-moment-color) 8%, white);
+}
+html[data-theme="sunlight"] :where(body.drive-active, body.drive-view-active, body:has(#driveView.active)) #universalUndoBanner .undo-action-button::before {
+  background: linear-gradient(135deg, #397fbe, #1f5f9b);
+}
+
+@media (max-width: 430px) {
+  :where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) {
+    padding-inline: 10px;
+  }
+  :where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-stop-stage {
+    min-height: 302px;
+    padding-inline: 28px;
+  }
+  :where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-speed-stop {
+    width: min(74vw, 278px);
+    padding: 23px 24px;
+  }
+  .auto-multi-count { width: 50px; height: 50px; min-height: 50px; border-radius: 16px; }
+  .auto-multi-count.count-2,
+  .auto-multi-count.count-3 { top: 35px; }
+  .auto-multi-count.count-4,
+  .auto-multi-count.count-5 { bottom: 35px; }
+  .delivery-feedback-banner,
+  .delivery-feedback-banner.route-moment {
+    top: calc(64px + env(safe-area-inset-top));
+    width: calc(100% - 12px);
+    min-height: 170px;
+    padding: 15px 13px 14px;
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 11px;
+    border-radius: 23px;
+  }
+  .delivery-feedback-banner .route-trust-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 18px;
+    font-size: 25px;
+  }
+  .delivery-feedback-banner em { font-size: 9px; letter-spacing: 1.25px; }
+  .delivery-feedback-banner b { font-size: clamp(19px, 6vw, 23px); }
+  .delivery-feedback-banner small { font-size: 12px; }
+  .delivery-feedback-metrics span { min-height: 29px; padding: 5px 8px; font-size: 11px; }
+  .delivery-feedback-evidence { font-size: 9px; }
+}
+
+@media (max-width: 350px) {
+  :is(#driveProRibbon, .drive-pro-ribbon, .drive-pro-metrics) { grid-template-columns: 1fr 1fr; }
+  :is(#driveProRibbon, .drive-pro-ribbon, .drive-pro-metrics) > *:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .route-tools-sheet :is(.route-tool-location-choices, .location-correction-choices, #toolsLastStopLocationChoices) {
+    gap: 3px;
+    padding: 3px;
+  }
+  .route-tools-sheet :is(.route-tool-location-choices, .location-correction-choices, #toolsLastStopLocationChoices) button {
+    min-width: 42px;
+  }
+  .delivery-feedback-banner,
+  .delivery-feedback-banner.route-moment {
+    grid-template-columns: 46px minmax(0, 1fr);
+    gap: 8px;
+    padding-inline: 10px;
+  }
+  .delivery-feedback-banner .route-trust-icon { width: 46px; height: 46px; border-radius: 15px; font-size: 22px; }
+  .delivery-feedback-banner b { font-size: 18px; }
+}
+
+@media (max-height: 620px) and (orientation: landscape) {
+  .delivery-feedback-banner,
+  .delivery-feedback-banner.route-moment {
+    top: calc(54px + env(safe-area-inset-top));
+    min-height: 124px;
+    padding-block: 11px;
+  }
+  .delivery-feedback-banner b { font-size: 18px; }
+  .delivery-feedback-banner small { margin-top: 4px; font-size: 11px; }
+  .delivery-feedback-metrics { margin-top: 5px; }
+  .delivery-feedback-evidence { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView).active::before,
+  :where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView).active > .drive-pro-edge,
+  .delivery-feedback-banner,
+  .delivery-feedback-timer { animation: none !important; }
+  .delivery-feedback-timer { transform: scaleX(1); opacity: .58; }
+}
+
+@media (prefers-contrast: more) {
+  :where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView).active::before,
+  :where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView).active > .drive-pro-edge { border-width: 3px; opacity: 1; }
+  .delivery-feedback-banner { border-width: 2px; }
+  .delivery-feedback-metrics span { border-color: currentColor; }
+}
+
+@media (forced-colors: active) {
+  :where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView).active::before,
+  :where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView).active > .drive-pro-edge { border: 3px solid Highlight; }
+  .delivery-feedback-banner { border: 2px solid Highlight !important; background: Canvas !important; color: CanvasText !important; }
+  .delivery-feedback-banner .route-trust-icon,
+  .delivery-feedback-metrics span { border: 1px solid CanvasText; background: Canvas; color: CanvasText; }
+  :where(body.drive-active, body.drive-view-active, body:has(#driveView.active)) #universalUndoBanner .undo-action-button::before { background: Highlight !important; }
 }
