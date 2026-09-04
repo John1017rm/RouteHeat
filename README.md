@@ -1,8 +1,20 @@
-# RouteHeat 8.0.0
+# RouteHeat 8.1.0
 
 RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone and Android. It records stops, locations, totes, rescues, packages, timing, and GPS breadcrumbs; compares a driver only with their own history; and turns finished workdays into maps, reports, replay, and long-term insights.
 
 > **Safety:** Use every RouteHeat control only while safely parked. Forecasts, Ghost comparisons, coaching, achievements, and historical pace are personal context—not targets or reasons to rush.
+
+## 8.1.0 Drive Focus
+
+- **Optional Drive Pro:** A simpler futuristic active-route layout keeps progress, route pace, the main Stop control, multi-location choices, and the current tote in one glanceable instrument. A restrained edge glow shifts from green through amber to red using the driver's own pace context; it is information, never a reason to rush.
+- **Less Drive-page clutter:** Undo is a compact corner control instead of a full-width card. The large after-stop location correction strip no longer covers the speedometer; detailed corrections remain available through parked route tools.
+- **Quicker departure-based Auto Stop:** When the phone stays in the van, a verified transition from parked service to vehicle movement can complete the stop promptly. Strong native vehicle speed or repeated derived movement confirms departure, while GPS drift and walking-speed fixes remain excluded.
+- **Manual-completion guard:** Tapping Stop Complete consumes the current automatic service event. Driving away from that same stop cannot count it a second time, and a new automatic stop requires a fresh parked-service cycle.
+- **Route Moments:** Optional active-route feedback now uses larger, passive, auto-closing cards with meaningful pace, progress, recent-section, milestone, and top-of-the-hour comparisons. An optional sound can announce a Moment, but no popup requires a tap while the van is moving.
+- **Clear tote handoffs:** Tote feedback states both sides of the transition—such as **Finished Tote 1 · Opening Tote 2**—and keeps the current tote visible afterward.
+- **A more focused Delivery Atlas:** The experimental Watercolor view has been removed. Hotspots, Roads, Pace, Repeats, Recency, Totes, Stop Time, and Connection remain as the useful all-time map views, and automatic Neighborhood Snapshot work no longer throws unrelated global save messages over the Atlas.
+- **Stronger Home Screen icon:** New 192 px and 512 px assets give the RouteHeat **R** more presence while preserving iPhone and Android maskable safe areas.
+- **Existing data stays compatible:** Routes, active recovery, GPS trails, stops, multi-location counts, totes, rescues, cloud data, Areas, achievements, exports, and backups retain their existing schemas.
 
 ## 8.0.0 The Clarity Update
 
@@ -74,7 +86,7 @@ RouteHeat 7.0 adds four expressive tools without changing the route-saving core:
 - **Route Atmosphere:** After a finished route is safely stored, RouteHeat can automatically attach modeled temperature, apparent temperature, conditions, precipitation, wind, daylight, sunrise/sunset, and moon phase. A compact chip appears in History and full cards appear in Map & Replay and the end-of-day report. Existing eligible routes are filled gradually in bounded background batches, with a parked-only manual backfill button in Settings.
 - **Privacy-bounded weather lookup:** Only one representative route location rounded to `0.01°` (roughly 1 km) and the route date are sent to Open-Meteo. Route IDs, full paths, stops, addresses, package totals, screenshots, Amazon data, and account data are never included. Saved values are aggregates, not raw hourly responses. Cards clearly identify the information as approximate modeled conditions and include Open-Meteo / CC BY 4.0 attribution.
 - **Pace Orchestra:** Every saved route can become a deterministic 22–42 second Web Audio composition. Faster sections rise into higher, shorter notes; slower stretches settle lower; multi-location stops add harmony; tote changes ring; rescues shift key; and the route ends on a finish chord. It uses no downloaded audio files, starts only after an explicit parked tap, and stops whenever RouteHeat is hidden, blurred, or closed.
-- **Watercolor Atlas:** An eighth Delivery Atlas view paints recorded GPS street trails as translucent, recency-colored washes. It never connects stops or substitutes circles when a real trail is missing. iPhone-safe geometry caps, deterministic two-pass Lite and three-pass Full rendering, and a path-only emergency preview keep the effect lightweight.
+- **Historical Watercolor Atlas:** RouteHeat 7.0 introduced a layered GPS-street painting experiment. RouteHeat 8.1.0 retires that view in favor of the Atlas layers that proved most useful in real delivery work.
 - **Private Amazon summary intake:** The pre-route setup can read a screenshot containing Stops, Multi-location stops, Total locations, Total packages, Stops to do, Stops successful, and Packages to deliver. OCR is loaded lazily only when requested, runs on-device, downsizes the temporary image to at most 1600 px, and terminates immediately after the scan. Every result opens as an editable review; nothing is applied until confirmed. The screenshot and OCR text are never saved or uploaded.
 - **What’s New:** A polished, once-per-version 7.0 introduction explains the additions without interrupting an active or recovered route. It can always be reopened from Settings.
 
@@ -358,13 +370,12 @@ On iPhone, open the published URL in Safari and use **Share → Add to Home Scre
 
 - `index.html` — accessible mobile interface and modal shells
 - `assets/styles.css` — established Dark/Light appearance, app-theme accents, responsive, reduced-motion, and map presentation
-- `assets/routeheat-7.css` — Route Atmosphere, scanner, Pace Orchestra, Watercolor, and story-feature presentation
-- `assets/routeheat-8.css` — shared RouteHeat 8.0 visual system, responsive polish, and accessibility layer
+- `assets/routeheat-7.css` — Route Atmosphere, scanner, Pace Orchestra, and story-feature presentation
+- `assets/routeheat-8.css` — shared RouteHeat 8 visual system, Drive Pro, responsive polish, and accessibility layer
 - `assets/app.js` — route workflow, 7.0 integration, intelligence, local recovery, backup/import, history, reports, and maps
 - `assets/route-atmosphere.js` — coarse-location modeled conditions, aggregation, moon phase, and cards
 - `assets/route-intake.js` — editable summary parser and lazy on-device screenshot OCR
 - `assets/pace-orchestra.js` — deterministic local Web Audio route compositions
-- `assets/watercolor-atlas.js` — bounded GPS-trail-only layered street painting
 - `assets/routeheat-storage.js` — IndexedDB transactional snapshots and metadata journal
 - `assets/cloud.js` — Supabase authentication, finished-route sync, deletion, and restore conflict handling
 - `assets/supabase-config.js` — Supabase project URL and browser-safe publishable key
