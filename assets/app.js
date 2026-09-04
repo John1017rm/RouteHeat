@@ -371,7 +371,7 @@
   }
   async function initDurableStorage(){
     try{
-      const module=await import('./routeheat-storage.js?v=8.1.0-r1');
+      const module=await import('./routeheat-storage.js?v=8.1.1-r1');
       durableStorage=module.createRouteHeatStorage({keys:DURABLE_STORAGE_KEYS,arrayKeys:DURABLE_ARRAY_KEYS,objectKeys:DURABLE_OBJECT_KEYS,journalLimit:40,activeKey:ACTIVE_ROUTE_STORE,historyKey:STORE,activeCheckpointLimit:8,getLogicalClock:durableLogicalClock,onStatus:setDurableStorageStatus});
       const result=await durableStorage.init();durableStorageReady=true;
       const historyFailure=(result.failures||[]).some(item=>item?.key===STORE),activeFailure=(result.failures||[]).some(item=>item?.key===ACTIVE_ROUTE_STORE),journalHistoryRaw=result.snapshot?.values?.[STORE],journalActiveRaw=result.snapshot?.values?.[ACTIVE_ROUTE_STORE];
@@ -1245,7 +1245,7 @@
     const group=$('#autoMultiArm'),status=$('#autoMultiArmStatus'),manualMulti=$('#driveMultiStopBtn'),actions=manualMulti?.closest('.drive-actions'),visible=!!route&&autoMode!=='off',session=route?.autoServiceSession||null,count=session?armedMultiLocationCount():1,actionCopy=$('#driveStopBtn .drive-speed-action b');
     if(group){group.hidden=!visible;group.querySelectorAll('[data-auto-locations]').forEach(button=>{const selected=!!session&&Number(button.dataset.autoLocations)===count;button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));button.disabled=!visible||!!route?.pausedAt;});}
     if(status){status.hidden=!visible;status.className=`auto-multi-status${session?' armed':''}${session?.state==='servicing'?' servicing':''}`;status.textContent=!session?'Multi-location? Tap 2–5 before delivering. Tap again to cancel.':session.state==='servicing'?`${count} locations armed · deliver, return to the van, then drive away`:`${count} locations armed for Amazon stop ${session.amazonStopNumber||route?.amazon?.nextStopNumber||'—'} · selection stays saved while you switch apps`;}
-    if(actionCopy)actionCopy.textContent=session?`STOP COMPLETE · ${count} LOCATIONS`:'STOP COMPLETE';
+    if(actionCopy)actionCopy.textContent='STOP COMPLETE';
     if(manualMulti)manualMulti.hidden=visible;if(actions)actions.classList.toggle('auto-multi-active',visible);
   }
   function clearAutoMultiSession({save=false,announce=false,reason='multi-arm-cleared'}={}){if(!route?.autoServiceSession){renderAutoMultiArm();return;}delete route.autoServiceSession;touchRoute(route);renderAutoMultiArm();if(save)saveActiveRoute(true,true,reason);if(announce)toast('Multi-location arming canceled');}

@@ -1938,7 +1938,7 @@ html[data-theme="sunlight"] .modal { background: rgba(14,33,25,.52); }
     0 0 13px color-mix(in srgb, var(--drive-edge-color) 28%, transparent),
     0 0 32px color-mix(in srgb, var(--drive-edge-color) 15%, transparent);
   opacity: .82;
-  animation: rh-drive-edge-breathe 3.2s ease-in-out infinite;
+  animation: rh-drive-edge-breathe 4.8s ease-in-out infinite;
 }
 
 .drive-pro-edge { display: none; }
@@ -1958,12 +1958,12 @@ html[data-theme="sunlight"] .modal { background: rgba(14,33,25,.52); }
     0 0 13px color-mix(in srgb, var(--drive-edge-color) 28%, transparent),
     0 0 32px color-mix(in srgb, var(--drive-edge-color) 15%, transparent);
   opacity: .82;
-  animation: rh-drive-edge-breathe 3.2s ease-in-out infinite;
+  animation: rh-drive-edge-breathe 4.8s ease-in-out infinite;
 }
 
 @keyframes rh-drive-edge-breathe {
-  0%, 100% { opacity: .66; filter: saturate(.94); }
-  50% { opacity: .96; filter: saturate(1.14); }
+  0%, 100% { opacity: .68; filter: saturate(.98); }
+  50% { opacity: .92; filter: saturate(1.06); }
 }
 
 :where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-top {
@@ -2564,4 +2564,198 @@ html[data-theme="sunlight"] :where(body.drive-active, body.drive-view-active, bo
   .delivery-feedback-banner .route-trust-icon,
   .delivery-feedback-metrics span { border: 1px solid CanvasText; background: Canvas; color: CanvasText; }
   :where(body.drive-active, body.drive-view-active, body:has(#driveView.active)) #universalUndoBanner .undo-action-button::before { background: Highlight !important; }
+}
+
+/* ---------- 16. RouteHeat 8.1.1 Drive command clarity ---------- */
+/*
+ * Keep the primary command readable in every appearance and app theme.
+ * Pace color belongs to the instrument ring; the command capsule keeps a
+ * stable, high-contrast surface so STOP COMPLETE never disappears into it.
+ */
+.drive-speed-stop {
+  --drive-command-surface: #071510;
+  --drive-command-surface-2: #17382e;
+  --drive-command-text: #ffffff;
+  --drive-dial-core: #0b1b16;
+  --drive-dial-track: #172b24;
+}
+
+.drive-speed-action {
+  position: relative;
+  z-index: 2;
+  width: min(92%, 244px);
+  min-height: 56px;
+  margin-top: 15px;
+  padding: 10px 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 68%, #ffffff 10%);
+  border-radius: 999px;
+  overflow: hidden;
+  background: linear-gradient(155deg, var(--drive-command-surface-2), var(--drive-command-surface) 72%) !important;
+  color: var(--drive-command-text) !important;
+  box-shadow:
+    0 10px 26px rgba(0,0,0,.34),
+    0 0 20px color-mix(in srgb, var(--accent) 23%, transparent),
+    inset 0 1px rgba(255,255,255,.12);
+  font-size: 16px !important;
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: .7px !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,.72);
+}
+.drive-speed-action::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(112deg, transparent 18%, rgba(255,255,255,.09) 46%, transparent 68%);
+}
+.drive-speed-action i,
+.drive-speed-action b { position: relative; z-index: 1; }
+.drive-speed-action i {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 42%, transparent), inset 0 1px rgba(255,255,255,.28);
+  font-size: 17px;
+  text-shadow: none;
+}
+.drive-speed-action b {
+  color: inherit;
+  font-size: 16px;
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: .7px;
+  white-space: nowrap;
+}
+
+.drive-speed-stop:disabled {
+  opacity: .86;
+  filter: saturate(.66);
+}
+.drive-speed-stop:disabled .drive-speed-action {
+  border-color: var(--rh-border-strong);
+  background: linear-gradient(155deg, #24362f, #101c18 72%) !important;
+  color: #d8e5df !important;
+  box-shadow: 0 8px 20px rgba(0,0,0,.22), inset 0 1px rgba(255,255,255,.07);
+}
+.drive-speed-stop:disabled .drive-speed-action i {
+  background: #71877d;
+  color: #07110e;
+  box-shadow: none;
+}
+
+html[data-theme="sunlight"] .drive-speed-stop {
+  --drive-dial-core: #ffffff;
+  --drive-dial-track: #d5e1dc;
+}
+html[data-theme="sunlight"] .drive-speed-action {
+  border-color: color-mix(in srgb, var(--accent) 74%, #10231c 26%);
+  box-shadow:
+    0 10px 24px rgba(22,48,38,.22),
+    0 0 18px color-mix(in srgb, var(--accent) 18%, transparent),
+    inset 0 1px rgba(255,255,255,.14);
+}
+html[data-theme="sunlight"] .drive-speed-stop:disabled .drive-speed-action {
+  border-color: #9bada5;
+  background: linear-gradient(155deg, #385248, #1a2d26 72%) !important;
+  color: #ffffff !important;
+}
+html[data-theme="sunlight"] .drive-speed-stop:disabled .drive-speed-action i {
+  background: #d5e1dc;
+  color: #263e35;
+}
+
+/* Pro: a restrained pace-reactive instrument dial, not a second dashboard. */
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-speed-stop {
+  overflow: visible;
+  isolation: isolate;
+  border: 1px solid color-mix(in srgb, var(--drive-edge-color) 62%, transparent);
+  background:
+    radial-gradient(circle at 50% 36%, color-mix(in srgb, var(--drive-edge-color) 12%, transparent), transparent 43%),
+    radial-gradient(circle, var(--drive-dial-core) 0 60%, transparent 60.5%),
+    repeating-conic-gradient(from -1deg, color-mix(in srgb, var(--drive-edge-color) 54%, transparent) 0 1deg, transparent 1deg 10deg),
+    conic-gradient(var(--drive-edge-color) 0 var(--pace-progress), var(--drive-dial-track) var(--pace-progress) 360deg);
+  box-shadow:
+    0 22px 58px rgba(0,0,0,.3),
+    0 0 0 5px color-mix(in srgb, var(--drive-edge-color) 8%, transparent),
+    0 0 38px color-mix(in srgb, var(--drive-edge-color) 25%, transparent),
+    inset 0 0 42px rgba(0,0,0,.23);
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-speed-stop::after {
+  inset: 15px;
+  border: 1px solid color-mix(in srgb, var(--drive-edge-color) 38%, rgba(255,255,255,.1));
+  box-shadow:
+    inset 0 0 0 5px color-mix(in srgb, var(--drive-edge-color) 3%, transparent),
+    0 0 18px color-mix(in srgb, var(--drive-edge-color) 12%, transparent);
+  pointer-events: none;
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) :is(.drive-speed-label, .drive-speed-unit) {
+  position: relative;
+  z-index: 2;
+  color: color-mix(in srgb, var(--drive-edge-color) 66%, var(--text));
+  font-weight: 950;
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-speed-label {
+  padding: 4px 9px;
+  border: 1px solid color-mix(in srgb, var(--drive-edge-color) 28%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--drive-edge-color) 7%, var(--drive-dial-core));
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-speed-stop > strong {
+  position: relative;
+  z-index: 2;
+  color: var(--text);
+  text-shadow: 0 0 24px color-mix(in srgb, var(--drive-edge-color) 18%, transparent);
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-speed-action {
+  width: min(90%, 238px);
+  border-color: color-mix(in srgb, var(--drive-edge-color) 70%, #ffffff 12%);
+  background: linear-gradient(155deg, var(--drive-command-surface-2), var(--drive-command-surface) 72%) !important;
+  color: #ffffff !important;
+  box-shadow:
+    0 12px 30px rgba(0,0,0,.38),
+    0 0 22px color-mix(in srgb, var(--drive-edge-color) 28%, transparent),
+    inset 0 1px rgba(255,255,255,.12);
+}
+:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-speed-action i {
+  background: var(--drive-edge-color);
+  color: #07110e;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--drive-edge-color) 48%, transparent), inset 0 1px rgba(255,255,255,.3);
+}
+
+html[data-theme="sunlight"] :where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-speed-stop {
+  box-shadow:
+    0 20px 48px rgba(25,54,43,.16),
+    0 0 0 5px color-mix(in srgb, var(--drive-edge-color) 8%, transparent),
+    0 0 30px color-mix(in srgb, var(--drive-edge-color) 18%, transparent),
+    inset 0 0 34px rgba(22,52,40,.07);
+}
+
+@media (max-width: 390px) {
+  .drive-speed-action { min-height: 54px; padding-inline: 13px; }
+  .drive-speed-action b { font-size: 15px; }
+}
+
+@media (prefers-contrast: more) {
+  .drive-speed-action { border-width: 2px; }
+  .drive-speed-action b { font-size: 17px; }
+}
+
+@media (forced-colors: active) {
+  .drive-speed-action,
+  .drive-speed-stop:disabled .drive-speed-action {
+    border: 2px solid ButtonText !important;
+    background: ButtonFace !important;
+    color: ButtonText !important;
+    box-shadow: none !important;
+    text-shadow: none;
+  }
+  .drive-speed-action i,
+  .drive-speed-stop:disabled .drive-speed-action i {
+    border: 1px solid ButtonText;
+    background: Highlight !important;
+    color: HighlightText !important;
+  }
 }

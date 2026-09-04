@@ -1,8 +1,15 @@
-# RouteHeat 8.1.0
+# RouteHeat 8.1.1
 
 RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone and Android. It records stops, locations, totes, rescues, packages, timing, and GPS breadcrumbs; compares a driver only with their own history; and turns finished workdays into maps, reports, replay, and long-term insights.
 
 > **Safety:** Use every RouteHeat control only while safely parked. Forecasts, Ghost comparisons, coaching, achievements, and historical pace are personal context—not targets or reasons to rush.
+
+## 8.1.1 Drive Command Clarity
+
+- **Readable Stop Complete command:** The center Drive command now uses a stable high-contrast capsule, larger type, a clearer check mark, and a stronger disabled state in Standard and Pro, Dark and Light, across every app accent theme.
+- **Professional Pro instrument:** Drive Pro keeps pace color on a precise outer gauge, tick rail, and restrained edge glow while the primary command remains visually consistent and instantly legible.
+- **Narrow-phone protection:** The main label stays **Stop Complete** when 2–5 locations are armed; the selected count remains in the surrounding multi-location controls and status copy instead of squeezing the command text.
+- **No data changes:** Routes, stops, GPS trails, Auto Stop, totes, cloud sync, maps, History, achievements, backups, and settings remain fully compatible.
 
 ## 8.1.0 Drive Focus
 
