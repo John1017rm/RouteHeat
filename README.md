@@ -1,4 +1,14 @@
-# RouteHeat 8.1.1
+# RouteHeat 8.2.0
+
+## 8.2.0 The Full Picture Update
+
+- **Continuous recorded coverage:** Roads draws GPS coverage independently of stop timing; Pace keeps the same coverage underneath colored, measured sections. Lite mode reduces geometry without discarding streets. Travel after the last stop remains visible; unrecorded GPS gaps are not filled with invented roads.
+- **Full-route Atmosphere:** The report summarizes hourly weather across the workday, including rain, snow, fog, or storms before a dry finish. It distinguishes missing weather from zero rain, handles timezone boundaries, shows coverage, and supports refreshing existing saved reports.
+- **New pace instrument:** A precision arc, fine ticks, and a clear central command use route pace colors in Standard and Pro. Hints and multi-location choices have separate rows; the entire dial remains the same one-tap stop action.
+- **Accurate Auto Stop status:** The badge, toggle, and status now agree in Off, Suggest, and Auto modes, including startup and recovery. Pausing a route is shown as a pause rather than a disabled assistant.
+- **Faster rescue access:** Start rescue sits with Repair, Merge, and Replay in saved route details. It continues the same saved workday using the existing rescue flow.
+- **Clearer wording:** The final readout is “Your workday at a glance.” Multi-location messages focus on the delivery instead of switching apps.
+- **Data compatibility:** Existing route IDs, history, GPS tracks, rescues, stops, cloud sync, backups, and device storage remain compatible. Weather reports upgrade when refreshed; existing reports stay available offline.
 
 RouteHeat is a mobile-first, private delivery intelligence tracker for iPhone and Android. It records stops, locations, totes, rescues, packages, timing, and GPS breadcrumbs; compares a driver only with their own history; and turns finished workdays into maps, reports, replay, and long-term insights.
 

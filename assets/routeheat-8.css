@@ -2566,196 +2566,122 @@ html[data-theme="sunlight"] :where(body.drive-active, body.drive-view-active, bo
   :where(body.drive-active, body.drive-view-active, body:has(#driveView.active)) #universalUndoBanner .undo-action-button::before { background: Highlight !important; }
 }
 
-/* ---------- 16. RouteHeat 8.1.1 Drive command clarity ---------- */
-/*
- * Keep the primary command readable in every appearance and app theme.
- * Pace color belongs to the instrument ring; the command capsule keeps a
- * stable, high-contrast surface so STOP COMPLETE never disappears into it.
- */
-.drive-speed-stop {
-  --drive-command-surface: #071510;
-  --drive-command-surface-2: #17382e;
+/* ---------- 16. RouteHeat 8.2 pace instrument ---------- */
+/* The dial is one stop button. Hints and location selectors occupy their own
+   rows, so long route labels can never bleed through the pace ring. */
+#driveView .drive-stop-stage {
+  width: 100%; min-height: 0; padding: 10px 0 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+#driveView .drive-speed-stop {
   --drive-command-text: #ffffff;
-  --drive-dial-core: #0b1b16;
-  --drive-dial-track: #172b24;
+  --drive-command-surface: #071510;
+  --drive-dial-core: #0b1b19;
+  --drive-dial-track: #244139;
+  position: relative; isolation: isolate; order: 0;
+  width: min(82vw, 320px); max-width: 100%; aspect-ratio: 1;
+  height: auto; min-height: min-content; padding: clamp(30px, 10vw, 40px) 0 clamp(24px, 8vw, 30px); gap: 14px; overflow: visible; border-radius: 50%;
+  border: 0; color: var(--text);
+  background: radial-gradient(circle at 50% 28%, color-mix(in srgb, var(--drive-edge-color, var(--accent)) 10%, var(--drive-dial-core)), var(--drive-dial-core) 68%) !important;
+  box-shadow: 0 18px 42px rgba(0,0,0,.3), 0 0 32px color-mix(in srgb, var(--drive-edge-color, var(--accent)) 16%, transparent);
+  transition: transform .12s ease, box-shadow .3s ease;
 }
-
-.drive-speed-action {
-  position: relative;
-  z-index: 2;
-  width: min(92%, 244px);
-  min-height: 56px;
-  margin-top: 15px;
-  padding: 10px 16px;
-  border: 1px solid color-mix(in srgb, var(--accent) 68%, #ffffff 10%);
-  border-radius: 999px;
-  overflow: hidden;
-  background: linear-gradient(155deg, var(--drive-command-surface-2), var(--drive-command-surface) 72%) !important;
+#driveView .drive-speed-stop::after { content: none; }
+#driveView .drive-speed-stop:focus-visible { outline: 3px solid var(--text); outline-offset: 5px; }
+#driveView .drive-speed-stop:disabled { opacity: 1; filter: saturate(.48); }
+#driveView .drive-speed-stop.confirmed { box-shadow: 0 0 0 6px color-mix(in srgb, var(--drive-edge-color) 28%, transparent), 0 0 50px color-mix(in srgb, var(--drive-edge-color) 32%, transparent); }
+.drive-dial-gauge { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.drive-dial-gauge circle { fill: none; }
+.drive-dial-halo { stroke: var(--drive-edge-color, var(--accent)); stroke-width: 1; opacity: .35; }
+.drive-dial-track { stroke: var(--drive-dial-track); stroke-width: 9; stroke-dasharray: 75 25; stroke-linecap: round; }
+.drive-dial-fill { stroke: var(--drive-edge-color, var(--accent)); stroke-width: 9; stroke-dasharray: var(--pace-arc, 0 100); stroke-linecap: round; transition: stroke .35s ease, stroke-dasharray .6s ease; }
+.drive-dial-ticks { stroke: var(--drive-edge-color, var(--accent)); stroke-width: 4; stroke-dasharray: .16 2.34; opacity: .44; }
+#driveView .drive-dial-readout {
+  position: relative; width: 68%; flex: 0 0 auto; display: flex;
+  flex-direction: column; align-items: center; gap: 3px;
+  min-width: 0; color: var(--text); letter-spacing: normal;
+}
+#driveView .drive-dial-readout .drive-speed-label { position: static; padding: 0; border: 0; background: none; color: var(--rh-text-subtle); font-size: .75rem; line-height: 1.2; letter-spacing: 1.5px; font-weight: 850; }
+#driveView .drive-dial-readout strong { margin: 0; color: var(--text); font-size: clamp(46px, 15vw, 60px); line-height: 1; letter-spacing: -2px; font-weight: 850; font-variant-numeric: tabular-nums; text-shadow: 0 0 28px color-mix(in srgb, var(--drive-edge-color) 16%, transparent); }
+#driveView .drive-dial-readout .drive-speed-unit { color: var(--rh-text-subtle); font-size: .75rem; line-height: 1.2; letter-spacing: 1px; }
+#driveView .drive-speed-action {
+  position: relative; z-index: 2; width: 100%; min-height: 48px;
+  margin: 6px 0 0; padding: 8px 8px; gap: 7px; border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--drive-edge-color, var(--accent)) 58%, #ffffff 8%);
+  background: linear-gradient(145deg, #24423a, var(--drive-command-surface)) !important;
   color: var(--drive-command-text) !important;
-  box-shadow:
-    0 10px 26px rgba(0,0,0,.34),
-    0 0 20px color-mix(in srgb, var(--accent) 23%, transparent),
-    inset 0 1px rgba(255,255,255,.12);
-  font-size: 16px !important;
-  font-weight: 950;
-  line-height: 1;
-  letter-spacing: .7px !important;
-  text-shadow: 0 1px 2px rgba(0,0,0,.72);
+  box-shadow: 0 6px 18px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.12);
+  text-shadow: none; letter-spacing: .3px !important;
 }
-.drive-speed-action::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(112deg, transparent 18%, rgba(255,255,255,.09) 46%, transparent 68%);
-}
-.drive-speed-action i,
-.drive-speed-action b { position: relative; z-index: 1; }
-.drive-speed-action i {
-  width: 28px;
-  height: 28px;
-  flex: 0 0 auto;
-  background: var(--accent);
-  color: var(--on-accent);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 42%, transparent), inset 0 1px rgba(255,255,255,.28);
-  font-size: 17px;
-  text-shadow: none;
-}
-.drive-speed-action b {
-  color: inherit;
-  font-size: 16px;
-  font-weight: 950;
-  line-height: 1;
-  letter-spacing: .7px;
-  white-space: nowrap;
-}
-
-.drive-speed-stop:disabled {
-  opacity: .86;
-  filter: saturate(.66);
-}
-.drive-speed-stop:disabled .drive-speed-action {
-  border-color: var(--rh-border-strong);
-  background: linear-gradient(155deg, #24362f, #101c18 72%) !important;
-  color: #d8e5df !important;
-  box-shadow: 0 8px 20px rgba(0,0,0,.22), inset 0 1px rgba(255,255,255,.07);
-}
-.drive-speed-stop:disabled .drive-speed-action i {
-  background: #71877d;
-  color: #07110e;
-  box-shadow: none;
-}
-
-html[data-theme="sunlight"] .drive-speed-stop {
-  --drive-dial-core: #ffffff;
-  --drive-dial-track: #d5e1dc;
-}
-html[data-theme="sunlight"] .drive-speed-action {
-  border-color: color-mix(in srgb, var(--accent) 74%, #10231c 26%);
-  box-shadow:
-    0 10px 24px rgba(22,48,38,.22),
-    0 0 18px color-mix(in srgb, var(--accent) 18%, transparent),
-    inset 0 1px rgba(255,255,255,.14);
-}
-html[data-theme="sunlight"] .drive-speed-stop:disabled .drive-speed-action {
-  border-color: #9bada5;
-  background: linear-gradient(155deg, #385248, #1a2d26 72%) !important;
-  color: #ffffff !important;
-}
-html[data-theme="sunlight"] .drive-speed-stop:disabled .drive-speed-action i {
-  background: #d5e1dc;
-  color: #263e35;
-}
-
-/* Pro: a restrained pace-reactive instrument dial, not a second dashboard. */
-:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-speed-stop {
-  overflow: visible;
-  isolation: isolate;
-  border: 1px solid color-mix(in srgb, var(--drive-edge-color) 62%, transparent);
-  background:
-    radial-gradient(circle at 50% 36%, color-mix(in srgb, var(--drive-edge-color) 12%, transparent), transparent 43%),
-    radial-gradient(circle, var(--drive-dial-core) 0 60%, transparent 60.5%),
-    repeating-conic-gradient(from -1deg, color-mix(in srgb, var(--drive-edge-color) 54%, transparent) 0 1deg, transparent 1deg 10deg),
-    conic-gradient(var(--drive-edge-color) 0 var(--pace-progress), var(--drive-dial-track) var(--pace-progress) 360deg);
-  box-shadow:
-    0 22px 58px rgba(0,0,0,.3),
-    0 0 0 5px color-mix(in srgb, var(--drive-edge-color) 8%, transparent),
-    0 0 38px color-mix(in srgb, var(--drive-edge-color) 25%, transparent),
-    inset 0 0 42px rgba(0,0,0,.23);
-}
-:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-speed-stop::after {
-  inset: 15px;
-  border: 1px solid color-mix(in srgb, var(--drive-edge-color) 38%, rgba(255,255,255,.1));
-  box-shadow:
-    inset 0 0 0 5px color-mix(in srgb, var(--drive-edge-color) 3%, transparent),
-    0 0 18px color-mix(in srgb, var(--drive-edge-color) 12%, transparent);
-  pointer-events: none;
-}
-:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) :is(.drive-speed-label, .drive-speed-unit) {
-  position: relative;
-  z-index: 2;
-  color: color-mix(in srgb, var(--drive-edge-color) 66%, var(--text));
-  font-weight: 950;
-}
-:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-speed-label {
-  padding: 4px 9px;
-  border: 1px solid color-mix(in srgb, var(--drive-edge-color) 28%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--drive-edge-color) 7%, var(--drive-dial-core));
-}
-:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-speed-stop > strong {
-  position: relative;
-  z-index: 2;
-  color: var(--text);
-  text-shadow: 0 0 24px color-mix(in srgb, var(--drive-edge-color) 18%, transparent);
-}
-:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-speed-action {
-  width: min(90%, 238px);
-  border-color: color-mix(in srgb, var(--drive-edge-color) 70%, #ffffff 12%);
-  background: linear-gradient(155deg, var(--drive-command-surface-2), var(--drive-command-surface) 72%) !important;
-  color: #ffffff !important;
-  box-shadow:
-    0 12px 30px rgba(0,0,0,.38),
-    0 0 22px color-mix(in srgb, var(--drive-edge-color) 28%, transparent),
-    inset 0 1px rgba(255,255,255,.12);
-}
-:where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-speed-action i {
-  background: var(--drive-edge-color);
-  color: #07110e;
-  box-shadow: 0 0 16px color-mix(in srgb, var(--drive-edge-color) 48%, transparent), inset 0 1px rgba(255,255,255,.3);
-}
-
-html[data-theme="sunlight"] :where(#driveView.drive-pro, #driveView[data-drive-mode="pro"], body.drive-pro #driveView) .drive-speed-stop {
-  box-shadow:
-    0 20px 48px rgba(25,54,43,.16),
-    0 0 0 5px color-mix(in srgb, var(--drive-edge-color) 8%, transparent),
-    0 0 30px color-mix(in srgb, var(--drive-edge-color) 18%, transparent),
-    inset 0 0 34px rgba(22,52,40,.07);
-}
-
-@media (max-width: 390px) {
-  .drive-speed-action { min-height: 54px; padding-inline: 13px; }
-  .drive-speed-action b { font-size: 15px; }
-}
-
-@media (prefers-contrast: more) {
-  .drive-speed-action { border-width: 2px; }
-  .drive-speed-action b { font-size: 17px; }
-}
-
+#driveView .drive-speed-action i { width: 24px; height: 24px; flex: 0 0 24px; background: var(--drive-edge-color, var(--accent)); color: #071510; box-shadow: none; font-size: 16px; }
+#driveView .drive-speed-action b { min-width: 0; color: inherit; font-size: 1rem; line-height: 1.25; letter-spacing: .3px; font-weight: 900; white-space: normal; }
+#driveView .drive-dial-state { position: relative; width: 60%; flex: 0 0 auto; color: var(--drive-edge-color, var(--accent)); font-size: .75rem; line-height: 1.2; letter-spacing: 1px; font-weight: 900; }
+#driveView .drive-speed-hint { order: 1; max-width: min(100%, 360px); margin: 0; color: var(--rh-text-subtle); font-size: .875rem; line-height: 1.4; letter-spacing: normal; white-space: normal; text-align: center; overflow-wrap: anywhere; }
+#driveView .auto-multi-arm { position: static; inset: auto; order: 2; width: min(100%, 320px); display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; }
+#driveView .auto-multi-count { position: static; width: 100%; height: 48px; min-height: 48px; border-radius: 13px; }
+#driveView .auto-multi-count b { font-size: 20px; line-height: 1; }
+#driveView .auto-multi-count small { font-size: 10px; line-height: 1; }
+#driveView .auto-multi-count.selected { transform: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--map-multi) 35%, transparent); }
+#driveView .auto-multi-status { margin: 8px 0 4px; max-width: 100%; border-radius: 14px; }
+#driveView[data-drive-mode="pro"] .drive-dial-fill { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--drive-edge-color) 50%, transparent)); }
+#driveView[data-route-state="idle"] .drive-dial-fill { opacity: 0; }
+#driveView[data-route-state="paused"] .drive-dial-fill { opacity: .55; }
+#driveView .drive-speed-stop:disabled .drive-speed-action { background: linear-gradient(145deg, #24362f, #101c18) !important; color: #d8e5df !important; border-color: #71877d; }
+#driveView .drive-speed-stop:disabled .drive-speed-action i { background: #a9bdb4; color: #071510; }
+html[data-theme="sunlight"] #driveView .drive-speed-stop { --drive-dial-core: #f7fcfa; --drive-dial-track: #cbdcd5; box-shadow: 0 14px 32px rgba(22,48,38,.13), 0 0 24px color-mix(in srgb, var(--drive-edge-color) 12%, transparent); }
+html[data-theme="sunlight"] #driveView .drive-dial-state { color: color-mix(in srgb, var(--drive-edge-color) 58%, #10231c); }
+@media (prefers-reduced-motion: reduce) { #driveView .drive-dial-fill, #driveView .drive-speed-stop { transition: none; } }
+@media (prefers-contrast: more) { #driveView .drive-speed-action { border-width: 2px; } #driveView .drive-dial-ticks { opacity: .8; } }
 @media (forced-colors: active) {
-  .drive-speed-action,
-  .drive-speed-stop:disabled .drive-speed-action {
-    border: 2px solid ButtonText !important;
-    background: ButtonFace !important;
-    color: ButtonText !important;
-    box-shadow: none !important;
-    text-shadow: none;
+  #driveView .drive-speed-stop { border: 2px solid ButtonText; background: Canvas !important; }
+  #driveView .drive-speed-action, #driveView .drive-speed-stop:disabled .drive-speed-action { border: 2px solid ButtonText; background: ButtonFace !important; color: ButtonText !important; }
+  .drive-dial-fill, .drive-dial-ticks { stroke: Highlight; }
+  #driveView .drive-dial-state { color: ButtonText; }
+}
+/* At enlarged text sizes the command becomes a spacious panel while retaining
+   the pace arc as a background instrument and the same single stop action. */
+@media (max-width: 20rem) {
+  #driveView .drive-speed-stop { aspect-ratio: auto; min-height: 290px; border-radius: 28px; padding: 34px 20px 18px; gap: 14px; }
+  #driveView .drive-dial-gauge { opacity: .24; }
+  #driveView .drive-dial-readout { position: relative; inset: auto; width: 100%; }
+  #driveView .drive-dial-state { position: relative; inset: auto; }
+}
+
+/* Saved-route rescue shortcut */
+.detail-head-actions .detail-rescue-btn {
+  border-color: rgba(105, 167, 255, .42);
+  background: rgba(105, 167, 255, .12);
+  color: #b8d6ff;
+}
+@media (max-width: 600px) {
+  .route-detail-head { min-height: 0; padding: 14px; align-items: stretch; flex-direction: column; }
+  .route-detail-head > div:first-child { padding-right: 52px; }
+  .detail-head-actions {
+    display: grid; width: 100%; padding-right: 0; gap: 8px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .drive-speed-action i,
-  .drive-speed-stop:disabled .drive-speed-action i {
-    border: 1px solid ButtonText;
-    background: Highlight !important;
-    color: HighlightText !important;
-  }
+  .detail-head-actions .replay-btn { min-width: 0; min-height: 44px; padding: 9px 6px; white-space: normal; overflow-wrap: anywhere; font-size: .875rem; }
+  .detail-head-actions .close-btn { position: absolute; top: 14px; right: 14px; }
+  .detail-head-actions #detailMergeBtn { display: block; }
+}
+[data-theme="sunlight"] .detail-head-actions .detail-rescue-btn {
+  border-color: #7f9fc9;
+  background: #e4edf9;
+  color: #214f88;
+}
+
+/* Full-day weather headlines and refresh controls stay readable on phones. */
+.atmosphere-hero { align-items: flex-start; }
+.atmosphere-hero > div:nth-child(2) { flex: 1 1 0; }
+.atmosphere-hero h3 { font-size: 1.125rem; line-height: 1.3; overflow-wrap: anywhere; }
+.atmosphere-hero small { font-size: .875rem; line-height: 1.4; }
+.route-atmosphere-card footer { gap: 10px; font-size: .75rem; line-height: 1.45; }
+.route-atmosphere-card footer > span { flex-basis: 100%; }
+.route-atmosphere-card footer button { min-height: 44px; padding: 9px 14px; border: 1px solid var(--rh-border-strong); border-radius: 12px; background: var(--rh-surface-raised); color: var(--text); font-size: .875rem; font-weight: 800; }
+.atmosphere-timeline { grid-template-columns: repeat(auto-fit, minmax(100px,1fr)); }
+.atmosphere-timeline small { font-size: .75rem; line-height: 1.4; }
+@media (max-width: 360px) {
+  .atmosphere-condition-art { width: 48px; height: 48px; border-radius: 16px; }
+  .atmosphere-condition-art span { font-size: 26px; }
+  .atmosphere-hero { padding: 14px; gap: 10px; }
 }
