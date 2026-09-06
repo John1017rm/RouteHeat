@@ -460,7 +460,7 @@
 
   const routeSnapshotFingerprint = items => JSON.stringify(Array.isArray(items) ? items : []);
   async function localRoutesChangedSince(fingerprint) {
-    return routeSnapshotFingerprint(await fullLocalRoutes()) !== fingerprint;
+    return window.RouteHeatHistory?.isMutating?.() || routeSnapshotFingerprint(await fullLocalRoutes()) !== fingerprint;
   }
 
   function restartForNewerLocalRoute() {
@@ -938,8 +938,28 @@
     }
   }
 
+  async function fetchRemoteRouteRows(userId) {
+    const rows = [], pageSize = 1000, maximum = 20000;
+    for (let offset = 0; offset <= maximum; offset += pageSize) {
+      const {data, error} = await client
+        .from(TABLE)
+        .select('route_id,route_data,started_at,updated_at,deleted_at')
+        .eq('user_id', userId)
+        .order('started_at', {ascending: false})
+        .order('route_id', {ascending: true})
+        .range(offset, offset + pageSize - 1);
+      if (error) throw error;
+      if (!Array.isArray(data)) throw new Error('Cloud route history could not be read completely. Please retry.');
+      rows.push(...data);
+      if (rows.length > maximum) throw new Error('Cloud route history exceeds the 20,000-record sync limit. Local routes were left unchanged.');
+      if (data.length < pageSize) return rows;
+    }
+    throw new Error('Cloud route history could not be read completely. Local routes were left unchanged.');
+  }
+
   async function syncNow(showComplete = false) {
     if (!client || !session?.user) return;
+    if (window.RouteHeatHistory?.isMutating?.()) { syncRequested = true; return; }
     if (syncing) {
       syncRequested = true;
       return;
@@ -959,13 +979,7 @@
       await flushDeletions(userId, localSnapshot);
       await flushNeighborhoodSnapshotDeletions();
 
-      const {data: remoteRows, error: remoteError} = await client
-        .from(TABLE)
-        .select('route_id,route_data,updated_at,deleted_at')
-        .eq('user_id', userId)
-        .order('started_at', {ascending: false})
-        .limit(1000);
-      if (remoteError) throw remoteError;
+      const remoteRows = await fetchRemoteRouteRows(userId);
 
       const restoredWinners = winningRestoredRows(remoteRows || []);
       if (restoredWinners.length) {
@@ -1153,14 +1167,9 @@
     }
     dispatchDeletedRoutes('checking', [], 'Checking cloud recovery...');
     try {
-      const columns = 'route_id,route_data,started_at,updated_at,deleted_at';
-      const [{data, error}, {data: liveRows, error: liveError}] = await Promise.all([
-        client.from(TABLE).select(columns).eq('user_id', session.user.id).not('deleted_at', 'is', null).order('deleted_at', {ascending: false}).limit(1000),
-        client.from(TABLE).select(columns).eq('user_id', session.user.id).is('deleted_at', null).limit(1000)
-      ]);
-      if (error) throw error;
-      if (liveError) throw liveError;
-      const restoredWinners = winningRestoredRows([...(data || []), ...(liveRows || [])]);
+      const allRows = await fetchRemoteRouteRows(session.user.id);
+      const data = allRows.filter(row => row.deleted_at);
+      const restoredWinners = winningRestoredRows(allRows);
       const deletedRows = (data || []).filter(row => !restoredWinners.some(restored => {
         const intentAt = explicitDeletionTime(row);
         return remoteRowsMatch(restored, row) && (!intentAt || restoredTime(restored.route_data) > intentAt);
@@ -1285,8 +1294,9 @@
       dispatchNeighborhoodState('offline');
     });
     window.addEventListener('routeheat:route-saved', () => syncNow());
+    window.addEventListener('routeheat:history-mutation-ended', () => { if (syncRequested) void syncNow(); });
     window.addEventListener('routeheat:route-deleted', event => {
-      rememberDeletion(event.detail?.route);
+      if (!event.detail?.alreadyQueued) rememberDeletion(event.detail?.route);
       syncNow();
     });
     window.addEventListener('routeheat:route-restored', event => {

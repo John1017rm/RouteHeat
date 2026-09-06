@@ -206,6 +206,23 @@ export function createRouteHeatStorage(options = {}) {
     return restored;
   };
 
+  const historyCopyIsNewer = (candidate, current) => {
+    if (!candidate || typeof candidate !== 'object') return false;
+    if (!current || typeof current !== 'object') return true;
+    const positive = value => { const parsed = Number(value); return Number.isFinite(parsed) && parsed > 0 ? parsed : 0; };
+    const timestamp = value => {
+      if (value == null || value === '') return 0;
+      const parsed = typeof value === 'number' ? value : Date.parse(value);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    };
+    const version = saved => [positive(saved.schemaVersion ?? saved.schema), positive(saved.revision), timestamp(saved.updatedAt) || timestamp(saved.restoredAt) || timestamp(saved.endedAt) || timestamp(saved.startedAt)];
+    const first = version(candidate), second = version(current);
+    for (let index = 0; index < first.length; index++) {
+      if (first[index] !== second[index]) return first[index] > second[index];
+    }
+    return false;
+  };
+
   const mergedHistoryRaw = (preferredRaw, fallbackRaw) => {
     const preferred = parsedJson(preferredRaw);
     const fallback = parsedJson(fallbackRaw);
@@ -216,7 +233,9 @@ export function createRouteHeatStorage(options = {}) {
     const merged = preferred.map(saved => {
       const id = routeIdentity(saved);
       if (id) seen.add(id);
-      return restoreCompactHistoryFields(saved, fallbackById.get(id));
+      const alternate = fallbackById.get(id);
+      const newest = historyCopyIsNewer(alternate, saved) ? alternate : saved;
+      return restoreCompactHistoryFields(newest, newest === saved ? alternate : saved);
     });
     fallback.forEach(saved => {
       const id = routeIdentity(saved);

@@ -121,6 +121,7 @@
     return String(line || "")
       .toLowerCase()
       .replace(/[\u2010-\u2015]/g, "-")
+      .replace(/(^|[^\d,.])(\d{1,3}(?:,\d{3})+)(?=$|[^\d,.])/g, function (_, prefix, number) { return prefix + number.replace(/,/g, ""); })
       .replace(/[^a-z0-9]+/g, " ")
       .trim()
       .replace(/\s+/g, " ");

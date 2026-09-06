@@ -1,4 +1,17 @@
-# RouteHeat 8.2.0
+# RouteHeat 8.2.1
+
+## 8.2.1 Reliability review
+
+- Delayed stop suggestions preserve the next delivery's detector and multi-location count. Long gaps in GPS fixes require review before a stop can be counted automatically.
+- Historical timing clips and combines saved breaks correctly. Forecast review uses the correct earlier/later direction.
+- Report quality calculations reuse their GPS gap index, removing a long-route performance bottleneck.
+- Replay, saved maps, Roads and Pace share GPS gap rules and recover stale track indices. Filtered Atlas distance counts the displayed subset, while original recorded totals remain intact.
+- Backup imports preserve full recorded trails, deletion queues, active drafts and updates arriving after the preview. Imports and merges protect full history and deletion records together, with rollback on failed writes.
+- Cloud sync and Recently Deleted load all pages, up to a checked 20,000-record bound; an incomplete read cannot silently replace local history.
+- Tote confirmations and report confidence text accurately describe missing GPS. Backup wording clearly describes a portable file.
+- Screenshot summary parsing preserves valid thousands separators, so 1,200 packages is read as 1,200. Ambiguous spacing and malformed numbers are not joined.
+
+The review used synthetic route, weather, storage-failure, sync and browser scenarios. Physical-phone GPS, Android background behavior and real-account cloud sync still need device verification.
 
 ## 8.2.0 The Full Picture Update
 
