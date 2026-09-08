@@ -2685,3 +2685,87 @@ html[data-theme="sunlight"] #driveView .drive-dial-state { color: color-mix(in s
   .atmosphere-condition-art span { font-size: 26px; }
   .atmosphere-hero { padding: 14px; gap: 10px; }
 }
+
+/* 8.3: compact instruments keep the primary readings together. Expanded
+   insights and enlarged text may scroll; no readings are clipped to fit. */
+#driveView { max-width: 640px; padding: 12px 14px calc(var(--rh-nav-height) + 24px + env(safe-area-inset-bottom)); }
+#driveView .drive-top { margin-bottom: 8px; gap: 8px; align-items: center; }
+#driveView .drive-top h1 { font-size: 1.125rem; line-height: 1.2; white-space: normal; }
+#driveView .drive-top .eyebrow { margin-bottom: 4px; font-size: .625rem; }
+#driveView .drive-tools-btn { min-height: 44px; padding: 8px 10px; font-size: .75rem; }
+#driveView .drive-progress { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; margin-bottom: 8px; padding: 8px 12px; }
+#driveView .drive-progress-head { display: contents; }
+#driveView .drive-progress-head span { font-size: .625rem; align-self: center; }
+#driveView .drive-progress-head strong { font-size: .875rem; }
+#driveView .drive-progress-track { grid-column: 1 / -1; height: 7px; margin: 0; padding: 0; }
+#driveView .drive-progress-copy { grid-column: 1 / -1; }
+#driveView .drive-progress-copy :is(b,span) { font-size: .6875rem; }
+.drive-instruments { display: grid; grid-template-columns: minmax(0,1.7fr) minmax(0,1fr); align-items: center; gap: 12px; margin: 4px 0 8px; }
+#driveView .speedometer { min-width: 0; margin: 0; }
+#driveView .drive-stop-stage { gap: 7px; padding: 2px 0; }
+#driveView .drive-speed-stop { width: min(100%, 240px); min-height: 0; aspect-ratio: 1; padding: 20px 0 16px; gap: 8px; }
+#driveView .drive-dial-readout { width: 73%; gap: 2px; }
+#driveView .drive-dial-readout .drive-speed-label { font-size: .625rem; letter-spacing: .8px; }
+#driveView .drive-dial-readout strong { font-size: clamp(38px, 11vw, 52px); }
+#driveView .drive-dial-readout .drive-speed-unit { font-size: .625rem; letter-spacing: .4px; }
+#driveView .drive-speed-action { min-height: 36px; padding: 6px 4px; margin-top: 5px; border-radius: 10px; gap: 3px; }
+#driveView .drive-speed-action i { display: none; }
+#driveView .drive-speed-action b { font-size: .8125rem; letter-spacing: 0; }
+#driveView .drive-dial-state { width: 68%; font-size: .625rem; letter-spacing: .5px; }
+#driveView .drive-speed-hint { font-size: .6875rem; line-height: 1.3; }
+#driveView #driveGoal { display: none !important; }
+#driveView .drive-stats { display: grid !important; grid-template-columns: minmax(0,1fr); gap: 6px; margin: 0; }
+#driveView .drive-stats > div { min-height: 48px; padding: 7px 5px; border-radius: 12px; }
+#driveView .drive-stats span { font-size: .5625rem; line-height: 1.2; letter-spacing: .45px; }
+#driveView .drive-stats b { font-size: .9375rem; line-height: 1.2; margin-top: 3px; overflow-wrap: anywhere; }
+#driveView .drive-finish-stat b { font-size: .75rem; }
+#driveView .drive-stats .eta-confidence { display: block; padding: 0; margin-top: 3px; font-size: .5625rem; line-height: 1.3; background: none; }
+#driveView .drive-actions { grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 8px; }
+#driveView :is(.drive-tote,.drive-multi) { min-height: 48px; padding: 7px 9px; border-radius: 12px; display: grid; grid-template-columns: 24px minmax(0,1fr); column-gap: 6px; text-align: left; }
+#driveView :is(.drive-tote,.drive-multi) > span { grid-row: 1 / 3; width: 24px; height: 24px; font-size: 14px; }
+#driveView :is(.drive-tote,.drive-multi) b { margin: 0; font-size: .6875rem; line-height: 1.3; letter-spacing: .1px; }
+#driveView :is(.drive-tote,.drive-multi) small { margin: 0; opacity: .85; font-size: .625rem; line-height: 1.3; }
+#driveView .drive-pro-ribbon { display: grid; grid-template-columns: 1fr 1fr; margin: 0 0 8px; padding: 4px; gap: 4px; }
+#driveView .drive-pro-ribbon > div { min-height: 37px; padding: 5px; flex-direction: row; gap: 8px; }
+#driveView .drive-pro-ribbon > div:last-child { display: none; }
+#driveView .drive-pro-ribbon span { font-size: .5625rem; }
+#driveView .drive-pro-ribbon b { margin: 0; font-size: .75rem; }
+#driveView .drive-controls { gap: 8px; margin: 0; }
+#driveView .drive-controls button, #driveView .drive-start { min-height: 44px; font-size: .8125rem; }
+#driveView .drive-start { margin: 0 0 8px; }
+#driveView .drive-multi-row:has(.auto-multi-arm[hidden]) { display: none; }
+#driveView .auto-multi-arm { width: 100%; gap: 8px; }
+#driveView .auto-multi-count { min-height: 44px; height: 44px; display: flex; flex-direction: row; gap: 5px; align-items: center; justify-content: center; }
+#driveView .auto-multi-count b { font-size: 18px; }
+#driveView .auto-multi-status { max-width: 100%; min-height: 0; padding: 3px; margin: 2px 0 5px; font-size: .625rem; background: none; border: 0; }
+.drive-insights { margin-top: 6px; border: 1px solid var(--rh-border-soft); border-radius: 12px; background: var(--rh-surface-raised); }
+.drive-insights > summary { min-height: 44px; padding: 12px; font-size: .75rem; font-weight: 800; cursor: pointer; }
+.drive-insights > summary span { float: right; color: var(--rh-text-subtle); font-size: .625rem; font-weight: 500; }
+.drive-insights-body { padding: 0 10px 10px; }
+#driveView .drive-insights-body :is(#ghostCard,#driveToteAssistant,#driveContextTags,#driveDeliveryAreaChip,#driveCoach):not([hidden]) { display: flex !important; }
+#driveView .drive-insights-body #ghostCard:not([hidden]) { display: block !important; }
+#driveView .safety-note { margin: 7px 0 0; font-size: .625rem; line-height: 1.3; }
+@media (max-width: 22rem) {
+  .drive-instruments { grid-template-columns: minmax(0,1.55fr) minmax(0,1fr); gap: 8px; }
+  #driveView .drive-speed-action b { font-size: .75rem; }
+}
+@media (max-width: 20rem) {
+  .drive-instruments { grid-template-columns: minmax(0,1fr); }
+  #driveView .drive-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #driveView .drive-speed-stop { width: min(100%,240px); aspect-ratio: auto; min-height: 220px; border-radius: 24px; padding: 22px 14px; }
+  #driveView .drive-dial-readout { width: 100%; }
+  #driveView .drive-speed-action { min-height: 44px; }
+  .drive-insights > summary span { display: block; float: none; margin-top: 3px; }
+}
+
+/* RouteHeat 8.3 · derived GPS speed and stop interval views */
+.heat-mode-maxspeed{background:linear-gradient(145deg,#102c40,#24203d)}
+.heat-mode-maxspeed:before{content:'';position:absolute;inset:7px;border:2px solid var(--map-tail);border-bottom-color:transparent;border-radius:50%;transform:rotate(-35deg)}
+.heat-mode-maxspeed:after{content:'';position:absolute;left:50%;top:9px;width:2px;height:17px;background:var(--map-repeat-high);transform-origin:50% 90%;transform:rotate(48deg);box-shadow:0 0 7px var(--map-repeat-high)}
+.heat-mode-intervals{background:linear-gradient(145deg,#162f35,#302137)}
+.heat-mode-intervals:before{content:'↔';position:absolute;inset:0;display:grid;place-items:center;color:var(--map-tail);font-size:28px;font-weight:800}
+.heat-mode-intervals:after{content:'';position:absolute;left:6px;right:6px;bottom:6px;height:2px;background:linear-gradient(90deg,var(--map-tail),var(--map-repeat-high));border-radius:3px}
+.heat-gradient-legend.maxspeed i,.heat-gradient-legend.intervals i{background:linear-gradient(90deg,var(--map-tail),var(--map-repeat-high))}
+.atlas-maxspeed-trail,.atlas-maxspeed-context,.atlas-interval-marker{vector-effect:non-scaling-stroke}
+.atlas-metric-row .zone-score strong{color:var(--text)}
+.atlas-metric-row .zone-letter{color:#07110f}

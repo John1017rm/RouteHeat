@@ -1,4 +1,16 @@
-# RouteHeat 8.2.1
+# RouteHeat 8.3.0
+
+## 8.3.0 Route insights
+
+- **Compact Drive:** pace sits beside stops/locations, active time, last-segment pace and finish range. Tote and multi-location controls are smaller, while retaining their existing actions. Pro shows the same key readings. Optional Tote, Ghost, Area and Coach content is under Route insights. The primary readings fit tested 360×780 and 390×844 layouts; very narrow screens, enlarged text and expanded content can scroll instead of being clipped.
+- **Max GPS speed:** an All Time review layer derives corroborated speed estimates from existing timestamped GPS movement. Local road sections show their highest supported estimate and its time. It is an estimate from recorded samples, not a posted speed limit or a guarantee of the instantaneous peak. Missing GPS, sharp turns, sparse samples and weak fixes can leave sections without an estimate.
+- **Stop intervals:** a new Atlas layer shows average time between adjacent completed stops by area. It includes travel and stop work. Phase starts, rescue transfers, breaks, flagged gaps and corrected or recovered timing are excluded. Zoom in to separate neighborhoods; sample counts make the coverage clear.
+- **Long-stop context:** after three observed stationary minutes, a fresh parked reading can show optional reason choices for overflow, a new tote, a customer, a long walk, access, finding packages or Other. Skip is available, and choosing a reason does not complete a stop. Reasons can be added, changed or cleared in saved stop details. Reports and History summarize tagged stops and observed time with coverage; this is context, not a measured causal breakdown.
+- **Rescue impact:** History now summarizes completed rescue phases, stops and locations, entered packages, active time, weekly totals, calendar-day streaks, biggest rescue and longest recorded delivery trail. The trail counts GPS between the first and last rescue stops, excluding transfers, breaks and gaps. Six new trophies recognize four rescues in one Mon–Sun week, three/seven consecutive rescue dates, 25/50 stops in one rescue, and a ten-mile recorded rescue trail. Existing trophies are preserved.
+- **Lightweight storage:** map and rescue statistics are derived from existing history. Optional reason notes are small, bounded records attached only to tagged stops; no extra stream of GPS samples, new account, or map service is required.
+
+Existing IDs, routes, device journal, backup files and cloud data remain compatible. Native permissions are unchanged.
+
 
 ## 8.2.1 Reliability review
 
