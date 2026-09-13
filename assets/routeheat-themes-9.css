@@ -1,0 +1,412 @@
+/* RouteHeat 9 · four complete finishes, with independent dark/daylight palettes.
+ * Presentation only: no route/map signal colors, layout geometry, or animations.
+ * Load after the established RouteHeat styles and before Drive customization.
+ */
+
+/* Carbon · graphite surfaces and a precise mint accent. Also the boot fallback. */
+:root,
+html[data-app-theme="default"] {
+  --bg: #090d10;
+  --panel: #141b20;
+  --panel2: #1b252b;
+  --line: #36434b;
+  --text: #f1f7f5;
+  --muted: #adbec2;
+  --accent: #5ae5a5;
+  --accent-strong: #30c889;
+  --accent-rgb: 90,229,165;
+  --accent-2: #99d8e5;
+  --accent-2-rgb: 153,216,229;
+  --on-accent: #071c13;
+  --rh-surface-raised: #141b20;
+  --rh-surface-inset: #0c1216;
+  --rh-surface-soft: #1b252b;
+  --rh-border-soft: #2b3840;
+  --rh-border-strong: #40525d;
+  --rh-text-subtle: #adbec2;
+  --rh9-control-border: #687c85;
+  --rh9-chrome: #10171c;
+  --rh9-sheen: #243630;
+  --rh9-field-placeholder: #9bacb3;
+  --rh9-glow: rgba(90,229,165,.075);
+  --rh9-backdrop: rgba(3,7,10,.78);
+  --rh9-card-wash: linear-gradient(160deg,rgba(153,216,229,.035),transparent 48%);
+  --rh-shadow-sm: 0 8px 22px rgba(0,0,0,.18),inset 0 1px 0 rgba(223,242,237,.035);
+  --rh-shadow-md: 0 24px 68px rgba(0,0,0,.42),inset 0 1px 0 rgba(223,242,237,.055);
+}
+
+/* Glacier · navy depths, ice blue controls, and crisp cool separation. */
+html[data-app-theme="blue"] {
+  --bg: #07121f;
+  --panel: #102235;
+  --panel2: #172e44;
+  --line: #354e66;
+  --text: #f1f8ff;
+  --muted: #adc4d9;
+  --accent: #79caff;
+  --accent-strong: #43ade9;
+  --accent-rgb: 121,202,255;
+  --accent-2: #73e2df;
+  --accent-2-rgb: 115,226,223;
+  --on-accent: #061827;
+  --rh-surface-raised: #102235;
+  --rh-surface-inset: #0a1827;
+  --rh-surface-soft: #172e44;
+  --rh-border-soft: #2d445b;
+  --rh-border-strong: #456079;
+  --rh-text-subtle: #adc4d9;
+  --rh9-control-border: #7190ad;
+  --rh9-chrome: #0d1d30;
+  --rh9-sheen: #203a50;
+  --rh9-field-placeholder: #a2b9cf;
+  --rh9-glow: rgba(85,175,248,.12);
+  --rh9-backdrop: rgba(2,9,19,.80);
+  --rh9-card-wash: linear-gradient(135deg,rgba(121,202,255,.05),transparent 40%);
+  --rh-shadow-sm: 0 7px 18px rgba(0,7,18,.19),inset 0 1px 0 rgba(172,224,255,.075);
+  --rh-shadow-md: 0 24px 64px rgba(0,5,17,.46),inset 0 1px 0 rgba(172,224,255,.09);
+}
+
+/* Ember · warm graphite, copper and amber, with a quiet brushed-metal sheen. */
+html[data-app-theme="orange"] {
+  --bg: #17110f;
+  --panel: #271f1b;
+  --panel2: #342a24;
+  --line: #514237;
+  --text: #fff5e9;
+  --muted: #c9b8a8;
+  --accent: #ffbd7a;
+  --accent-strong: #eb9955;
+  --accent-rgb: 255,189,122;
+  --accent-2: #f5d88e;
+  --accent-2-rgb: 245,216,142;
+  --on-accent: #28160a;
+  --rh-surface-raised: #271f1b;
+  --rh-surface-inset: #1b1411;
+  --rh-surface-soft: #342a24;
+  --rh-border-soft: #493b32;
+  --rh-border-strong: #685245;
+  --rh-text-subtle: #c9b8a8;
+  --rh9-control-border: #9c806a;
+  --rh9-chrome: #211916;
+  --rh9-sheen: #49352b;
+  --rh9-field-placeholder: #baa694;
+  --rh9-glow: rgba(236,141,70,.10);
+  --rh9-backdrop: rgba(13,7,4,.80);
+  --rh9-card-wash: linear-gradient(180deg,rgba(255,215,166,.065),transparent 34%,rgba(14,7,3,.035));
+  --rh-shadow-sm: 0 8px 22px rgba(12,5,1,.22),inset 0 1px 0 rgba(255,220,174,.075);
+  --rh-shadow-md: 0 24px 68px rgba(10,4,1,.48),inset 0 1px 0 rgba(255,220,174,.08);
+}
+
+/* Ultraviolet · midnight violet and a small pink highlight, never neon glare. */
+html[data-app-theme="purple"] {
+  --bg: #120e1f;
+  --panel: #211a34;
+  --panel2: #2d2443;
+  --line: #4c3f65;
+  --text: #fbf4ff;
+  --muted: #c4b7da;
+  --accent: #c6a5ff;
+  --accent-strong: #af8be9;
+  --accent-rgb: 198,165,255;
+  --accent-2: #f5a6d6;
+  --accent-2-rgb: 245,166,214;
+  --on-accent: #200e31;
+  --rh-surface-raised: #211a34;
+  --rh-surface-inset: #171125;
+  --rh-surface-soft: #2d2443;
+  --rh-border-soft: #403454;
+  --rh-border-strong: #614e7b;
+  --rh-text-subtle: #c4b7da;
+  --rh9-control-border: #9880b5;
+  --rh9-chrome: #1a142c;
+  --rh9-sheen: #432b52;
+  --rh9-field-placeholder: #b8a7ce;
+  --rh9-glow: rgba(163,102,235,.13);
+  --rh9-backdrop: rgba(8,3,16,.80);
+  --rh9-card-wash: radial-gradient(ellipse at 100% 0,rgba(245,166,214,.065),transparent 55%);
+  --rh-shadow-sm: 0 9px 26px rgba(8,3,17,.23),inset 0 1px 0 rgba(228,209,255,.055);
+  --rh-shadow-md: 0 24px 74px rgba(8,2,18,.46),inset 0 1px 0 rgba(245,205,233,.07);
+}
+
+/* Daylight is designed separately; the same accent cannot serve both modes. */
+html[data-theme="sunlight"],
+html[data-theme="light"],
+html[data-theme="sunlight"][data-app-theme="default"],
+html[data-theme="light"][data-app-theme="default"] {
+  --bg: #e9efed;
+  --panel: #ffffff;
+  --panel2: #f1f5f3;
+  --line: #c2cec8;
+  --text: #162620;
+  --muted: #4c6559;
+  --accent: #11693f;
+  --accent-strong: #0a5733;
+  --accent-rgb: 17,105,63;
+  --accent-2: #236573;
+  --accent-2-rgb: 35,101,115;
+  --on-accent: #ffffff;
+  --rh-surface-raised: #ffffff;
+  --rh-surface-inset: #e9f0ec;
+  --rh-surface-soft: #f1f5f3;
+  --rh-border-soft: #cfdbd4;
+  --rh-border-strong: #a7bab0;
+  --rh-text-subtle: #4c6559;
+  --rh9-control-border: #768b7e;
+  --rh9-chrome: #f8fbf9;
+  --rh9-sheen: #e4f0e9;
+  --rh9-field-placeholder: #52685d;
+  --rh9-glow: rgba(29,131,82,.065);
+  --rh9-backdrop: rgba(12,28,23,.56);
+  --rh9-card-wash: linear-gradient(160deg,rgba(29,131,82,.025),transparent 48%);
+  --rh-shadow-sm: 0 5px 16px rgba(27,55,42,.065),inset 0 1px 0 #ffffff;
+  --rh-shadow-md: 0 24px 60px rgba(27,55,42,.20),inset 0 1px 0 #ffffff;
+}
+
+html[data-theme="sunlight"][data-app-theme="blue"],
+html[data-theme="light"][data-app-theme="blue"] {
+  --bg: #e8f0f7;
+  --panel: #ffffff;
+  --panel2: #eff5fa;
+  --line: #bfcfdc;
+  --text: #102b43;
+  --muted: #48647c;
+  --accent: #14619b;
+  --accent-strong: #0d4e81;
+  --accent-rgb: 20,97,155;
+  --accent-2: #086d76;
+  --accent-2-rgb: 8,109,118;
+  --on-accent: #ffffff;
+  --rh-surface-raised: #ffffff;
+  --rh-surface-inset: #e8f1f8;
+  --rh-surface-soft: #eff5fa;
+  --rh-border-soft: #cbdbe7;
+  --rh-border-strong: #a4bbce;
+  --rh-text-subtle: #48647c;
+  --rh9-control-border: #758da2;
+  --rh9-chrome: #f7fbff;
+  --rh9-sheen: #deedf7;
+  --rh9-field-placeholder: #506a80;
+  --rh9-glow: rgba(33,127,199,.075);
+  --rh9-backdrop: rgba(9,27,45,.58);
+  --rh9-card-wash: linear-gradient(135deg,rgba(28,114,173,.035),transparent 40%);
+  --rh-shadow-sm: 0 5px 15px rgba(26,66,98,.065),inset 0 1px 0 #ffffff;
+  --rh-shadow-md: 0 24px 60px rgba(26,66,98,.20),inset 0 1px 0 #ffffff;
+}
+
+html[data-theme="sunlight"][data-app-theme="orange"],
+html[data-theme="light"][data-app-theme="orange"] {
+  --bg: #f3ece2;
+  --panel: #fffcf7;
+  --panel2: #f8f1e8;
+  --line: #d3c4b2;
+  --text: #362419;
+  --muted: #715b46;
+  --accent: #934719;
+  --accent-strong: #7b3611;
+  --accent-rgb: 147,71,25;
+  --accent-2: #80591a;
+  --accent-2-rgb: 128,89,26;
+  --on-accent: #ffffff;
+  --rh-surface-raised: #fffcf7;
+  --rh-surface-inset: #f3eade;
+  --rh-surface-soft: #f8f1e8;
+  --rh-border-soft: #dfd2c3;
+  --rh-border-strong: #bda88f;
+  --rh-text-subtle: #715b46;
+  --rh9-control-border: #98816b;
+  --rh9-chrome: #fffaf2;
+  --rh9-sheen: #f6e8d6;
+  --rh9-field-placeholder: #76604d;
+  --rh9-glow: rgba(175,105,37,.075);
+  --rh9-backdrop: rgba(43,26,13,.56);
+  --rh9-card-wash: linear-gradient(180deg,rgba(158,102,39,.045),transparent 44%);
+  --rh-shadow-sm: 0 6px 18px rgba(86,56,29,.075),inset 0 1px 0 #ffffff;
+  --rh-shadow-md: 0 24px 62px rgba(86,56,29,.22),inset 0 1px 0 #ffffff;
+}
+
+html[data-theme="sunlight"][data-app-theme="purple"],
+html[data-theme="light"][data-app-theme="purple"] {
+  --bg: #eeeaf6;
+  --panel: #fefbff;
+  --panel2: #f5effa;
+  --line: #cec2dc;
+  --text: #30213f;
+  --muted: #675579;
+  --accent: #7141a0;
+  --accent-strong: #5b3187;
+  --accent-rgb: 113,65,160;
+  --accent-2: #994072;
+  --accent-2-rgb: 153,64,114;
+  --on-accent: #ffffff;
+  --rh-surface-raised: #fefbff;
+  --rh-surface-inset: #eee7f4;
+  --rh-surface-soft: #f5effa;
+  --rh-border-soft: #dbcee6;
+  --rh-border-strong: #b9a4cc;
+  --rh-text-subtle: #675579;
+  --rh9-control-border: #917aab;
+  --rh9-chrome: #fcf8ff;
+  --rh9-sheen: #f1e2f4;
+  --rh9-field-placeholder: #6e5c7d;
+  --rh9-glow: rgba(145,85,199,.08);
+  --rh9-backdrop: rgba(31,17,46,.58);
+  --rh9-card-wash: radial-gradient(ellipse at 100% 0,rgba(153,64,114,.055),transparent 55%);
+  --rh-shadow-sm: 0 7px 21px rgba(68,36,94,.075),inset 0 1px 0 #ffffff;
+  --rh-shadow-md: 0 24px 66px rgba(68,36,94,.22),inset 0 1px 0 #ffffff;
+}
+
+/* Theme surfaces deliberately leave spacing, sizing and Drive geometry intact. */
+html[data-app-theme] body {
+  background: radial-gradient(ellipse at 80% -100px,var(--rh9-glow),transparent 600px),var(--bg);
+  color: var(--text);
+}
+
+html[data-app-theme] :is(.topbar,.bottom-nav,.settings-head,.tote-detail-head,.story-modal-head,.delivery-year-head,.family-profile-head,.route-quality-head,.ghost-run-head,.route-detail-head,.route-tools-head,.family-head,.stop-location-head,.recently-deleted-head) {
+  background: var(--rh9-chrome);
+  border-color: var(--rh-border-strong);
+  box-shadow: inset 0 1px 0 color-mix(in srgb,var(--text) 4%,transparent);
+}
+html[data-app-theme] .topbar { border-bottom-color: color-mix(in srgb,var(--accent) 25%,var(--line)); }
+html[data-app-theme] .bottom-nav .nav-item { color: var(--muted); }
+html[data-app-theme] .bottom-nav .nav-item.active {
+  color: var(--accent);
+  background: linear-gradient(180deg,color-mix(in srgb,var(--accent) 9%,transparent),transparent 85%);
+}
+html[data-app-theme] .nav-item.active .nav-icon { filter: none; }
+html[data-app-theme] :is(.brand-mark,.topbar .brand-mark) {
+  background: linear-gradient(135deg,var(--accent),var(--accent-strong));
+  color: var(--on-accent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.2),0 4px 13px color-mix(in srgb,var(--accent) 14%,transparent);
+}
+
+html[data-app-theme] :is(.recent-card,.analytics-card,.history-recent-section,.history-calendar,.history-archive,.weekly-recap,.story-studio,.awards-preview,.heat-view-deck,.heat-advanced-filters,.heat-atlas-head,.heat-atlas-card,.heat-map-story,.heat-insights,.delivery-year-preview,.auto-detect-card,.tote-assistant,.goal-strip,.drive-progress,.drive-coach,.ghost-card,.history-delay-patterns,.delay-report) {
+  background: var(--rh9-card-wash),var(--rh-surface-raised);
+  border-color: var(--rh-border-strong);
+  box-shadow: var(--rh-shadow-sm);
+}
+html[data-app-theme] :is(.summary-tile,.stat-card,.history-card,.history-recent-card,.tote-metric,.detail-metric,.report-metric,.weekly-recap-metric,.weekly-recap-metrics>div,.heat-insight-grid article,.settings-health>div,.finish-digest-card,.history-calendar-nav,.history-calendar-day.has-route,.rescue-stats-metrics>div,.rescue-record) {
+  background: var(--rh-surface-soft);
+  border-color: var(--rh-border-soft);
+}
+html[data-app-theme] .stat-card.primary {
+  background: linear-gradient(150deg,var(--rh9-sheen),var(--panel));
+  border-color: color-mix(in srgb,var(--accent) 38%,var(--line));
+}
+html[data-app-theme] :is(.finish-digest,.report-hero,.rescue-stats) {
+  background: radial-gradient(ellipse at 100% 0,color-mix(in srgb,var(--accent-2) 9%,transparent),transparent 55%),var(--rh9-card-wash),var(--panel);
+  border-color: color-mix(in srgb,var(--accent-2) 28%,var(--line));
+  box-shadow: var(--rh-shadow-sm);
+}
+html[data-app-theme] :is(.rescue-total>strong,.rescue-stats-head .eyebrow,.rescue-record-icon,.rescue-stats-mark,.rescue-record-route) { color: var(--accent-2); }
+html[data-app-theme] :is(.history-recent-date,.settings-section-icon) {
+  background: color-mix(in srgb,var(--accent) 10%,var(--panel));
+  color: var(--accent);
+}
+html[data-app-theme] .history-recent-card p { color: var(--text); }
+
+/* Clear field edges are separate from the quieter decorative card borders. */
+html[data-app-theme] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),select,textarea) {
+  background: var(--rh-surface-inset);
+  border-color: var(--rh9-control-border);
+  color: var(--text);
+  caret-color: var(--accent);
+}
+html[data-app-theme] :is(input,textarea)::placeholder { color: var(--rh9-field-placeholder); opacity: 1; }
+html[data-app-theme] :is(select option,select optgroup) { background: var(--panel); color: var(--text); }
+html[data-app-theme] :is(input,select,textarea):focus-visible { border-color: var(--accent); }
+html[data-app-theme] :is(.segmented,.settings-choice) {
+  background: var(--rh-surface-inset);
+  border-color: var(--rh-border-strong);
+}
+html[data-app-theme] :is(.segmented button,.settings-choice button,.award-filter,.sound-choice-grid button) { color: var(--muted); }
+html[data-app-theme] :is(.settings-choice button.active,.settings-choice button[aria-pressed="true"],.segmented button.active,.award-filter.active,.sound-choice-grid button.active) {
+  background: color-mix(in srgb,var(--accent) 12%,var(--panel));
+  color: var(--accent);
+  border-color: color-mix(in srgb,var(--accent) 60%,var(--line));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb,var(--accent) 35%,transparent);
+}
+html[data-app-theme] :is(.secondary-btn,.replay-btn,.settings-test,.text-btn,.topbar .settings-btn,.delay-reason-chips button) {
+  background: var(--rh-surface-soft);
+  border-color: var(--rh9-control-border);
+  color: var(--text);
+  box-shadow: inset 0 1px 0 color-mix(in srgb,var(--text) 3%,transparent);
+}
+html[data-app-theme] :is(.text-btn,.settings-test) { color: var(--accent); }
+html[data-app-theme] :is(.route-toggle:not(.running):not(.pause-toggle),.drive-start) {
+  background: linear-gradient(135deg,var(--accent),var(--accent-strong));
+  color: var(--on-accent);
+  border-color: var(--accent-strong);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.18),0 5px 16px color-mix(in srgb,var(--accent) 14%,transparent);
+}
+html[data-app-theme] :is(.route-toggle.running,.pause-toggle) {
+  background: var(--rh-surface-soft);
+  border-color: var(--rh9-control-border);
+  color: var(--text);
+  box-shadow: none;
+}
+html[data-app-theme] :is(.history-actions .text-btn:last-child,.route-remove-button,.delete-stop-button) { color: var(--rh-danger); }
+
+/* Sheets keep an opaque reading surface; static soft highlights stop at chrome. */
+html[data-app-theme] .modal { background: var(--rh9-backdrop); }
+html[data-app-theme] :is(.modal-card,.long-stop-prompt) {
+  background: var(--rh9-card-wash),var(--panel);
+  border-color: var(--rh-border-strong);
+  box-shadow: var(--rh-shadow-md);
+  color: var(--text);
+}
+html[data-app-theme] :is(.settings-sheet,.route-detail-card,.report-sheet,.tote-detail-sheet,.story-modal-sheet,.delivery-year-sheet,.family-profile-sheet,.route-quality-sheet,.ghost-run-sheet,.route-tools-sheet,.family-sheet,.stop-location-sheet,.recently-deleted-sheet,.route-scan-sheet) {
+  background: var(--bg);
+  border-color: var(--rh-border-strong);
+  box-shadow: var(--rh-shadow-md);
+  color: var(--text);
+}
+html[data-app-theme] :is(.appearance-settings-section,.app-theme-settings) { background: none; }
+html[data-app-theme] .route-scan-sheet :is(header,footer) { background: var(--rh9-chrome); border-color: var(--rh-border-strong); }
+
+/* Quiet Route Moments still distinguish notice/positive/rare through their own
+ * text and status accents. The reading surface follows the chosen finish. */
+html[data-app-theme] .delivery-feedback-banner {
+  background: var(--rh9-card-wash),var(--panel);
+  color: var(--text);
+}
+html[data-app-theme] .delivery-feedback-banner :is(small,.delivery-feedback-evidence) { color: var(--muted); }
+html[data-app-theme] .delivery-feedback-metrics span {
+  background: var(--rh-surface-soft);
+  border-color: var(--rh-border-soft);
+  color: var(--text);
+}
+
+/* Existing theme choice markup becomes a small finish sample. IDs stay stable. */
+html[data-app-theme] .app-theme-choices button {
+  --choice-accent: #5ae5a5;
+  --choice-secondary: #99d8e5;
+  --choice-base: #141b20;
+  --choice-panel: #243630;
+  background: var(--panel);
+  border-color: var(--rh9-control-border);
+  box-shadow: none;
+}
+html[data-app-theme] .app-theme-choices button[data-app-theme="blue"] { --choice-accent:#79caff; --choice-secondary:#73e2df; --choice-base:#102235; --choice-panel:#203a50; }
+html[data-app-theme] .app-theme-choices button[data-app-theme="orange"] { --choice-accent:#ffbd7a; --choice-secondary:#f5d88e; --choice-base:#271f1b; --choice-panel:#49352b; }
+html[data-app-theme] .app-theme-choices button[data-app-theme="purple"] { --choice-accent:#c6a5ff; --choice-secondary:#f5a6d6; --choice-base:#211a34; --choice-panel:#432b52; }
+html[data-app-theme] .app-theme-choices button i {
+  background: linear-gradient(150deg,var(--choice-panel),var(--choice-base));
+  border-color: color-mix(in srgb,var(--choice-accent) 32%,var(--choice-base));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
+}
+html[data-app-theme] .app-theme-choices button i:before { background: linear-gradient(90deg,var(--choice-accent),var(--choice-secondary)); box-shadow: none; }
+html[data-app-theme] .app-theme-choices button i:after { border-color: var(--choice-base); }
+html[data-app-theme] .app-theme-choices button:is([aria-pressed="true"],.active) {
+  border-color: var(--accent);
+  background: color-mix(in srgb,var(--accent) 8%,var(--panel));
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+html[data-app-theme] .app-theme-choices button:is([aria-pressed="true"],.active) b { color: var(--accent); }
+html[data-app-theme] .app-theme-choices button:focus-visible { outline-color: var(--accent); }
+
+@media (prefers-contrast: more) {
+  html[data-app-theme] { --rh-border-soft: var(--rh9-control-border); --rh-border-strong: var(--rh9-control-border); }
+}
+@media (forced-colors: active) {
+  html[data-app-theme] :is(.app-theme-choices button[aria-pressed="true"],.settings-choice button.active,.segmented button.active) { outline: 2px solid Highlight; outline-offset: -3px; }
+}

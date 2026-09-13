@@ -1,4 +1,19 @@
-# RouteHeat 8.3.0
+# RouteHeat 9.0.0
+
+## 9.0.0 The Theme & Customization Update
+
+Drive studio lets you build the Drive screen around the information you use. Open **Settings → Drive studio**, or tap **Layout** on Drive. Changes apply immediately, and **View Drive** takes you back to the result.
+
+- **Seven quick layouts:** Balanced, Left focus, Cockpit, Top deck, Focus, Ghost Run and Insights. Start with a preset, then adjust it into your own Custom layout. Focus keeps the dial and delivery controls; Ghost Run pairs a large dial with its comparison; Insights gives more space to information.
+- **Four information positions and three dial sizes:** place cards to the right, left, above or below the dial, with Small, Medium or Large sizing. Side layouts reserve readable space for cards; above/below arrangements allow the largest dial. Longer card collections, narrow screens and enlarged text can scroll rather than clip content.
+- **Fourteen selectable, reorderable cards:** stops/locations, active time, last-stop pace, finish estimate, stops remaining, pace versus goal, packages, recorded distance, Ghost comparison, Route facts, latest stop interval, Delivery Area, Tote assistant and Route coach. Select none, some or all, and use the arrows to set their order.
+- **Three dial designs:** Arc, Orbit and Panel. Each retains the same Stop Complete action, pace reading and status colors. The compact Multi-location and Tote controls, Pause, Finish and route tools remain available regardless of the information selected.
+- **Three progress designs:** Rail, Segments and Beacon, plus an option to hide the progress display. These change presentation without changing route totals or timing.
+- **Four complete themes:** Carbon, Glacier, Ember and Ultraviolet each have distinct backgrounds, surfaces, accents and map details. Every theme supports Dark and Daylight, with Automatic brightness following the device. Pace and status colors retain their meaning across themes.
+- **Useful information stays visible:** Route facts keeps the latest Route Moment shown on this device after its popup closes. The latest interval card compares a completed stop-to-stop interval with recent eligible intervals; it includes travel and stop work. Ghost shows a clear waiting state when no suitable comparison is available.
+- **Small, saved preferences:** the entire bounded Drive layout is less than 1 KiB. It is saved on this device, protected by the device journal and included in `.routeheat` backups. Import preserves this device's explicit layout choice; a backup can restore it on a device without a saved choice. No extra GPS history, account or dependency is added for customization.
+
+Existing Route Moments and hourly previous-route comparisons remain automatic under the same Delivery insight cards setting. Choosing whether their information card appears does not turn those popups on or off. Route data, Auto Stop behavior, Ghost selection, stops, totes, rescues and existing achievements retain their prior behavior. **Reset Drive layout** returns to Balanced; theme selection is kept separately.
 
 ## 8.3.0 Route insights
 
