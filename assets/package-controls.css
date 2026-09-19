@@ -1,0 +1,42 @@
+/* RouteHeat 9.1 · compact one-tap package completion. */
+.package-composer{padding:12px;border:1px solid var(--rh-border-strong);border-radius:18px;background:var(--rh-surface-raised);color:var(--text);min-width:0;}
+.package-composer[hidden],.package-slot[hidden]{display:none!important;}
+.package-composer-heading{display:flex;justify-content:space-between;align-items:baseline;gap:6px;margin-bottom:8px;font-size:10px;font-weight:850;letter-spacing:.06em;}
+.package-composer-heading small{color:var(--muted);font-size:10px;letter-spacing:0;}
+.package-quick{display:grid;grid-template-columns:repeat(4,minmax(44px,1fr));gap:6px;}
+.package-quick button,.package-more{min-height:44px;border:1px solid var(--rh-border-strong);border-radius:12px;background:var(--rh-surface-soft,var(--rh-surface));color:var(--text);font-size:20px;font-weight:850;touch-action:manipulation;}
+.package-quick button:not(:disabled):active{background:var(--accent);color:var(--rh-on-accent,#06120e);transform:scale(.96);}
+.package-more{width:100%;margin-top:6px;min-height:36px;font-size:12px;display:flex;align-items:center;justify-content:center;gap:7px;}
+.package-more span{font-size:18px;color:var(--accent);}
+.package-composer button:disabled{opacity:.45;}
+.package-composer-footer{margin:7px 0 0;font-size:10px;line-height:1.4;color:var(--muted);text-align:center;}
+.package-slot{width:100%;margin-top:8px;}
+#drivePackageCard{grid-column:1/-1;}
+#drivePackageCard .package-composer{margin:0;}
+.package-dial-shell{position:relative;display:grid;place-items:center;width:min(100%,var(--drive-dial-size));}
+#driveView .package-dial-shell .drive-speed-stop{width:100%;}
+#driveView[data-package-placement="dial"] .package-dial-shell{min-width:272px;}
+#driveView[data-package-placement="dial"] #drivePackageComposer{position:absolute;z-index:3;top:43%;left:12%;width:76%;padding:0;border:0;border-radius:0;background:transparent;}
+#driveView[data-package-placement="dial"] #drivePackageComposer .package-composer-heading{justify-content:center;margin-bottom:6px;}
+#driveView[data-package-placement="dial"] #drivePackageComposer .package-composer-heading small{display:none;}
+#driveView[data-package-placement="dial"] #drivePackageComposer .package-composer-footer{font-size:10px;}
+#driveView[data-package-placement="dial"] .drive-dial-readout{position:absolute;top:15%;left:14%;width:72%;}
+#driveView[data-package-placement="dial"] .drive-dial-readout strong{font-size:clamp(36px,17cqi,56px);}
+#driveView[data-package-placement="dial"] .drive-speed-action,#driveView[data-package-placement="dial"] .drive-dial-state{visibility:hidden;}
+.package-settings-row{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:12px 0;}
+.package-settings-row p{margin:4px 0 0;color:var(--muted);font-size:12px;line-height:1.5;}
+.package-picker-card{width:min(420px,calc(100vw - 32px));}
+.package-picker-card input{width:100%;font-size:32px;text-align:center;min-height:64px;border:1px solid var(--rh-border-strong);border-radius:16px;background:var(--rh-surface-raised);color:var(--text);margin:12px 0;}
+.package-picker-shortcuts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.package-picker-shortcuts button{min-height:44px;border-radius:12px;border:1px solid var(--rh-border-strong);background:var(--rh-surface-raised);color:var(--text);font-weight:800;}
+.package-picker-error{min-height:18px;color:var(--slow,#ff6b68);font-size:12px;}
+.package-last-edit{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.package-last-edit button{min-height:44px;}
+.package-report-note{font-size:12px;color:var(--muted);margin-top:6px;}
+@media(max-width:359px){#driveView[data-package-placement="dial"] #drivePackageComposer{left:11%;width:78%;}.package-composer-heading{flex-wrap:wrap;}.package-quick{gap:4px;}}
+@media(prefers-reduced-motion:reduce){.package-quick button:not(:disabled):active{transform:none;}}
+
+.package-composer{container-type:inline-size;}
+#drivePackageCard{padding:0;}
+@container (max-width:195px){.package-quick{grid-template-columns:repeat(2,minmax(44px,1fr));}.package-composer-heading{display:block;}.package-composer-heading small{display:block;margin-top:3px;}}
+#drivePackageCard .package-composer{padding:8px;}

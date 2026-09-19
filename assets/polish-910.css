@@ -1,0 +1,44 @@
+/* RouteHeat 9.1: quiet light around dark instruments, with no added motion.
+ * Every finish uses its own theme accent. Text and daylight palettes stay intact. */
+html[data-theme="dark"] {
+  --rh910-edge-light: color-mix(in srgb,var(--accent) 19%,var(--rh-border-soft));
+  --rh910-soft-glow: color-mix(in srgb,var(--accent) 9%,transparent);
+  --rh910-cool-glow: color-mix(in srgb,var(--accent-2) 7%,transparent);
+}
+html[data-theme="dark"] :is(.heat-atlas-head,.day-at-glance,.finish-digest,.weekly-recap) {
+  border-color: var(--rh910-edge-light);
+  box-shadow: 0 14px 40px rgba(0,0,0,.23),0 0 30px var(--rh910-soft-glow),inset 0 1px 0 color-mix(in srgb,var(--accent) 14%,transparent);
+}
+html[data-theme="dark"] #driveView .drive-stat {
+  border-color: var(--rh910-edge-light);
+  background: radial-gradient(ellipse at 100% 0,var(--rh910-cool-glow),transparent 72%),var(--rh-surface-raised);
+  box-shadow: inset 0 1px 0 color-mix(in srgb,var(--accent) 9%,transparent),0 4px 14px rgba(0,0,0,.12);
+}
+html[data-theme="dark"] #driveView .drive-progress {
+  border-color: var(--rh910-edge-light);
+  box-shadow: 0 0 24px var(--rh910-soft-glow),inset 0 1px 0 color-mix(in srgb,var(--accent) 12%,transparent);
+}
+html[data-theme="dark"] #driveView[data-drive-dial] .drive-speed-stop {
+  box-shadow: 0 12px 34px rgba(0,0,0,.3),0 0 28px color-mix(in srgb,var(--drive-edge-color) 15%,transparent),inset 0 0 20px color-mix(in srgb,var(--drive-edge-color) 5%,transparent);
+}
+html[data-theme="dark"] #driveView[data-drive-dial="orbit"] .drive-speed-stop {
+  box-shadow: 0 12px 34px rgba(0,0,0,.3),0 0 32px color-mix(in srgb,var(--drive-edge-color) 18%,transparent),inset 0 0 0 9px color-mix(in srgb,var(--drive-edge-color) 7%,transparent),0 0 0 1px color-mix(in srgb,var(--drive-edge-color) 28%,transparent);
+}
+html[data-theme="dark"] #driveView[data-drive-dial="panel"] .drive-speed-stop {
+  box-shadow: 0 14px 34px rgba(0,0,0,.3),0 0 24px color-mix(in srgb,var(--drive-edge-color) 13%,transparent),inset 0 3px 0 color-mix(in srgb,var(--drive-edge-color) 70%,transparent);
+}
+html[data-theme="dark"] .calendar-rich-day.selected {
+  box-shadow: 0 0 18px var(--rh910-soft-glow),inset 0 1px 0 color-mix(in srgb,var(--accent) 20%,transparent);
+}
+/* Shortcut and popup are shared by both brightness settings. */
+#mostDeliveredHeatMap { touch-action: manipulation; }
+/* Keep a tile warning compact when earlier styles set both vertical edges. */
+.heat-map-status { bottom:auto; height:auto; }
+.atlas-focus-popup>.visit-cluster-title { font-size:14px; line-height:1.35; }
+.visit-cluster-popup.atlas-focus-popup>.visit-cluster-meta,.atlas-focus-popup>.visit-cluster-dates,.atlas-focus-popup>.visit-cluster-note { font-size:11px; line-height:1.45; }
+.atlas-focus-popup .atlas-focus-total { display:block;margin:10px 0 4px;font-size:26px;line-height:1.15;letter-spacing:-.5px;font-weight:850;color:var(--text);font-variant-numeric:tabular-nums; }
+.atlas-focus-popup .atlas-focus-total small { display:block;margin-top:3px;font-size:11px;line-height:1.4;font-weight:650;letter-spacing:0;color:var(--muted); }
+@media(forced-colors:active) {
+  html[data-theme="dark"] :is(.heat-atlas-head,.day-at-glance,.finish-digest,.weekly-recap,.calendar-rich-day.selected),
+  html[data-theme="dark"] #driveView :is(.drive-stat,.drive-progress,.drive-speed-stop) { box-shadow:none; }
+}

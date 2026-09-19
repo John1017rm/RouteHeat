@@ -1,0 +1,28 @@
+/* Route-time weather story, shared by saved route and final report cards. */
+.atmosphere-periods{display:grid;gap:0;list-style:none;margin:16px 0;padding:0;border:1px solid var(--border,rgba(148,163,184,.25));border-radius:16px;overflow:hidden}
+.atmosphere-periods li{display:flex;align-items:center;gap:12px;padding:12px 14px;min-width:0;background:var(--panel-soft,rgba(148,163,184,.05))}
+.atmosphere-periods li+li{border-top:1px solid var(--border,rgba(148,163,184,.18))}
+.atmosphere-periods li>span{font-size:25px;flex:none;width:30px;text-align:center}
+.atmosphere-periods li>div{display:grid;gap:3px;min-width:0;flex:1}
+.atmosphere-periods b{font-size:13px;line-height:1.35}
+.atmosphere-periods small,.atmosphere-coverage-note{color:var(--muted,#aab4c6);font-size:11px;line-height:1.55}
+.atmosphere-periods strong{font-size:13px;font-variant-numeric:tabular-nums;text-align:right;flex:none}
+.atmosphere-coverage-note{margin:12px 0}
+.atmosphere-driver-observation{display:grid;gap:5px;margin:14px 0;padding:13px 14px;border:1px solid var(--accent,#22e38d);border-radius:14px;background:var(--panel-soft,rgba(148,163,184,.05))}
+.atmosphere-driver-observation b{font-size:13px;line-height:1.5}
+.atmosphere-driver-observation p{font-size:13px;margin:0;overflow-wrap:anywhere}
+.atmosphere-driver-observation small{font-size:10px;color:var(--muted,#aab4c6);line-height:1.5}
+.atmosphere-observation-editor{margin:14px 0;border:1px solid var(--border,rgba(148,163,184,.25));border-radius:14px;overflow:hidden}
+.atmosphere-observation-editor summary{padding:13px 14px;min-height:46px;cursor:pointer;font-size:13px;font-weight:700}
+.atmosphere-observation-editor form{display:grid;gap:12px;padding:0 14px 14px}
+.atmosphere-observation-editor form p{margin:0;color:var(--muted,#aab4c6);font-size:12px;line-height:1.5}
+.atmosphere-observation-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:10px}
+.atmosphere-observation-editor label{display:grid;gap:6px;min-width:0;font-size:11px;font-weight:700}
+.atmosphere-observation-editor input,.atmosphere-observation-editor select{width:100%;max-width:100%;min-width:0;min-height:46px;border:1px solid var(--border,rgba(148,163,184,.4));border-radius:10px;padding:9px 10px;background:var(--bg,#111827);color:var(--text,#f8fafc);font:inherit;font-size:16px}
+.atmosphere-observation-actions{display:flex;gap:8px;flex-wrap:wrap}
+.atmosphere-observation-actions button{min-height:46px;flex:1 1 135px;border-radius:10px;padding:10px 12px;border:1px solid var(--border,rgba(148,163,184,.4));background:var(--panel-soft,#172536);color:var(--text,#f8fafc);font:inherit;font-size:12px;font-weight:750}
+.atmosphere-observation-actions button[type=submit]{border-color:var(--accent,#22e38d)}
+.atmosphere-observation-editor :focus-visible{outline:3px solid var(--accent,#22e38d);outline-offset:3px}
+.atmosphere-refresh-status{font-size:12px;line-height:1.5;color:var(--muted,#aab4c6);padding:12px;border:1px solid var(--border,rgba(148,163,184,.3));border-radius:10px}
+@media(max-width:350px){.atmosphere-observation-fields{grid-template-columns:1fr}.atmosphere-periods li{padding:10px;gap:8px}.atmosphere-periods strong{font-size:11px}}
+@media(forced-colors:active){.atmosphere-periods,.atmosphere-observation-editor,.atmosphere-driver-observation{border-color:CanvasText}.atmosphere-observation-editor :focus-visible{outline-color:Highlight}}

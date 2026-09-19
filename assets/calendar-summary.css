@@ -1,0 +1,47 @@
+/* Calendar tiles stay compact; detailed information expands below the month. */
+.history-calendar-grid .calendar-rich-day{position:relative;min-height:86px;justify-content:flex-start;gap:3px;padding:8px 3px 9px;border-radius:12px;font-variant-numeric:tabular-nums;transition:border-color .16s,background-color .16s}
+.calendar-rich-day .calendar-rescue-mark{position:absolute;left:50%;bottom:3px;transform:translateX(-50%);width:18px;height:3px;border-radius:3px;background:#7bbaff}
+.calendar-summary-legend .calendar-rescue-key{display:inline-block;width:10px;height:4px;border-radius:3px;background:#7bbaff;vertical-align:middle;margin-right:3px}
+html[data-theme="sunlight"] :is(.calendar-rescue-mark,.calendar-rescue-key){background:#236bb5}
+.history-calendar-grid .calendar-rich-day:focus-visible{outline:3px solid var(--accent,var(--green));outline-offset:2px}
+.history-calendar-grid .calendar-rich-day>.calendar-day-top{display:flex;width:100%;align-items:center;justify-content:center;gap:4px;line-height:18px;font-size:12px;font-weight:800}
+.calendar-rich-day .calendar-weather-icon{display:inline-flex;align-items:center;justify-content:center;width:18px;font-size:15px;line-height:18px}
+.history-calendar-grid .calendar-rich-day>.calendar-stop-count{margin:3px 0 0;font-size:16px;line-height:19px;letter-spacing:-.4px;color:var(--accent,var(--green));max-width:100%}
+.history-calendar-grid .calendar-rich-day>.calendar-package-count{display:flex;align-items:center;justify-content:center;gap:3px;font-size:11px;font-weight:750;line-height:16px;max-width:100%;color:var(--text)}
+.calendar-package-mark{font-size:10px;color:var(--muted);font-weight:850}
+.calendar-package-count.unknown{color:var(--muted)!important}
+.calendar-package-count.planned{color:var(--muted)!important}
+.calendar-summary-legend{display:flex;flex-wrap:wrap;align-items:center;gap:5px 14px;margin:12px 1px 0;color:var(--muted);font-size:11px;line-height:1.55}
+.calendar-summary-legend>span:first-child{color:var(--accent,var(--green));font-weight:800}
+.calendar-summary-legend b{color:var(--text);font-weight:800}
+.day-at-glance{padding:16px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent,var(--green)) 7%,var(--panel)),var(--panel));margin:0 0 12px}
+.day-at-glance>header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}
+.day-at-glance>header h3{margin:0;font-size:18px;line-height:1.3;letter-spacing:-.4px}
+.day-at-glance>header>span{flex-shrink:0;padding:6px 9px;border:1px solid var(--line);border-radius:9px;font-size:11px;color:var(--muted);background:var(--panel2)}
+.day-at-glance .eyebrow{font-size:9px;letter-spacing:1.4px}
+.day-glance-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.day-glance-metrics>div{min-width:0;border:1px solid var(--line);border-radius:12px;padding:12px 10px;background:var(--panel2)}
+.day-glance-metrics span,.day-glance-metrics b,.day-glance-metrics small{display:block}
+.day-glance-metrics span{font-size:9px;line-height:1.5;letter-spacing:.5px;font-weight:800;color:var(--muted)}
+.day-glance-metrics b{margin:5px 0 6px;font-size:22px;line-height:1.15;letter-spacing:-.7px;font-variant-numeric:tabular-nums;color:var(--text);overflow-wrap:anywhere}
+.day-glance-metrics small{font-size:11px;line-height:1.5;color:var(--muted)}
+.day-package-plan{margin:10px 1px 16px;font-size:11px;line-height:1.6;color:var(--muted)}
+.day-weather{padding-top:13px;border-top:1px solid var(--line)}
+.day-weather-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.day-weather-heading>b{font-size:12px;font-weight:850}
+.day-weather-heading>span{font-size:12px;white-space:nowrap;color:var(--accent,var(--green));font-weight:800}
+.day-weather ol{list-style:none;padding:0;margin:0;display:grid;gap:9px}
+.day-weather li{display:grid;grid-template-columns:33px minmax(0,1fr);gap:10px;align-items:start;padding:9px;border:1px solid var(--line);border-radius:11px;background:var(--panel2)}
+.day-weather-symbol{height:33px;border-radius:9px;background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:21px;color:var(--accent,var(--green))}
+.day-weather li b{display:block;font-size:12px;line-height:1.5;font-weight:750}
+.day-weather li small{display:block;margin-top:3px;color:var(--muted);font-size:11px;line-height:1.6}
+.day-weather>p,.day-weather-observation{font-size:11px;line-height:1.6;color:var(--muted);margin:8px 0}
+.day-weather li .day-weather-observation{margin-bottom:0;color:var(--text)}
+.day-weather-source{display:block;color:var(--muted);font-size:10px;line-height:1.6;margin:9px 1px 0}
+.day-delay-note{display:grid;grid-template-columns:24px minmax(0,1fr);gap:8px;align-items:start;margin-top:13px;padding-top:13px;border-top:1px solid var(--line)}
+.day-delay-note>span{color:var(--accent,var(--green));font-size:21px}
+.day-delay-note b{font-size:12px;line-height:1.5}
+.day-delay-note p{margin:4px 0 0;color:var(--muted);font-size:11px;line-height:1.6}
+@media(max-width:620px){.day-glance-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.day-at-glance{padding:13px}.history-calendar-grid .calendar-rich-day{min-height:80px;padding:6px 1px 8px}.history-calendar-grid .calendar-rich-day>.calendar-day-top{gap:2px;font-size:11px}.calendar-rich-day .calendar-weather-icon{width:15px;font-size:13px}.history-calendar-grid .calendar-rich-day>.calendar-stop-count{font-size:14px;letter-spacing:-.4px}.history-calendar-grid .calendar-rich-day>.calendar-package-count{font-size:10px;gap:2px}.calendar-package-mark{font-size:9px}.day-at-glance>header h3{font-size:16px}.day-weather-heading{align-items:flex-start;flex-wrap:wrap}.calendar-summary-legend{font-size:10px;gap:4px 10px}}
+@media(max-width:360px){.history-calendar-grid .calendar-rich-day>.calendar-stop-count{font-size:13px}.history-calendar-grid .calendar-rich-day>.calendar-package-count{font-size:9px;letter-spacing:-.2px}.calendar-package-mark{font-size:8px}.day-glance-metrics b{font-size:20px}}
+@media(prefers-reduced-motion:reduce){.history-calendar-grid .calendar-rich-day{transition:none}}
