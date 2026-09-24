@@ -24,5 +24,8 @@
 .atmosphere-observation-actions button[type=submit]{border-color:var(--accent,#22e38d)}
 .atmosphere-observation-editor :focus-visible{outline:3px solid var(--accent,#22e38d);outline-offset:3px}
 .atmosphere-refresh-status{font-size:12px;line-height:1.5;color:var(--muted,#aab4c6);padding:12px;border:1px solid var(--border,rgba(148,163,184,.3));border-radius:10px}
+.atmosphere-coverage-warning{padding:12px 14px;margin:12px 0;border:1px solid var(--accent,#22e38d);border-radius:12px;background:var(--panel-soft,rgba(148,163,184,.05));color:var(--text,#f8fafc)}
+.atmosphere-coverage-warning b{font-size:13px}.atmosphere-coverage-warning p{font-size:12px;line-height:1.5;margin:5px 0 0;color:var(--muted,#aab4c6)}
+.atmosphere-periods li[data-weather="unknown"]{border-inline-start:3px dashed var(--muted,#aab4c6);background:transparent}.atmosphere-periods li[data-weather="unknown"]>span{font-size:17px;color:var(--muted,#aab4c6)}
 @media(max-width:350px){.atmosphere-observation-fields{grid-template-columns:1fr}.atmosphere-periods li{padding:10px;gap:8px}.atmosphere-periods strong{font-size:11px}}
 @media(forced-colors:active){.atmosphere-periods,.atmosphere-observation-editor,.atmosphere-driver-observation{border-color:CanvasText}.atmosphere-observation-editor :focus-visible{outline-color:Highlight}}

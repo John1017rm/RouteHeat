@@ -1,0 +1,8 @@
+.heat-package-summary small { display:block; color:var(--rh-text-subtle,var(--muted)); font-size:11px; line-height:1.4; margin-top:5px; overflow-wrap:anywhere; }
+.heat-package-summary { grid-column:1/-1; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:3px 12px; align-items:center; }
+.heat-package-summary>strong { grid-column:2; grid-row:1/3; }
+.heat-package-summary>small { grid-column:1; }
+.heat-mode-packages { display:grid; place-items:center; font-size:25px; line-height:1; }
+#heatLegend.packages i { background:linear-gradient(90deg,var(--map-tote,#e5aa49),var(--map-density-hot,#f07063)); }
+.atlas-package-marker { filter:drop-shadow(0 0 5px rgba(224,161,63,.18)); }
+@media(forced-colors:active){.atlas-package-marker{filter:none;}}

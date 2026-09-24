@@ -1,0 +1,104 @@
+/* RouteHeat 9.2 · familiar controls, placed where you want them. */
+#driveView .drive-control-slot { width:100%; min-width:0; display:grid; gap:8px; }
+#driveMultiAbove,#driveMultiBelow { container-type:inline-size; }
+#driveView .drive-control-slot:empty,#driveView .drive-control-slot[hidden],#driveView #driveActionDock[hidden],#driveView #driveDockActions[hidden] { display:none!important; }
+#driveRouteControlsAbove:not([hidden]) { margin:0 0 14px; }
+#driveRouteControlsBelow:not([hidden]) { margin:14px 0; }
+#driveToteAbove:not([hidden]) { margin-bottom:12px; }
+#driveToteBelow:not([hidden]) { margin-top:12px; }
+#driveView #driveMultiDialStatus { margin:0; }
+#driveView #autoMultiArmStatus { max-width:100%; margin:0; min-height:0; font-size:11px; line-height:1.4; padding:7px 8px; }
+#driveView #autoMultiArm { position:static; display:grid; grid-template-columns:repeat(4,minmax(44px,1fr)); gap:7px; width:100%; min-width:0; height:auto; margin:0; padding:0; }
+#driveView #autoMultiArm .auto-multi-count { position:static; width:100%; min-width:44px; height:48px; min-height:48px; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px; padding:4px; border-radius:14px; transform:none; }
+#driveView #autoMultiArm .auto-multi-count b { font-size:20px; line-height:1; }
+#driveView #autoMultiArm .auto-multi-count small { font-size:9px; line-height:1; margin:0; letter-spacing:.05em; }
+#driveView #autoMultiArm .auto-multi-count:active { transform:scale(.96); }
+#driveView[data-corner-locations="true"] #packageDialShell { width:min(100%,max(236px,var(--drive-dial-size))); }
+#driveView[data-corner-locations="true"] #packageDialShell .drive-speed-stop { width:min(100%,var(--drive-dial-size)); }
+#driveView[data-corner-locations="true"] #autoMultiArm { position:absolute; inset:0; height:100%; pointer-events:none; z-index:5; display:block; }
+#driveView[data-corner-locations="true"] #autoMultiArm .auto-multi-count { position:absolute; width:48px; height:48px; pointer-events:auto; box-shadow:0 5px 18px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.12); }
+#driveView[data-corner-locations="true"] #autoMultiArm .count-2 { top:0; left:0; bottom:auto; right:auto; }
+#driveView[data-corner-locations="true"] #autoMultiArm .count-3 { top:0; right:0; bottom:auto; left:auto; }
+#driveView[data-corner-locations="true"] #autoMultiArm .count-4 { bottom:0; left:0; top:auto; right:auto; }
+#driveView[data-corner-locations="true"] #autoMultiArm .count-5 { bottom:0; right:0; top:auto; left:auto; }
+#driveView #autoMultiArm .auto-multi-count[aria-pressed="true"] { box-shadow:0 0 0 2px var(--rh-surface-raised),0 0 0 4px var(--map-multi),0 0 22px color-mix(in srgb,var(--map-multi) 25%,transparent); }
+#driveView .drive-control-slot #driveToteBtn { width:100%; max-width:100%; min-height:52px; border-radius:16px; margin:0; }
+#driveView[data-tote-style="compact"] #driveToteBtn,#driveView[data-tote-style="pill"] #driveToteBtn { display:flex; flex-direction:row; justify-content:center; align-items:center; flex-wrap:nowrap; gap:9px; min-height:46px; padding:9px 12px; }
+#driveView[data-tote-style="compact"] #driveToteHint,#driveView[data-tote-style="pill"] #driveToteHint { display:none; }
+#driveView[data-tote-style="compact"] #driveToteBtn>span,#driveView[data-tote-style="pill"] #driveToteBtn>span { position:static; width:auto; min-width:20px; font-size:22px; }
+#driveView[data-tote-style="compact"] #driveToteLabel,#driveView[data-tote-style="pill"] #driveToteLabel { font-size:12px; line-height:1.3; white-space:normal; overflow-wrap:anywhere; }
+#driveView[data-tote-style="pill"] #driveToteBtn { border-radius:999px; background:linear-gradient(135deg,color-mix(in srgb,var(--map-tote,var(--accent-2)) 16%,var(--rh-surface-raised)),var(--rh-surface-raised)); border-color:color-mix(in srgb,var(--map-tote,var(--accent-2)) 50%,var(--rh-border-strong)); }
+#driveView[data-tote-style="pill"] .drive-control-slot #driveToteBtn { width:max-content; min-width:min(190px,100%); justify-self:center; }
+#driveView #driveRouteControls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; width:100%; margin:0; }
+#driveView #driveRouteControls button { min-width:0; min-height:48px; padding:10px; white-space:normal; font-size:13px; line-height:1.35; }
+#driveView[data-route-controls-style="stacked"] #driveRouteControls { grid-template-columns:minmax(0,1fr); gap:8px; }
+#driveView[data-route-controls-style="compact"] #driveRouteControls { gap:8px; }
+#driveView[data-route-controls-style="compact"] #driveRouteControls button { min-height:44px; padding:8px; font-size:12px; border-radius:999px; }
+#driveView[data-tote-position="above"] #driveDockActions,#driveView[data-tote-position="below"] #driveDockActions { grid-template-columns:minmax(0,1fr); }
+#driveView .drive-action-dock #driveMultiDock { margin-bottom:8px; }
+.studio-control-presets { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:12px 0 18px; }
+.studio-control-presets button { display:grid; gap:7px; justify-items:center; min-height:74px; padding:10px 6px; border:1px solid var(--rh-border-strong); border-radius:14px; background:var(--rh-surface-raised); color:var(--text); font-size:12px; font-weight:750; }
+.studio-control-presets button>span { font-size:24px; line-height:1.2; color:var(--accent); }
+.studio-control-presets button[aria-pressed="true"] { border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); background:color-mix(in srgb,var(--accent) 9%,var(--rh-surface-raised)); }
+.studio-sound-preview { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:12px; }
+.studio-sound-preview button { min-height:44px; padding:10px 15px; border:1px solid var(--rh-border-strong); border-radius:12px; background:var(--rh-surface-raised); color:var(--accent); font-weight:800; }
+.studio-sound-preview small { color:var(--rh-text-subtle); font-size:12px; line-height:1.4; flex:1 1 140px; }
+@media(max-width:600px) {
+  #driveView[data-corner-locations="true"] .drive-instruments { grid-template-columns:minmax(0,1fr); gap:14px; }
+  #driveView[data-corner-locations="true"] .speedometer { grid-column:1; grid-row:1; }
+  #driveView[data-corner-locations="true"] .drive-card-grid { grid-column:1; grid-row:2; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  #driveView[data-corner-locations="true"][data-drive-position="top"] .speedometer { grid-row:2; }
+  #driveView[data-corner-locations="true"][data-drive-position="top"] .drive-card-grid { grid-row:1; }
+  #driveView[data-corner-locations="true"][data-cards-empty="true"] .speedometer { grid-row:1; }
+}
+@media(prefers-reduced-motion:reduce) { #driveView #autoMultiArm .auto-multi-count:active { transform:none; } }
+@container (max-width:200px) { #driveView #autoMultiArm { grid-template-columns:repeat(2,minmax(44px,1fr)); } }
+@media(forced-colors:active) { #driveView #autoMultiArm .auto-multi-count[aria-pressed="true"] { outline:3px solid Highlight; } }
+
+/* Live readings should never become a browser scroll anchor. */
+#driveView, #driveView * { overflow-anchor:none; }
+#driveView .drive-speed-hint { min-height:2.8em; margin:0; }
+#driveView #autoMultiArmStatus { min-height:3.8em; }
+.studio-control-presets { grid-template-columns:repeat(2,minmax(0,1fr)); }
+#driveRouteControls { position:relative; }
+#driveView #driveActionsToggle { grid-column:1/-1; color:var(--text); border:1px solid var(--rh-border-strong); background:var(--rh-surface-raised); border-radius:14px; }
+#driveView[data-route-controls-style="minimized"] #driveRouteControls { grid-template-columns:1fr; }
+#driveView[data-route-controls-style="minimized"] #driveRouteControls>button:not(#driveActionsToggle) { display:none; }
+#driveView[data-route-controls-style="minimized"] #driveRouteControls[data-expanded="true"]>button:not(#driveActionsToggle) { display:block; position:absolute; z-index:860; bottom:calc(100% + 8px); width:calc(50% - 4px); min-height:52px; background:var(--rh-surface-raised); border:2px solid var(--rh-border-strong); box-shadow:0 -6px 22px rgba(0,0,0,.3); }
+#driveView[data-route-controls-style="minimized"] #drivePauseBtn { left:0; }
+#driveView[data-route-controls-style="minimized"] #driveFinishBtn { right:0; }
+#driveView[data-route-controls-style="minimized"][data-route-controls-position="above"] #driveRouteControls[data-expanded="true"]>button:not(#driveActionsToggle) { bottom:auto; top:calc(100% + 8px); }
+
+/* A fixed workspace for portrait use. Readings may scroll; primary actions stay put. */
+@media (min-height:700px) and (min-width:350px) {
+  body.drive-view-active:has(#driveView[data-screen-mode="steady"]) { overflow:hidden; }
+  #driveView.active[data-screen-mode="steady"] { position:fixed; top:64px; bottom:calc(var(--rh-nav-height,76px) + env(safe-area-inset-bottom) + 4px); left:50%; transform:translateX(-50%); width:min(calc(100% - 16px),640px); margin:0; padding:6px; display:flex; flex-direction:column; gap:6px; overflow:hidden; }
+  #driveView[data-screen-mode="steady"]>.drive-pro-edge { position:absolute; inset:0; border-radius:20px; }
+  #driveView[data-screen-mode="steady"] .drive-top { flex:none; margin:0; min-height:44px; }
+  #driveView[data-screen-mode="steady"] .drive-top .eyebrow { display:none; }
+  #driveView[data-screen-mode="steady"] .drive-top h1 { font-size:16px; }
+  #driveView[data-screen-mode="steady"] .drive-progress { flex:none; padding:6px 10px; margin:0; }
+  #driveView[data-screen-mode="steady"] .drive-progress-copy { display:none; }
+  #driveView[data-screen-mode="steady"] .drive-instruments { display:flex; flex-direction:column; flex:1 1 auto; min-height:0; gap:6px; overflow:auto; overscroll-behavior:contain; }
+  #driveView[data-screen-mode="steady"] .speedometer { flex:none; width:100%; }
+  #driveView[data-screen-mode="steady"] .drive-stop-stage { gap:3px; padding:0; }
+  #driveView[data-screen-mode="steady"] .drive-card-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); grid-auto-rows:max-content; flex:1 1 84px; min-height:84px; overflow:auto; overscroll-behavior:contain; width:100%; gap:4px; padding:2px; border-top:1px solid var(--rh-border-soft); }
+  #driveView[data-screen-mode="steady"] .drive-speed-hint { display:none; }
+  #driveView[data-screen-mode="steady"] #autoMultiArmStatus { min-height:2.5em; padding:3px 4px; font-size:10px; }
+  #driveView[data-screen-mode="steady"] #driveActionDock { position:relative; flex:none; left:auto; bottom:auto; transform:none; width:100%; margin:0; padding:6px; border-radius:16px; }
+  #driveView[data-screen-mode="steady"] #driveActionDock .drive-actions { margin-bottom:5px; }
+  #driveView[data-screen-mode="steady"] .safety-note { display:none; }
+  #driveView[data-screen-mode="steady"][data-package-placement="below"] #drivePackageComposer { display:grid; grid-template-columns:repeat(5,minmax(44px,1fr)); gap:5px; padding:5px; margin:0; }
+  #driveView[data-screen-mode="steady"][data-package-placement="below"] .package-composer-heading { grid-column:1/-1; margin:0; font-size:10px; }
+  #driveView[data-screen-mode="steady"][data-package-placement="below"] .package-quick { display:contents; }
+  #driveView[data-screen-mode="steady"][data-package-placement="below"] .package-more { min-height:44px; margin:0; padding:4px; font-size:10px; }
+  #driveView[data-screen-mode="steady"][data-package-placement="below"] .package-more>span { display:none; }
+  #driveView[data-screen-mode="steady"][data-package-placement="below"] .package-composer-footer { display:none; }
+  #driveView[data-screen-mode="steady"] #packageBelowDial { margin-top:3px; }
+}
+@media (min-height:700px) and (max-height:810px) and (min-width:350px) {
+  #driveView.active[data-screen-mode="steady"] { gap:4px; }
+  #driveView[data-screen-mode="steady"][data-drive-size="small"] { --drive-dial-size:160px; }
+  #driveView[data-screen-mode="steady"] .drive-stat>small { font-size:9px; line-height:1.3; }
+  #driveView[data-screen-mode="steady"] #driveActionsToggle { min-height:44px; }
+}

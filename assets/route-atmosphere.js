@@ -1,7 +1,7 @@
 ((root) => {
   'use strict';
 
-  const VERSION = 3;
+  const VERSION = 4;
   const HOUR_MS = 3600000;
   const PRECISION_DEGREES = 0.01;
   const MAX_ROUTE_RADIUS_METERS = 75000;
@@ -150,7 +150,7 @@
       return coordinates && at != null && at >= window.startedAt && at <= window.endedAt && !(accuracy > 75) ? {...coordinates, at} : null;
     }).filter(Boolean).sort((a, b) => a.at - b.at);
     const base = {start: window.startedAt, end: window.endedAt, ...coarse};
-    if (timed.length < 4 || !timed.some(item => distanceMeters(coarse, item) > 15000)) return [base];
+    if (timed.length < 4 || !timed.some(item => distanceMeters(coarse, item) > 5000)) return [base];
     const span = (window.endedAt - window.startedAt) / 3, plan = [];
     for (let index = 0; index < 3; index++) {
       const start = window.startedAt + index * span, end = index === 2 ? window.endedAt : start + span;
@@ -158,7 +158,7 @@
       const area = samples.length >= 2 ? coarseRoutePoint({stops: samples}) : coarse;
       plan.push({start, end, ...(area || coarse)});
     }
-    if (!plan.some(area => distanceMeters(plan[0], area) > 15000)) return [base];
+    if (!plan.some(area => distanceMeters(plan[0], area) > 5000)) return [base];
     return plan;
   }
   const conditionFamily = code => {
@@ -229,7 +229,14 @@
   const closestObservation = (samples, target) => samples.reduce((best, sample) => !best || Math.abs(sample.at - target) < Math.abs(best.at - target) ? sample : best, null);
   const overlapMs = (start, end, window) => Math.max(0, Math.min(end, window.endedAt) - Math.max(start, window.startedAt));
   const periodLabel = period => ({rain: 'Rain', snow: 'Snow', storm: 'Thunderstorms', fog: 'Fog'})[period.family] || conditionLabel(period.conditionCode);
-  const hasFullCoverage = raw => numberOrNull(raw?.coverage?.conditionPercent) >= 95 && numberOrNull(raw?.coverage?.precipitationPercent) >= 95;
+  const hasFullCoverage = raw => numberOrNull(raw?.coverage?.conditionPercent) === 100 && numberOrNull(raw?.coverage?.precipitationPercent) === 100 && !(raw?.coverage?.conditionMissingMinutes > 0) && !(raw?.coverage?.precipitationMissingMinutes > 0);
+  const validConditionCode = value => {
+    const code = numberOrNull(value);
+    return code != null && Object.hasOwn(CONDITION_LABELS, code) ? code : null;
+  };
+  // Total precipitation includes convective showers, while rain alone does not.
+  // Even a small non-zero amount is wet evidence; do not erase trace showers.
+  const wetCode = sample => sample?.snowfallCm > 0 ? 71 : sample?.rainMm > 0 || sample?.precipitationMm > 0 && !(sample?.snowfallCm > 0) ? 61 : null;
   function chronologicalPeriods(observations, accumulations, window) {
     const boundaries = [...new Set([window.startedAt, window.endedAt, ...observations.flatMap(sample => [sample.at, sample.at + HOUR_MS]), ...accumulations.flatMap(sample => [sample.at - HOUR_MS, sample.at])])].filter(at => at >= window.startedAt && at <= window.endedAt).sort((a, b) => a - b);
     const periods = [];
@@ -238,8 +245,8 @@
       const observation = observations.find(sample => sample.at <= midpoint && sample.at + HOUR_MS > midpoint);
       const accumulation = accumulations.find(sample => sample.at - HOUR_MS <= midpoint && sample.at > midpoint);
       let code = observation?.conditionCode ?? null;
-      if (accumulation?.snowfallCm >= 0.01 && conditionRank(code) < 4) code = 71;
-      else if ((accumulation?.rainMm >= 0.1 || accumulation?.precipitationMm >= 0.1 && !(accumulation?.snowfallCm > 0)) && conditionRank(code) < 3) code = 61;
+      const wet = wetCode(accumulation);
+      if (wet != null && conditionRank(wet) > conditionRank(code)) code = wet;
       if (code == null) continue;
       const precipitationMm = accumulation?.precipitationMm == null ? null : accumulation.precipitationMm * (endAt - startAt) / HOUR_MS;
       const next = {startAt, endAt, family: conditionFamily(code), conditionCode: code, temperatureMinC: observation?.temperatureC ?? null, temperatureMaxC: observation?.temperatureC ?? null, precipitationMm};
@@ -298,7 +305,7 @@
         precipitationMm: bounded(raw.hourly.precipitation?.[index], 0, 1000),
         rainMm: bounded(raw.hourly.rain?.[index], 0, 1000),
         snowfallCm: bounded(raw.hourly.snowfall?.[index], 0, 1000),
-        conditionCode: integer(raw.hourly.weather_code?.[index], 0, 999),
+        conditionCode: validConditionCode(raw.hourly.weather_code?.[index]),
         cloudCoverPercent: bounded(raw.hourly.cloud_cover?.[index], 0, 100),
         windKmh: bounded(raw.hourly.wind_speed_10m?.[index], 0, 500),
         gustKmh: bounded(raw.hourly.wind_gusts_10m?.[index], 0, 600),
@@ -310,7 +317,7 @@
     // and gusts represent the preceding hour; keep their windows separate.
     const observations = routeSamples.filter(sample => overlapMs(sample.at, sample.at + HOUR_MS, window) > 0);
     const accumulationSamples = routeSamples.filter(sample => overlapMs(sample.at - HOUR_MS, sample.at, window) > 0);
-    if (!observations.some(sample => sample.conditionCode != null || sample.temperatureC != null) && !accumulationSamples.some(sample => sample.precipitationMm != null)) throw new Error('No usable weather samples covered this route');
+    if (!observations.some(sample => sample.conditionCode != null || sample.temperatureC != null) && !accumulationSamples.some(sample => sample.precipitationMm != null)) throw weatherError('no-hours', 'No usable weather samples covered this route');
     const weightedMean = field => {
       const valid = observations.filter(sample => sample[field] != null);
       const duration = sum(valid.map(sample => overlapMs(sample.at, sample.at + HOUR_MS, window)));
@@ -344,9 +351,8 @@
     };
     observations.forEach(sample => addEvent(conditionFamily(sample.conditionCode), sample.conditionCode, sample.at, sample.at + HOUR_MS));
     accumulationSamples.forEach(sample => {
-      if (sample.snowfallCm >= 0.01) addEvent('snow', 71, sample.at - HOUR_MS, sample.at);
-      // Forecast rain excludes convective showers; total precipitation also catches those.
-      if (sample.rainMm >= 0.1 || sample.precipitationMm >= 0.1 && !(sample.snowfallCm > 0)) addEvent('rain', 61, sample.at - HOUR_MS, sample.at);
+      const wet = wetCode(sample);
+      if (wet != null) addEvent(conditionFamily(wet), wet, sample.at - HOUR_MS, sample.at);
     });
     const events = [...eventMap.values()].map(event => {
       const periods = event.periods.sort((a, b) => a[0] - b[0]);
@@ -363,7 +369,7 @@
       capturedAt: Date.now(),
       source: {provider: 'Open-Meteo', kind: sourceKind, modeled: true, license: 'CC BY 4.0'},
       timezone: text(raw.timezone || 'UTC', 64),
-      coverage: {startedAt: window.startedAt, endedAt: window.endedAt, hourlySamples: observations.length, pointsUsed: coarse.pointsUsed, locationPrecisionDegrees: PRECISION_DEGREES, conditionPercent: Math.round(clamp(conditionCoverageMs / routeMs * 100, 0, 100)), precipitationPercent: Math.round(clamp(precipitationCoverageMs / routeMs * 100, 0, 100))},
+      coverage: {startedAt: window.startedAt, endedAt: window.endedAt, hourlySamples: observations.length, pointsUsed: coarse.pointsUsed, locationPrecisionDegrees: PRECISION_DEGREES, conditionPercent: Math.round(clamp(conditionCoverageMs / routeMs * 100, 0, 100)), precipitationPercent: Math.round(clamp(precipitationCoverageMs / routeMs * 100, 0, 100)), conditionMissingMinutes: Math.ceil(Math.max(0, routeMs - conditionCoverageMs) / 60000), precipitationMissingMinutes: Math.ceil(Math.max(0, routeMs - precipitationCoverageMs) / 60000)},
       conditionCode: events.length ? dominantCondition(events.map(event => event.conditionCode)) : null,
       temperature: {startC: timeline[0]?.temperatureC, endC: timeline.at(-1)?.temperatureC, meanC: weightedMean('temperatureC'), minC: temperatures.length ? Math.min(...temperatures) : null, maxC: temperatures.length ? Math.max(...temperatures) : null},
       apparentTemperature: {meanC: weightedMean('apparentC'), minC: apparent.length ? Math.min(...apparent) : null, maxC: apparent.length ? Math.max(...apparent) : null},
@@ -376,7 +382,7 @@
     });
   }
   function normalize(raw) {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw) || ![1, 2, VERSION].includes(Number(raw.version))) return null;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw) || ![1, 2, 3, VERSION].includes(Number(raw.version))) return null;
     const source = raw.source && typeof raw.source === 'object' ? raw.source : {};
     if (text(source.provider, 40) !== 'Open-Meteo') return null;
     const coverageRaw = raw.coverage && typeof raw.coverage === 'object' ? raw.coverage : {};
@@ -426,7 +432,7 @@
       capturedAt,
       source: {provider: 'Open-Meteo', kind: ['forecast', 'historical-forecast', 'archive'].includes(source.kind) ? source.kind : 'forecast', modeled: true, license: 'CC BY 4.0'},
       timezone: text(raw.timezone || 'auto', 64),
-      coverage: {startedAt, endedAt, hourlySamples: integer(coverageRaw.hourlySamples, 1, 240) || timeline.length || 1, pointsUsed: integer(coverageRaw.pointsUsed, 1, 5000) || 1, locationPrecisionDegrees: PRECISION_DEGREES, locationCount: integer(coverageRaw.locationCount, 1, 3) || 1, conditionPercent: integer(coverageRaw.conditionPercent, 0, 100), precipitationPercent: integer(coverageRaw.precipitationPercent, 0, 100)},
+      coverage: {startedAt, endedAt, hourlySamples: integer(coverageRaw.hourlySamples, 1, 240) || timeline.length || 1, pointsUsed: integer(coverageRaw.pointsUsed, 1, 5000) || 1, locationPrecisionDegrees: PRECISION_DEGREES, locationCount: integer(coverageRaw.locationCount, 1, 3) || 1, availableLocationCount: integer(coverageRaw.availableLocationCount, 1, 3) || integer(coverageRaw.locationCount, 1, 3) || 1, conditionPercent: integer(coverageRaw.conditionPercent, 0, 100), precipitationPercent: integer(coverageRaw.precipitationPercent, 0, 100), conditionMissingMinutes: integer(coverageRaw.conditionMissingMinutes, 0, Math.ceil((endedAt - startedAt) / 60000)), precipitationMissingMinutes: integer(coverageRaw.precipitationMissingMinutes, 0, Math.ceil((endedAt - startedAt) / 60000))},
       conditionCode,
       temperature: {startC: normalizeTemperature(temperatureRaw.startC), endC: normalizeTemperature(temperatureRaw.endC), meanC: normalizeTemperature(temperatureRaw.meanC), minC: normalizeTemperature(temperatureRaw.minC), maxC: normalizeTemperature(temperatureRaw.maxC)},
       apparentTemperature: {meanC: normalizeTemperature(apparentRaw.meanC), minC: normalizeTemperature(apparentRaw.minC), maxC: normalizeTemperature(apparentRaw.maxC)},
@@ -468,11 +474,19 @@
     const observation = normalizeObservation(saved?.atmosphere?.observation), routeId = escapeHtml(saved?.id || '');
     return `<details class="atmosphere-observation-editor"><summary>Weather was different?</summary><form data-atmosphere-observation data-route-id="${routeId}"><p>Add what you experienced. Your observation stays separate from the weather estimate.</p><div class="atmosphere-observation-fields"><label>Weather<select name="condition" aria-label="Weather">${Object.entries(OBSERVED_CONDITIONS).map(([value, label]) => `<option value="${value}"${observation?.condition === value ? ' selected' : ''}>${label}</option>`).join('')}</select></label><label>When<select name="period" aria-label="When">${Object.entries(OBSERVED_PERIODS).map(([value, label]) => `<option value="${value}"${observation?.period === value ? ' selected' : ''}>${label}</option>`).join('')}</select></label></div><label>Optional note<input name="note" aria-label="Optional note" type="text" maxlength="160" value="${escapeHtml(observation?.note || '')}" placeholder="Heavy showers before lunch"></label><div class="atmosphere-observation-actions"><button type="submit">Save observation</button>${observation ? `<button type="button" data-atmosphere-action="remove-observation" data-route-id="${routeId}">Remove observation</button>` : ''}</div></form></details>`;
   }
+  function weatherError(code, message) { const error = new Error(message); error.weatherCode = code; return error; }
+  function errorMessage(error) {
+    if (error?.name === 'AbortError' || error?.name === 'TimeoutError') return 'Weather lookup timed out. Retry when the connection is stronger; your saved route is unchanged.';
+    if (error?.weatherCode === 'rate-limit') return 'The weather service is busy. Try again later; your saved route is unchanged.';
+    if (error?.weatherCode === 'no-hours') return 'Hourly weather is not available for these route hours yet. Try again later; missing hours are not dry weather.';
+    if (error?.weatherCode === 'location') return 'A trustworthy GPS trail or mapped stop is needed to find weather for this route.';
+    return 'Weather is unavailable right now. Check the connection and retry; your saved route and any previous report are unchanged.';
+  }
   async function fetchForRoute(saved, {signal, fetchImpl = root.fetch} = {}) {
     if (typeof fetchImpl !== 'function') throw new Error('Weather lookup is unavailable');
     const coarse = coarseRoutePoint(saved);
     const window = routeWindow(saved);
-    if (!coarse || !window) throw new Error('A trustworthy saved route location is required');
+    if (!coarse || !window) throw weatherError('location', 'A trustworthy saved route location is required');
     const endpoint = endpointFor(saved), plan = routeLocationPlan(saved);
     const parameters = new URLSearchParams({
       latitude: coarse.lat.toFixed(2), longitude: coarse.lng.toFixed(2),
@@ -483,16 +497,21 @@
     });
     const lookup = async selected => {
       const areas = [...new Map(plan.map(area => [`${area.lat.toFixed(2)},${area.lng.toFixed(2)}`, area])).values()];
-      const responses = await Promise.all(areas.map(async area => {
+      const settled = await Promise.allSettled(areas.map(async area => {
         const query = new URLSearchParams(parameters); query.set('latitude', area.lat.toFixed(2)); query.set('longitude', area.lng.toFixed(2));
         const response = await fetchImpl(`${selected.url}?${query}`, {signal, credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer'});
-        if (!response?.ok) throw new Error(`Weather service returned ${response?.status || 'an error'}`);
+        if (!response?.ok) throw weatherError(response?.status === 429 ? 'rate-limit' : 'service', `Weather service returned ${response?.status || 'an error'}`);
         const raw = await response.json();
-        if (!Array.isArray(raw?.hourly?.time)) throw new Error('Weather response was incomplete');
+        if (!Array.isArray(raw?.hourly?.time) || !raw.hourly.time.length) throw weatherError('no-hours', 'Weather response was incomplete');
         return {area, raw, byTime: new Map(raw.hourly.time.map((time, index) => [localTimestamp(time, raw.utc_offset_seconds), index]))};
       }));
+      if (signal?.aborted) throw signal.reason || Object.assign(new Error('Weather request was canceled'), {name:'AbortError'});
+      const responses = settled.filter(item => item.status === 'fulfilled').map(item => item.value);
+      if (!responses.length) throw settled.find(item => item.status === 'rejected')?.reason || weatherError('no-hours', 'No route weather was returned');
       let raw = responses[0].raw;
-      if (responses.length > 1) {
+      // A failed area leaves its own hours empty. Never substitute another area's
+      // sunny weather, or discard the useful hours from successful requests.
+      if (areas.length > 1) {
         const times = [...new Set(responses.flatMap(response => [...response.byTime.keys()]))].filter(at => at != null).sort((a, b) => a - b);
         const hourly = {time: times.map(at => at / 1000)};
         for (const field of HOURLY_FIELDS) {
@@ -509,11 +528,12 @@
       }
       const result = summarizeResponse(saved, raw, selected.kind, coarse);
       result.coverage.locationCount = areas.length;
+      result.coverage.availableLocationCount = responses.length;
       return result;
     };
     try { return await lookup(endpoint); }
     catch (error) {
-      if (signal?.aborted || error?.name === 'AbortError' || endpoint.kind !== 'historical-forecast') throw error;
+      if (signal?.aborted || error?.name === 'AbortError' || error?.weatherCode === 'rate-limit' || endpoint.kind !== 'historical-forecast') throw error;
       // Historical model coverage varies by region and date; older routes can use reanalysis.
       return lookup({url: ARCHIVE_ENDPOINT, kind: 'archive'});
     }
@@ -527,13 +547,14 @@
     const atmosphere = normalize(saved?.atmosphere);
     if (!atmosphere || atmosphere.version < VERSION || !isCurrent(saved, atmosphere)) return true;
     const ageDays = (now - Number(saved?.startedAt)) / 86400000, sinceCapture = now - atmosphere.capturedAt;
-    if (!hasFullCoverage(atmosphere) && sinceCapture >= 6 * HOUR_MS) return true;
+    if (!hasFullCoverage(atmosphere) && sinceCapture >= refreshDelayMs(atmosphere)) return true;
     if (atmosphere.source.kind !== 'forecast') return false;
     if (ageDays > 5) return true;
     // One next-day refinement replaces an immediate post-route forecast. A new
     // report captured a day after finish is stable until historical data is used.
     return now - Number(saved?.endedAt) >= 24 * HOUR_MS && atmosphere.capturedAt - Number(saved?.endedAt) < 24 * HOUR_MS && sinceCapture >= 12 * HOUR_MS;
   }
+  function refreshDelayMs(raw) { return hasFullCoverage(raw) ? 6 * HOUR_MS : HOUR_MS / 2; }
   const toFahrenheit = celsius => celsius == null ? null : celsius * 9 / 5 + 32;
   const temperatureValue = (celsius, units) => units === 'kilometers' ? celsius : toFahrenheit(celsius);
   const temperatureText = (celsius, units, digits = 0) => {
@@ -541,7 +562,7 @@
     return value == null ? '—' : `${value.toFixed(digits)}°${units === 'kilometers' ? 'C' : 'F'}`;
   };
   const windText = (kmh, units) => kmh == null ? '—' : units === 'kilometers' ? `${Math.round(kmh)} km/h` : `${Math.round(kmh * 0.621371)} mph`;
-  const precipitationText = (millimeters, units) => millimeters == null ? '—' : units === 'kilometers' ? `${millimeters.toFixed(millimeters < 10 ? 1 : 0)} mm` : `${(millimeters / 25.4).toFixed(millimeters < 2.54 ? 2 : 1)} in`;
+  const precipitationText = (millimeters, units) => millimeters == null ? '—' : units === 'kilometers' ? millimeters > 0 && millimeters < .1 ? '<0.1 mm' : `${millimeters.toFixed(millimeters < 10 ? 1 : 0)} mm` : millimeters > 0 && millimeters < .254 ? '<0.01 in' : `${(millimeters / 25.4).toFixed(millimeters < 2.54 ? 2 : 1)} in`;
   const clockText = (timestamp, timezone) => {
     if (!timestamp) return '—';
     try { return new Date(timestamp).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit', ...(timezone && timezone !== 'auto' ? {timeZone: timezone} : {})}); }
@@ -572,30 +593,39 @@
     const routeId = escapeHtml(String(saved.id || ''));
     const atmosphere = normalize(saved.atmosphere);
     container.hidden = false;
-    container.dataset.state = atmosphere ? 'ready' : state;
+    container.dataset.state = ['loading', 'error', 'off'].includes(state) ? state : atmosphere ? hasFullCoverage(atmosphere) ? 'ready' : 'partial' : 'pending';
     if (!atmosphere) {
-      const title = state === 'loading' ? 'Reading this route’s day…' : state === 'off' ? 'Automatic atmosphere is off' : state === 'error' ? 'Atmosphere is still waiting' : 'Add this route’s atmosphere';
-      const detail = message || (state === 'loading' ? 'Using route hours and up to three rounded areas.' : state === 'off' ? 'Enable it in Settings to add modeled conditions after future routes.' : 'Save modeled temperature, precipitation, wind, daylight, and moon phase with this route.');
+      const title = state === 'loading' ? 'Building full-route weather…' : state === 'off' ? 'Automatic atmosphere is off' : state === 'error' ? 'Weather unavailable' : 'Weather report pending';
+      const detail = message || (state === 'loading' ? 'Reading every route hour across up to three rounded areas.' : state === 'off' ? 'Enable it in Settings to add modeled conditions after future routes.' : 'The report will describe your route hours, including changing conditions. Missing weather is never counted as dry.');
       container.innerHTML = `<div class="atmosphere-empty-art" aria-hidden="true"><i></i><i></i><span>◒</span></div><div class="atmosphere-empty-copy"><p class="eyebrow">ROUTE ATMOSPHERE</p><h3>${escapeHtml(title)}</h3><p>${escapeHtml(detail)}</p><button type="button" data-atmosphere-action="build" data-route-id="${routeId}"${state === 'loading' || state === 'off' ? ' disabled' : ''}>${state === 'loading' ? 'Building…' : 'Build atmosphere'}</button><small>Approximate modeled conditions near the route · review only while parked.</small></div>`;
       return;
     }
     const timeline = atmosphere.timeline.map((sample, index) => `<div><span>${escapeHtml(sample.stage || (atmosphere.timeline.length === 2 ? ['START', 'FINISH'][index] : ['START', 'MID-ROUTE', 'FINISH'][index]) || 'ROUTE')}</span><b>${escapeHtml(temperatureText(sample.temperatureC, units))}</b><small>${escapeHtml(clockText(sample.at, atmosphere.timezone))} · ${escapeHtml(conditionLabel(sample.conditionCode))}</small></div>`).join('');
     const partialCoverage = !hasFullCoverage(atmosphere);
-    const coverageLine = atmosphere.version < 2 ? 'Earlier report · a full-route refresh will fill in the day’s weather' : (partialCoverage ? 'Partial hourly coverage' : 'Across the whole route') + ' · ' + clockText(atmosphere.coverage.startedAt, atmosphere.timezone) + '–' + clockText(atmosphere.coverage.endedAt, atmosphere.timezone);
+    const coverageLine = atmosphere.version < VERSION ? 'Earlier report · refresh to check the full route again' : (partialCoverage ? 'Partial hourly coverage' : 'Across the whole route') + ' · ' + clockText(atmosphere.coverage.startedAt, atmosphere.timezone) + '–' + clockText(atmosphere.coverage.endedAt, atmosphere.timezone);
     const rainEvent = atmosphere.events.find(event => event.family === 'rain');
-    const precipitationDetail = atmosphere.precipitationMm == null ? 'Precipitation data unavailable' : rainEvent ? durationText(rainEvent.durationMinutes * 60) + ' with rain modeled' : atmosphere.precipitationMm > 0 ? 'Estimated across route hours' : atmosphere.coverage.precipitationPercent == null || atmosphere.coverage.precipitationPercent < 95 ? 'No precipitation in available hours · coverage incomplete' : 'No modeled precipitation';
-    const routeDaylight = atmosphere.daylight.secondsDuringRoute ? `${durationText(atmosphere.daylight.secondsDuringRoute)} · ${atmosphere.daylight.percentOfRoute}% of route` : 'Mostly after dark';
+    const precipitationDetail = atmosphere.precipitationMm == null ? 'Precipitation data unavailable' : rainEvent ? durationText(rainEvent.durationMinutes * 60) + ' with rain modeled' : atmosphere.precipitationMm > 0 ? 'Estimated across route hours' : atmosphere.coverage.precipitationPercent !== 100 || atmosphere.coverage.precipitationMissingMinutes > 0 ? 'No precipitation in available hours · coverage incomplete' : 'No modeled precipitation';
+    const routeDaylight = !atmosphere.daylight.sunrise && !atmosphere.daylight.sunset ? 'Daylight unavailable' : atmosphere.daylight.secondsDuringRoute ? `${durationText(atmosphere.daylight.secondsDuringRoute)} · ${atmosphere.daylight.percentOfRoute}% of route` : 'Mostly after dark';
     const snow = atmosphere.snowfallCm > 0.05 ? ` · ${units === 'kilometers' ? `${atmosphere.snowfallCm.toFixed(1)} cm snow` : `${(atmosphere.snowfallCm / 2.54).toFixed(1)} in snow`}` : '';
-    const periods = atmosphere.periods.map(period => `<li data-weather="${escapeHtml(period.family)}"><span aria-hidden="true">${escapeHtml(conditionIcon(period.conditionCode))}</span><div><b>${escapeHtml(periodLabel(period))}</b><small>${escapeHtml(clockText(period.startAt, atmosphere.timezone))}–${escapeHtml(clockText(period.endAt, atmosphere.timezone))}</small></div><strong>${escapeHtml(temperatureText(period.temperatureMinC, units))}${period.temperatureMaxC != null && Math.round(period.temperatureMaxC) !== Math.round(period.temperatureMinC) ? `–${escapeHtml(temperatureText(period.temperatureMaxC, units))}` : ''}</strong></li>`).join('');
+    const shownPeriods = [];
+    let coveredUntil = atmosphere.coverage.startedAt;
+    for (const period of atmosphere.periods) {
+      if (period.startAt > coveredUntil) shownPeriods.push({family:'unknown', startAt:coveredUntil, endAt:period.startAt});
+      shownPeriods.push(period); coveredUntil = period.endAt;
+    }
+    if (atmosphere.version >= VERSION && coveredUntil < atmosphere.coverage.endedAt) shownPeriods.push({family:'unknown', startAt:coveredUntil, endAt:atmosphere.coverage.endedAt});
+    const periods = shownPeriods.map(period => period.family === 'unknown' ? `<li data-weather="unknown"><span aria-hidden="true">?</span><div><b>Conditions unavailable</b><small>${escapeHtml(clockText(period.startAt, atmosphere.timezone))}–${escapeHtml(clockText(period.endAt, atmosphere.timezone))} · missing hours</small></div></li>` : `<li data-weather="${escapeHtml(period.family)}"><span aria-hidden="true">${escapeHtml(conditionIcon(period.conditionCode))}</span><div><b>${escapeHtml(periodLabel(period))}</b><small>${escapeHtml(clockText(period.startAt, atmosphere.timezone))}–${escapeHtml(clockText(period.endAt, atmosphere.timezone))}</small></div><strong>${escapeHtml(temperatureText(period.temperatureMinC, units))}${period.temperatureMaxC != null && Math.round(period.temperatureMaxC) !== Math.round(period.temperatureMinC) ? `–${escapeHtml(temperatureText(period.temperatureMaxC, units))}` : ''}</strong></li>`).join('');
     const observation = atmosphere.observation ? `<aside class="atmosphere-driver-observation"><b>Your observation · ${escapeHtml(observationLabel(atmosphere.observation))}</b>${atmosphere.observation.note ? `<p>${escapeHtml(atmosphere.observation.note)}</p>` : ''}<small>Driver reported · modeled totals remain separate</small></aside>` : '';
-    const provenance = `<p class="atmosphere-coverage-note">${atmosphere.coverage.locationCount > 1 ? `${atmosphere.coverage.locationCount} rounded areas matched to route hours` : 'One rounded route area'} · ${atmosphere.source.kind === 'forecast' ? 'Recent model estimate' : atmosphere.source.kind === 'historical-forecast' ? 'Historical hourly model' : 'Historical reanalysis'}${partialCoverage ? ` · Conditions ${atmosphere.coverage.conditionPercent ?? 0}% / precipitation ${atmosphere.coverage.precipitationPercent ?? 0}% coverage` : ''}</p>`;
-    container.innerHTML = `<div class="atmosphere-hero"><div class="atmosphere-condition-art ${escapeHtml(conditionFamily(atmosphere.conditionCode))}" aria-hidden="true"><i></i><span>${escapeHtml(summaryIcon(atmosphere))}</span></div><div><p class="eyebrow">ROUTE ATMOSPHERE</p><h3>${escapeHtml(weatherSummary(atmosphere))}</h3><strong>${escapeHtml(temperatureText(atmosphere.temperature.meanC, units))}</strong><small>${escapeHtml(coverageLine)}</small></div><span class="atmosphere-source-badge">MODELED WEATHER</span></div><div class="atmosphere-metric-grid"><div><span>TEMPERATURE</span><b>${escapeHtml(temperatureText(atmosphere.temperature.minC, units))} – ${escapeHtml(temperatureText(atmosphere.temperature.maxC, units))}</b><small>Route-time range</small></div><div><span>PRECIPITATION</span><b>${escapeHtml(precipitationText(atmosphere.precipitationMm, units))}</b><small>${escapeHtml(precipitationDetail)}${escapeHtml(snow)}</small></div><div><span>WIND</span><b>${escapeHtml(windText(atmosphere.wind.maxKmh, units))}</b><small>Gusts ${escapeHtml(windText(atmosphere.wind.gustMaxKmh, units))}</small></div><div><span>DAYLIGHT</span><b>${escapeHtml(routeDaylight)}</b><small>${escapeHtml(clockText(atmosphere.daylight.sunrise, atmosphere.timezone))} sunrise · ${escapeHtml(clockText(atmosphere.daylight.sunset, atmosphere.timezone))} sunset</small></div></div>${periods ? `<ol class="atmosphere-periods" aria-label="Weather through the route">${periods}</ol>` : timeline ? `<div class="atmosphere-timeline">${timeline}</div>` : ''}${provenance}${observation}${observationEditor(saved)}<div class="atmosphere-moon"><span aria-hidden="true">${escapeHtml(atmosphere.moon.icon)}</span><div><b>${escapeHtml(atmosphere.moon.name)}</b><small>${atmosphere.moon.illuminationPercent}% illuminated · calculated privately on device</small></div></div>${state === 'error' ? `<p class="atmosphere-refresh-status" role="status">${escapeHtml(message || 'The saved report is still available. Refresh could not finish yet.')}</p>` : ''}<footer><span>Hourly weather estimates near the route. Brief local showers may be missed; partial-hour rain totals are estimated.</span><a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Weather data by Open-Meteo · CC BY 4.0</a>${state === 'loading' ? '<b>Refreshing…</b>' : `<button type="button" data-atmosphere-action="build" data-route-id="${routeId}">Refresh day</button>`}</footer>`;
+    const provenance = `<p class="atmosphere-coverage-note">${atmosphere.coverage.locationCount > 1 ? `${atmosphere.coverage.locationCount} rounded areas matched to route hours` : 'One rounded route area'} · ${atmosphere.source.kind === 'forecast' ? 'Recent model estimate' : atmosphere.source.kind === 'historical-forecast' ? 'Historical hourly model' : 'Historical weather model'}${atmosphere.coverage.availableLocationCount < atmosphere.coverage.locationCount ? ` · ${atmosphere.coverage.locationCount - atmosphere.coverage.availableLocationCount} area lookup unavailable` : ''}</p>`;
+    const coverageNotice = partialCoverage ? `<aside class="atmosphere-coverage-warning" role="status"><b>Partial weather report</b><p>Conditions cover ${atmosphere.coverage.conditionPercent ?? 0}% of route hours · precipitation covers ${atmosphere.coverage.precipitationPercent ?? 0}%. Missing hours are unknown; a dry available hour cannot describe the whole day.</p></aside>` : '';
+    const refreshNotice = atmosphere.version < VERSION ? '<p class="atmosphere-refresh-status">This earlier report is kept while a full-route update is pending. Use Refresh day to try now.</p>' : '';
+    container.innerHTML = `<div class="atmosphere-hero"><div class="atmosphere-condition-art ${escapeHtml(conditionFamily(atmosphere.conditionCode))}" aria-hidden="true"><i></i><span>${escapeHtml(summaryIcon(atmosphere))}</span></div><div><p class="eyebrow">ROUTE ATMOSPHERE</p><h3>${escapeHtml(weatherSummary(atmosphere))}</h3><strong>${escapeHtml(temperatureText(atmosphere.temperature.meanC, units))}</strong><small>${escapeHtml(coverageLine)}</small></div><span class="atmosphere-source-badge">MODELED WEATHER</span></div><div class="atmosphere-metric-grid"><div><span>TEMPERATURE</span><b>${escapeHtml(temperatureText(atmosphere.temperature.minC, units))} – ${escapeHtml(temperatureText(atmosphere.temperature.maxC, units))}</b><small>Route-time range</small></div><div><span>PRECIPITATION</span><b>${escapeHtml(precipitationText(atmosphere.precipitationMm, units))}</b><small>${escapeHtml(precipitationDetail)}${escapeHtml(snow)}</small></div><div><span>WIND</span><b>${escapeHtml(windText(atmosphere.wind.maxKmh, units))}</b><small>Gusts ${escapeHtml(windText(atmosphere.wind.gustMaxKmh, units))}</small></div><div><span>DAYLIGHT</span><b>${escapeHtml(routeDaylight)}</b><small>${escapeHtml(clockText(atmosphere.daylight.sunrise, atmosphere.timezone))} sunrise · ${escapeHtml(clockText(atmosphere.daylight.sunset, atmosphere.timezone))} sunset</small></div></div>${periods ? `<ol class="atmosphere-periods" aria-label="Weather through the route">${periods}</ol>` : timeline ? `<div class="atmosphere-timeline">${timeline}</div>` : ''}${coverageNotice}${refreshNotice}${provenance}${observation}${observationEditor(saved)}<div class="atmosphere-moon"><span aria-hidden="true">${escapeHtml(atmosphere.moon.icon)}</span><div><b>${escapeHtml(atmosphere.moon.name)}</b><small>${atmosphere.moon.illuminationPercent}% illuminated · calculated privately on device</small></div></div>${state === 'error' ? `<p class="atmosphere-refresh-status" role="status">${escapeHtml(message || 'The saved report is still available. Refresh could not finish yet.')}</p>` : ''}<footer><span>Hourly weather estimates near the route. Brief local showers may be missed; partial-hour rain totals are estimated.</span><a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Weather data by Open-Meteo · CC BY 4.0</a>${state === 'loading' ? '<b>Refreshing…</b>' : `<button type="button" data-atmosphere-action="build" data-route-id="${routeId}">Refresh day</button>`}</footer>`;
   }
 
   root.RouteHeatAtmosphere = Object.freeze({
     VERSION, normalize, coarseRoutePoint, fingerprint, fetchForRoute, isCurrent,
-    needsRefresh, moonPhase, conditionLabel, conditionIcon, weatherSummary, summaryIcon, historyChip, shortPhrase,
-    calendarSummary, routeLocationPlan, normalizeObservation, withObservation, observationLabel, observationEditor,
+    needsRefresh, refreshDelayMs, moonPhase, conditionLabel, conditionIcon, weatherSummary, summaryIcon, historyChip, shortPhrase,
+    calendarSummary, routeLocationPlan, normalizeObservation, withObservation, observationLabel, observationEditor, errorMessage,
     renderCard
   });
 })(typeof window !== 'undefined' ? window : globalThis);

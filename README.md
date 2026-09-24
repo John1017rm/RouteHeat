@@ -1,4 +1,21 @@
-# RouteHeat 9.1.0
+# RouteHeat 9.2.0
+
+## 9.2.0 Your Drive Controls
+
+Open **Drive → Layout**, or **Settings → Drive studio**, and find **Delivery controls** to arrange the buttons around your preferred dial and information cards.
+
+- **Multi-location choices:** keep the 2–5 buttons in the bottom dock, place them above or below the dial, or put **2, 3, 4, and 5 in its four corners**. The selected number remains visible. Selecting a number only arms the next stop; Stop Complete or an enabled package-count button completes it.
+- **Open New Tote placement and style:** keep it in the dock or move it above or below the dial. Choose Detailed, Compact, or Pill. Each version opens the next tote through the same action and keeps its current tote context.
+- **Pause and Finish Route:** move the pair between the bottom dock, the top of Drive, and below the information cards. Choose Side by side, Stacked, Compact pills, or **Minimized**. Minimized keeps a small Route actions button that expands Pause / Resume and Finish when needed. Pause / Resume keeps the existing route, and Finish Route keeps its confirmation.
+- **Quick control arrangements:** Around dial places location counts at the corners with a pill-shaped tote button below and compact route controls. Classic dock restores the familiar arrangement. Compact puts location choices above the dial and keeps a smaller tote and route controls in the dock. These presets adjust controls independently of the information-card selection.
+- **Optional Steady screen:** the Steady screen control preset, or **Screen behavior → Steady**, keeps the portrait Drive workspace in place and lets extra information scroll inside its own area. Flexible page scrolling remains the default. Very short or narrow screens use the flexible layout, and crowded control arrangements can still scroll internally to remain accessible.
+- **Bathrooms map and list:** a labeled **Bathrooms** shortcut on Drive opens the private saved-place map. Switch between **Map** and **List**, use **Near me** or **Fit saved**, filter favorites, and search your saved places. Save here or choose a map location, then rate it **Great**, **Okay**, or **Avoid** with clear rating choices. Existing bathroom details, directions, route-map markers, optional quiet reminders, and protected backups remain available. These are your saved places; no public bathroom directory was added.
+- **Counted-package insights:** package totals and records use counts recorded on completed stops. See your largest counted stop, busiest full rolling 60-minute window, route totals, and count coverage, plus related Route Moments and package achievements. The Packages map layer shows where recorded packages were delivered under the current filters. Uncounted stops remain unknown, and entered route load plans never become delivered-package records.
+- **Cheerful tote sounds:** choose **Bloom**, **Sparkle**, **Arcade**, or **Off**, with a Preview button. The cue is distinct from stop completion and follows the master Confirmation sounds setting and volume. Tones are synthesized locally, so there is no sound download or audio-library dependency.
+- **Clearer, more reliable whole-route weather:** trace rain stays visible even when the finish is sunny. Wider routes can use up to three time-matched areas; an unavailable area leaves an explicit gap instead of losing the rest of the report or borrowing another area's weather. Partial coverage has a prominent label and can retry after thirty minutes within the existing automatic request budget. Older reports remain available while an updated analysis is pending. Offline, unmapped, and unavailable reports explain what is missing. Provider data is still a weather-model estimate, and brief local showers can be missed; personal observations remain separate.
+- **Saved preferences:** the new controls join the existing small Drive appearance preference. Existing saved layouts receive the familiar dock positions unless changed. Route, location, package, and tote records retain their existing meaning.
+
+Package counting, all sixteen information cards, themes, dial sizes, progress styles, Route Moments, and hourly previous-route comparisons remain available. No new GPS stream, account, Android permission, or route-history data is needed for this update.
 
 ## 9.1.0 Packages, Pit Stops & Your Workday
 

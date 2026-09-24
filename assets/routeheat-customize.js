@@ -32,11 +32,17 @@
     parcels:makeLayout('parcels','Packages','A large dial with one-tap package counts and essential readings.','bottom','large',['stops','packages','remaining','finish']),
     custom:makeLayout('custom','Custom','Choose your dial position, size and information cards.','right','medium',[...core])
   });
-  const defaults = Object.freeze({version:1,layout:'balanced',position:'right',size:'medium',dial:'arc',progress:'rail',showProgress:true,countPackages:false,packagePosition:'dial',cards:Object.freeze([...core])});
+  const defaults = Object.freeze({version:1,layout:'balanced',position:'right',size:'medium',dial:'arc',progress:'rail',showProgress:true,countPackages:false,packagePosition:'dial',multiLayout:'dock',totePosition:'dock',toteStyle:'detailed',routeControlsPosition:'dock',routeControlsStyle:'split',toteSound:'bloom',screenMode:'scroll',cards:Object.freeze([...core])});
   const positions = Object.freeze(['right','left','bottom','top']);
   const sizes = Object.freeze(['small','medium','large']);
   const dials = Object.freeze(['arc','orbit','panel']);
   const progressStyles = Object.freeze(['rail','segments','beacon']);
+  const multiLayouts = Object.freeze(['dock','corners','above','below']);
+  const totePositions = Object.freeze(['dock','above','below']);
+  const toteStyles = Object.freeze(['detailed','compact','pill']);
+  const routeControlsPositions = Object.freeze(['dock','above','below']);
+  const routeControlsStyles = Object.freeze(['split','stacked','compact','minimized']);
+  const toteSounds = Object.freeze(['bloom','sparkle','arcade','off']);
   const cardIds = new Set(cards.map(card=>card.id));
   const owns = (object,key) => Object.prototype.hasOwnProperty.call(object,key);
   function normalize(raw) {
@@ -59,6 +65,13 @@
       progress:progressStyles.includes(value('progress'))?value('progress'):defaults.progress,
       countPackages:typeof value('countPackages')==='boolean'?value('countPackages'):layout==='parcels',
       packagePosition:['dial','below','card'].includes(value('packagePosition'))?value('packagePosition'):'dial',
+      multiLayout:multiLayouts.includes(value('multiLayout'))?value('multiLayout'):defaults.multiLayout,
+      totePosition:totePositions.includes(value('totePosition'))?value('totePosition'):defaults.totePosition,
+      toteStyle:toteStyles.includes(value('toteStyle'))?value('toteStyle'):defaults.toteStyle,
+      routeControlsPosition:routeControlsPositions.includes(value('routeControlsPosition'))?value('routeControlsPosition'):defaults.routeControlsPosition,
+      routeControlsStyle:routeControlsStyles.includes(value('routeControlsStyle'))?value('routeControlsStyle'):defaults.routeControlsStyle,
+      toteSound:toteSounds.includes(value('toteSound'))?value('toteSound'):defaults.toteSound,
+      screenMode:value('screenMode')==='steady'?'steady':'scroll',
       showProgress:typeof value('showProgress')==='boolean'?value('showProgress'):defaults.showProgress,
       cards:Array.isArray(selected)?[...new Set(selected.slice(0,128).filter(id=>typeof id==='string'&&cardIds.has(id)))]:[...seed.cards]
     };
@@ -70,5 +83,5 @@
     const prior=normalize(current),id=typeof layoutId==='string'&&owns(layouts,layoutId)?layoutId:defaults.layout,seed=layouts[id];
     return normalize({...prior,layout:id,position:seed.position,size:seed.size,cards:[...seed.cards],...(id==='parcels'?{countPackages:true,packagePosition:'dial'}:{})});
   }
-  window.RouteHeatCustomize=Object.freeze({normalize,preset,defaults,layouts,cards,positions,sizes,dials,progressStyles});
+  window.RouteHeatCustomize=Object.freeze({normalize,preset,defaults,layouts,cards,positions,sizes,dials,progressStyles,multiLayouts,totePositions,toteStyles,routeControlsPositions,routeControlsStyles,toteSounds});
 })();
