@@ -1,4 +1,14 @@
-# RouteHeat 9.2.0
+# RouteHeat 10.0.0
+
+## 10.0.0 The Command Update
+
+- **More conservative Auto Stop:** a stop must remain stationary for at least 60 seconds before it can qualify; training can extend this to 90 seconds. Multi-location arming no longer shortens that wait. Moving or interrupted GPS readings cannot qualify a brief stop by simply crossing the timer. Completion still requires departure, and manual completion stays immediate. Long traffic waits can still resemble deliveries; Suggest mode lets you review them.
+- **Command 9:** select Drive → Layout → Command 9 for a three-by-three set of numeric readings below the package dial, larger corner location buttons, route progress and minimized route actions. Compact readings open their full explanation when tapped. Existing layouts remain available; crowded custom layouts and very small screens can still scroll.
+- **More layout control:** choose Three across or Adaptive card columns, and Regular or Large corner location buttons. Three across stacks readings above or below the dial; choosing a side layout returns to adaptive columns. Rich insight widgets keep their full width.
+- **Prepare, then finish:** optional workflow under Packages at each stop. Select counts before delivering; Finish stop saves one stop with those packages and locations. Defaults reset to 1 package and 1 location. Preparation survives pause/recovery and Undo restores the last selected counts. Automatic counting waits for manual completion while this mode is active. One-tap completion remains the default.
+- **Historical Delivery pace:** comparable adjacent-stop intervals determine stops per hour, including travel and delivery work. The map excludes unusable transfer, pause, corrected and gap intervals and explains its samples. Map locations are approximate GPS corridors, not a named-street database.
+- **Weather and performance:** readable whole-route timelines, explicit route-average temperatures, partial-rain labels, unknown-condition handling, preserved observation drafts, faster compact-route weather-location analysis, faster Ghost comparisons, and stable focused activity controls during live ticks.
+- **Visual polish:** static dimensional surfaces, readable card detail sheets, and a brighter RouteHeat icon. No new location stream or AI service.
 
 ## 9.2.0 Your Drive Controls
 
@@ -415,7 +425,7 @@ Use **Settings → Data protection → Create backup** for recovery:
 
 A `.routeheat` file is JSON and is **not encrypted by RouteHeat**. Keep it in protected device or cloud storage and never publish it; it can contain GPS coordinates and an active draft.
 
-CSV is the 52-column analysis/archive export for spreadsheets and external tools. The original 44 columns remain in the same order; eight appended fields describe the derived primary, phase, and event Delivery Area matches. It also retains legacy Route Family compatibility fields. RouteHeat does not import CSV, so CSV alone cannot rebuild History, Delivery Area boundaries, or Recently Deleted state.
+CSV is the 59-column analysis/archive export for spreadsheets and external tools. The original 44 columns remain in the same order; later fields describe derived primary, phase, and event Delivery Area matches, recorded delay reasons, and counted packages at each stop. It also retains legacy Route Family compatibility fields. RouteHeat does not import CSV, so CSV alone cannot rebuild History, Delivery Area boundaries, or Recently Deleted state.
 
 ### Recently Deleted and cloud restore
 

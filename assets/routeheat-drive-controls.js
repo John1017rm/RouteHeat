@@ -25,7 +25,7 @@
     for(const key of ['multiLayout','totePosition','toteStyle','routeControlsPosition','routeControlsStyle','screenMode'])view.dataset[key]=a[key];
     init();
     const toggle=byId('driveActionsToggle'),group=byId('driveRouteControls');
-    if(toggle){toggle.hidden=a.routeControlsStyle!=='minimized';toggle.disabled=byId('drivePauseBtn')?.disabled&&byId('driveFinishBtn')?.disabled;toggle.textContent=byId('drivePauseBtn')?.textContent.includes('Resume')?'Paused · Resume / Finish':'Route actions · Pause / Finish';}
+    if(toggle){toggle.hidden=a.routeControlsStyle!=='minimized';toggle.disabled=byId('drivePauseBtn')?.disabled&&byId('driveFinishBtn')?.disabled;const paused=byId('drivePauseBtn')?.textContent.includes('Resume');toggle.textContent=a.cardColumns==='three'?(paused?'Paused · Actions':'Route actions'):(paused?'Paused · Resume / Finish':'Route actions · Pause / Finish');toggle.setAttribute('aria-label',paused?'Route actions: Resume or Finish':'Route actions: Pause or Finish');}
     if(a.routeControlsStyle!=='minimized'&&group?.dataset.expanded==='true')setExpanded(false);
     const move=(id,parentId)=>{const node=byId(id),parent=byId(parentId);if(node&&parent&&node.parentElement!==parent)parent.appendChild(node);};
     const multi=byId('autoMultiArm'),status=byId('autoMultiArmStatus');

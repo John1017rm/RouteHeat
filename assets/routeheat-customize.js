@@ -10,7 +10,7 @@
     {id:'remaining',label:'Stops remaining',description:'Stops left in your current route plan.'},
     {id:'goal',label:'Pace vs goal',description:'Your route pace compared with your selected goal.'},
     {id:'packages',label:'Package totals',description:'Counted delivered packages and the entered route plan.'},
-    {id:'packageCounter',label:'Package buttons',description:'One-tap stop completion when package counting is on.'},
+    {id:'packageCounter',label:'Package buttons',description:'Package selection or one-tap completion, using your chosen stop workflow.'},
     {id:'distance',label:'Route distance',description:'Distance from your recorded GPS trail.'},
     {id:'ghost',label:'Ghost comparison',description:'Your progress against the selected Ghost Run.'},
     {id:'moment',label:'Route facts',description:'The latest Route Moment or hourly comparison.'},
@@ -30,9 +30,10 @@
     ghost:makeLayout('ghost','Ghost Run','A large dial with your Ghost comparison in view.','bottom','large',['ghost','stops','finish','remaining']),
     insights:makeLayout('insights','Insights','A smaller dial with facts and a fuller route picture.','right','small',['stops','time','finish','remaining','goal','packages','distance','ghost','moment','interval','area','tote']),
     parcels:makeLayout('parcels','Packages','A large dial with one-tap package counts and essential readings.','bottom','large',['stops','packages','remaining','finish']),
+    command:makeLayout('command','Command 9','Progress, package dial, corner locations and nine compact readings.','bottom','large',['stops','packages','remaining','time','last','goal','finish','projections','distance']),
     custom:makeLayout('custom','Custom','Choose your dial position, size and information cards.','right','medium',[...core])
   });
-  const defaults = Object.freeze({version:1,layout:'balanced',position:'right',size:'medium',dial:'arc',progress:'rail',showProgress:true,countPackages:false,packagePosition:'dial',multiLayout:'dock',totePosition:'dock',toteStyle:'detailed',routeControlsPosition:'dock',routeControlsStyle:'split',toteSound:'bloom',screenMode:'scroll',cards:Object.freeze([...core])});
+  const defaults = Object.freeze({version:1,layout:'balanced',position:'right',size:'medium',dial:'arc',progress:'rail',showProgress:true,countPackages:false,stopEntryMode:'instant',packagePosition:'dial',multiLayout:'dock',cornerSize:'regular',cardColumns:'auto',totePosition:'dock',toteStyle:'detailed',routeControlsPosition:'dock',routeControlsStyle:'split',toteSound:'bloom',screenMode:'scroll',cards:Object.freeze([...core])});
   const positions = Object.freeze(['right','left','bottom','top']);
   const sizes = Object.freeze(['small','medium','large']);
   const dials = Object.freeze(['arc','orbit','panel']);
@@ -64,6 +65,9 @@
       dial:dials.includes(value('dial'))?value('dial'):defaults.dial,
       progress:progressStyles.includes(value('progress'))?value('progress'):defaults.progress,
       countPackages:typeof value('countPackages')==='boolean'?value('countPackages'):layout==='parcels',
+      stopEntryMode:value('stopEntryMode')==='prepare'?'prepare':'instant',
+      cardColumns:value('cardColumns')==='three'?'three':'auto',
+      cornerSize:value('cornerSize')==='large'?'large':'regular',
       packagePosition:['dial','below','card'].includes(value('packagePosition'))?value('packagePosition'):'dial',
       multiLayout:multiLayouts.includes(value('multiLayout'))?value('multiLayout'):defaults.multiLayout,
       totePosition:totePositions.includes(value('totePosition'))?value('totePosition'):defaults.totePosition,
@@ -75,13 +79,14 @@
       showProgress:typeof value('showProgress')==='boolean'?value('showProgress'):defaults.showProgress,
       cards:Array.isArray(selected)?[...new Set(selected.slice(0,128).filter(id=>typeof id==='string'&&cardIds.has(id)))]:[...seed.cards]
     };
+    if(result.cardColumns==='three'&&['left','right'].includes(result.position))result.position='bottom';
     if(result.countPackages&&result.packagePosition==='card'&&!result.cards.includes('packageCounter'))result.cards.push('packageCounter');
     if(!result.countPackages||result.packagePosition!=='card')result.cards=result.cards.filter(id=>id!=='packageCounter');
     return result;
   }
   function preset(layoutId,current) {
     const prior=normalize(current),id=typeof layoutId==='string'&&owns(layouts,layoutId)?layoutId:defaults.layout,seed=layouts[id];
-    return normalize({...prior,layout:id,position:seed.position,size:seed.size,cards:[...seed.cards],...(id==='parcels'?{countPackages:true,packagePosition:'dial'}:{})});
+    return normalize({...prior,layout:id,position:seed.position,size:seed.size,cardColumns:['left','right'].includes(seed.position)?'auto':prior.cardColumns,cards:[...seed.cards],...(id==='parcels'?{countPackages:true,packagePosition:'dial'}:{}),...(id==='command'?{countPackages:true,packagePosition:'dial',screenMode:'steady',cardColumns:'three',cornerSize:'large',multiLayout:'corners',totePosition:'dock',toteStyle:'compact',routeControlsPosition:'dock',routeControlsStyle:'minimized',showProgress:true}:{})});
   }
   window.RouteHeatCustomize=Object.freeze({normalize,preset,defaults,layouts,cards,positions,sizes,dials,progressStyles,multiLayouts,totePositions,toteStyles,routeControlsPositions,routeControlsStyles,toteSounds});
 })();
