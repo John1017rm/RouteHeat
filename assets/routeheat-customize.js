@@ -33,9 +33,9 @@
     command:makeLayout('command','Command 9','Progress, package dial, corner locations and nine compact readings.','bottom','large',['stops','packages','remaining','time','last','goal','finish','projections','distance']),
     custom:makeLayout('custom','Custom','Choose your dial position, size and information cards.','right','medium',[...core])
   });
-  const defaults = Object.freeze({version:1,layout:'balanced',position:'right',size:'medium',dial:'arc',progress:'rail',showProgress:true,countPackages:false,stopEntryMode:'instant',packagePosition:'dial',multiLayout:'dock',cornerSize:'regular',cardColumns:'auto',totePosition:'dock',toteStyle:'detailed',routeControlsPosition:'dock',routeControlsStyle:'split',toteSound:'bloom',screenMode:'scroll',cards:Object.freeze([...core])});
+  const defaults = Object.freeze({version:1,layout:'balanced',position:'right',size:'medium',dial:'arc',progress:'rail',showProgress:true,countPackages:false,stopEntryMode:'instant',packagePosition:'dial',multiLayout:'dock',cornerSize:'regular',cardColumns:'auto',totePosition:'dock',toteStyle:'detailed',routeControlsPosition:'dock',routeControlsStyle:'split',toteSound:'bloom',screenMode:'scroll',routeBars:'expanded',cards:Object.freeze([...core])});
   const positions = Object.freeze(['right','left','bottom','top']);
-  const sizes = Object.freeze(['small','medium','large']);
+  const sizes = Object.freeze(['small','medium','large','xl']);
   const dials = Object.freeze(['arc','orbit','panel']);
   const progressStyles = Object.freeze(['rail','segments','beacon']);
   const multiLayouts = Object.freeze(['dock','corners','above','below']);
@@ -76,10 +76,11 @@
       routeControlsStyle:routeControlsStyles.includes(value('routeControlsStyle'))?value('routeControlsStyle'):defaults.routeControlsStyle,
       toteSound:toteSounds.includes(value('toteSound'))?value('toteSound'):defaults.toteSound,
       screenMode:value('screenMode')==='steady'?'steady':'scroll',
+      routeBars:value('routeBars')==='minimize'?'minimize':'expanded',
       showProgress:typeof value('showProgress')==='boolean'?value('showProgress'):defaults.showProgress,
       cards:Array.isArray(selected)?[...new Set(selected.slice(0,128).filter(id=>typeof id==='string'&&cardIds.has(id)))]:[...seed.cards]
     };
-    if(result.cardColumns==='three'&&['left','right'].includes(result.position))result.position='bottom';
+    if((result.cardColumns==='three'||result.size==='xl')&&['left','right'].includes(result.position))result.position='bottom';
     if(result.countPackages&&result.packagePosition==='card'&&!result.cards.includes('packageCounter'))result.cards.push('packageCounter');
     if(!result.countPackages||result.packagePosition!=='card')result.cards=result.cards.filter(id=>id!=='packageCounter');
     return result;

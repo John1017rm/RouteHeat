@@ -1,4 +1,12 @@
-# RouteHeat 10.0.0
+# RouteHeat 10.1.0
+
+## 10.1.0 Room to Drive
+
+- Cloud merge now waits for a verified complete device save before reporting success. A full IndexedDB journal may protect history when even a compact localStorage copy cannot fit; GPS tracks remain complete. Concurrent history changes restart the merge, and successful backups no longer fail solely because the last-sync timestamp cannot fit.
+- Corrected journal snapshot hydration during reload, including storage-quota recovery.
+- Steady mode sizes itself below the measured header and keeps Layout accessible. Entering the view resets old page scroll.
+- Optional On-route bars → Minimize while driving replaces the header and navigation with a compact Menu / status / Layout strip during active Drive. Menu restores the bars, Hide minimizes them, and pause or leaving Drive restores normal navigation. Existing preferences default to Expanded.
+- XL dial with a larger pace reading, package controls and corner locations. XL uses vertically stacked readings to leave room for the dial; crowded layouts can scroll within the reading area.
 
 ## 10.0.0 The Command Update
 

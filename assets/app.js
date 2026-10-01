@@ -438,7 +438,7 @@
   async function initDurableStorage(){
     const appearanceRevision=driveAppearanceRevision;
     try{
-      const module=await import('./routeheat-storage.js?v=10.0.0-r1');
+      const module=await import('./routeheat-storage.js?v=10.1.0-r1');
       durableStorage=module.createRouteHeatStorage({keys:DURABLE_STORAGE_KEYS,arrayKeys:DURABLE_ARRAY_KEYS,objectKeys:DURABLE_OBJECT_KEYS,journalLimit:40,activeKey:ACTIVE_ROUTE_STORE,historyKey:STORE,activeCheckpointLimit:8,getLogicalClock:durableLogicalClock,onStatus:setDurableStorageStatus});
       const result=await durableStorage.init();durableStorageReady=true;hydrateDriveAppearance(result,appearanceRevision);
       const historyFailure=(result.failures||[]).some(item=>item?.key===STORE),activeFailure=(result.failures||[]).some(item=>item?.key===ACTIVE_ROUTE_STORE),journalHistoryRaw=result.snapshot?.values?.[STORE],journalActiveRaw=result.snapshot?.values?.[ACTIVE_ROUTE_STORE];
@@ -1680,7 +1680,7 @@
   function syncDriveAppearanceControls(){
     initDriveStudio();const api=window.RouteHeatCustomize,appearance=api.normalize(driveAppearance),layout=api.layouts[appearance.layout];
     document.querySelectorAll('[data-drive-preset]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.drivePreset===appearance.layout)));
-    for(const [id,key] of [['driveInfoPosition','position'],['driveDialSize','size'],['driveDialStyle','dial'],['driveProgressStyle','progress'],['driveMultiLayout','multiLayout'],['driveTotePosition','totePosition'],['driveToteStyle','toteStyle'],['driveRouteControlsPosition','routeControlsPosition'],['driveRouteControlsStyle','routeControlsStyle'],['driveToteSound','toteSound'],['driveScreenMode','screenMode'],['driveCardColumns','cardColumns'],['driveCornerSize','cornerSize']])if($('#'+id))$('#'+id).value=appearance[key];
+    for(const [id,key] of [['driveInfoPosition','position'],['driveDialSize','size'],['driveDialStyle','dial'],['driveProgressStyle','progress'],['driveMultiLayout','multiLayout'],['driveTotePosition','totePosition'],['driveToteStyle','toteStyle'],['driveRouteControlsPosition','routeControlsPosition'],['driveRouteControlsStyle','routeControlsStyle'],['driveToteSound','toteSound'],['driveScreenMode','screenMode'],['driveRouteBars','routeBars'],['driveCardColumns','cardColumns'],['driveCornerSize','cornerSize']])if($('#'+id))$('#'+id).value=appearance[key];
     if($('#driveShowProgress'))$('#driveShowProgress').checked=appearance.showProgress;
     for(const button of document.querySelectorAll('[data-control-preset]')){const preset=driveControlPresets[button.dataset.controlPreset];button.setAttribute('aria-pressed',String(!!preset&&Object.entries(preset).every(([key,value])=>Array.isArray(value)?JSON.stringify(appearance[key])===JSON.stringify(value):appearance[key]===value)));}
     if($('#toteSoundStatus'))$('#toteSoundStatus').textContent=!soundEnabled?'Confirmation sounds are off in Settings.':appearance.toteSound==='off'?'Tote sound is off.':`Uses your confirmation sound volume · ${soundVolume}%.`;
@@ -1698,7 +1698,7 @@
   }
   function closeDriveStudio(viewDrive=false){
     const modal=$('#driveCustomizeModal');modal.classList.remove('open');modal.setAttribute('aria-hidden','true');document.body.classList.remove('modal-scroll-locked');
-    if(viewDrive){document.querySelector('.nav-item[data-view="driveView"]')?.click();setTimeout(()=>$('#driveCustomizeBtn').focus({preventScroll:true}),0);}else if(driveStudioReturnFocus?.id==='settingsDriveStudio'){openSettings();setTimeout(()=>$('#settingsDriveStudio').focus(),0);}else driveStudioReturnFocus?.focus?.();
+    if(viewDrive){document.querySelector('.nav-item[data-view="driveView"]')?.click();setTimeout(()=>(document.body.classList.contains('drive-bars-minimized')?$('#driveCompactLayout'):$('#driveCustomizeBtn')).focus({preventScroll:true}),0);}else if(driveStudioReturnFocus?.id==='settingsDriveStudio'){openSettings();setTimeout(()=>$('#settingsDriveStudio').focus(),0);}else{const focus=driveStudioReturnFocus;(focus?.getClientRects?.().length?focus:document.body.classList.contains('drive-bars-minimized')?$('#driveCompactLayout'):$('#driveCustomizeBtn'))?.focus?.({preventScroll:true});}
   }
   function changeDriveStudioField(field,value){setDriveAppearance({...driveAppearance,layout:'custom',[field]:value,...(field==='position'&&['left','right'].includes(value)?{cardColumns:'auto'}:{})},false);if(field==='multiLayout')renderAutoMultiArm();}
   function moveDriveCard(id,direction){const cards=[...driveAppearance.cards],index=cards.indexOf(id),next=index+direction;if(index<0||next<0||next>=cards.length)return;[cards[index],cards[next]]=[cards[next],cards[index]];changeDriveStudioField('cards',cards);}
@@ -1807,9 +1807,9 @@
     saved.atmosphere=updated;touchRoute(saved,true);all[index]=saved;if(!saveRoutes(all)){toast('Could not save the observation. Try again after freeing device storage.');return false;}
     window.dispatchEvent(new CustomEvent('routeheat:route-saved',{detail:{route:saved,source:'atmosphere'}}));renderHistory();renderOpenAtmosphereCards(routeId);toast(observation?'Your weather observation is saved':'Weather observation removed');return true;
   }
-  function openWhatsNew(force=false){if(!force&&(route||document.querySelector('.modal.open')))return false;whatsNewReturnFocus=document.activeElement;localStorage.setItem(WHATS_NEW_STORE,'10.0.0');const modal=$('#whatsNewModal'),closeButton=$('#closeWhatsNew'),doneButton=$('#doneWhatsNew');closeButton.onclick=()=>closeWhatsNew();doneButton.onclick=()=>closeWhatsNew();modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.classList.add('modal-scroll-locked');setTimeout(()=>doneButton.focus(),0);return true;}
+  function openWhatsNew(force=false){if(!force&&(route||document.querySelector('.modal.open')))return false;whatsNewReturnFocus=document.activeElement;localStorage.setItem(WHATS_NEW_STORE,'10.1.0');const modal=$('#whatsNewModal'),closeButton=$('#closeWhatsNew'),doneButton=$('#doneWhatsNew');closeButton.onclick=()=>closeWhatsNew();doneButton.onclick=()=>closeWhatsNew();modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.classList.add('modal-scroll-locked');setTimeout(()=>doneButton.focus(),0);return true;}
   function closeWhatsNew(restoreFocus=true){const modal=$('#whatsNewModal'),focus=whatsNewReturnFocus;modal.classList.remove('open');modal.setAttribute('aria-hidden','true');whatsNewReturnFocus=null;if(!document.querySelector('.modal.open'))document.body.classList.remove('modal-scroll-locked');if(restoreFocus&&focus?.isConnected&&focus.getClientRects().length)setTimeout(()=>focus.focus(),0);}
-  function showWhatsNewIfSafe(attempt=0){if(localStorage.getItem(WHATS_NEW_STORE)==='10.0.0'||route)return;if(document.querySelector('.modal.open')){if(attempt<12)setTimeout(()=>showWhatsNewIfSafe(attempt+1),850);return;}openWhatsNew();}
+  function showWhatsNewIfSafe(attempt=0){if(localStorage.getItem(WHATS_NEW_STORE)==='10.1.0'||route)return;if(document.querySelector('.modal.open')){if(attempt<12)setTimeout(()=>showWhatsNewIfSafe(attempt+1),850);return;}openWhatsNew();}
   function renderOrchestraCard(saved,selector,{compact=false}={}){const card=$(selector);if(!card||!saved||!window.RouteHeatOrchestra)return;card.innerHTML=window.RouteHeatOrchestra.renderCard(saved,{compact});card.hidden=false;}
 
   function freshRoutePosition(position=route?.lastPosition,now=Date.now(),maxAgeMs=60000,maxAccuracy=60){
@@ -2044,7 +2044,7 @@
     const width=shell?.getBoundingClientRect().width||0;
     const minimumDial=driveAppearance.cardColumns==='three'&&driveAppearance.size==='large'&&['top','bottom'].includes(driveAppearance.position)?256:272;
     const viewportWidth=Number(window.innerWidth)||Number(document.documentElement?.clientWidth)||Number(view.clientWidth)||0,narrowCorners=driveAppearance.multiLayout==='corners'&&viewportWidth>0&&viewportWidth<350;
-    let placement=driveAppearance.packagePosition||'dial';if(placement==='dial'&&(narrowCorners||driveAppearance.size!=='large'||['left','right'].includes(driveAppearance.position)&&driveAppearance.cards.length||width>0&&width<minimumDial))placement='below';
+    let placement=driveAppearance.packagePosition||'dial';if(placement==='dial'&&(narrowCorners||!['large','xl'].includes(driveAppearance.size)||['left','right'].includes(driveAppearance.position)&&driveAppearance.cards.length||width>0&&width<minimumDial))placement='below';
     const parent=placement==='card'?card:placement==='dial'?shell:below;if(parent&&composer.parentElement!==parent)parent.appendChild(composer);
     composer.hidden=!enabled;below.hidden=!enabled||placement!=='below';card.hidden=!enabled||placement!=='card';view.dataset.packagePlacement=enabled?placement:'off';
     const target=packageAutoTarget(),locations=target?stopLocations(target):packageStopLocations(),disabled=!route||!!route.pausedAt;
@@ -2061,6 +2061,7 @@
     for(const id of ['driveStopEntryMode','settingsStopEntryMode'])if($('#'+id))$('#'+id).value=driveAppearance.stopEntryMode||'instant';
     $('#driveStopBtn')?.setAttribute('aria-label',preparing?`Finish one stop with ${selected.packageCount} package${selected.packageCount===1?'':'s'} and ${locations} location${locations===1?'':'s'}`:'Complete one stop');
     window.RouteHeatDriveControls?.apply(driveAppearance);
+    window.RouteHeatDriveViewport?.sync(driveAppearance,{routeId:route?.id,paused:!!route?.pausedAt});
     if(!packageDialObserver&&typeof ResizeObserver==='function'&&shell){packageDialObserver=new ResizeObserver(()=>renderPackageControls());packageDialObserver.observe(shell);}
   }
   function setPackageCounting(enabled){setDriveAppearance({...driveAppearance,layout:'custom',countPackages:enabled},false);renderAutoMultiArm();renderPackageControls();syncDriveAppearanceControls();toast(enabled?(preparedStopMode()?'Package counting on · select a count, then finish with the center button':'Package counting on · tap a count to finish each stop'):'Package counting off · saved counts are kept');}
@@ -3427,7 +3428,12 @@
             if (key === STORE && overrides[key] != null) {
               if (durableSaved) {
                 historyMirror = writeLocalRouteHistory(JSON.parse(overrides[key]));
-                if (!historyMirror.saved) throw historyMirror.error || new Error('Route history could not fit on this device.');
+                if (!historyMirror.saved) {
+                  // The full history is already committed. Drop the obsolete
+                  // mirror so reload cannot merge removed routes back into it.
+                  // The verified journal and durableHistoryRaw remain complete.
+                  localStorage.removeItem(STORE);
+                }
               } else {
                 // Without a verified full journal, never trim a GPS trail merely
                 // to make an import or merge appear successful.
@@ -3478,6 +3484,22 @@
       historyMutationInProgress = false;
       window.dispatchEvent(new CustomEvent('routeheat:history-mutation-ended'));
     }
+  }
+  async function replaceCloudRouteHistory(items, {expectedFingerprint} = {}) {
+    await durableStorageInit;
+    const expected = expectedFingerprint ?? JSON.stringify(routes());
+    const changedError = () => Object.assign(new Error('Route history changed while syncing. Restarting with the newest copy.'), {code:'ROUTEHEAT_HISTORY_CHANGED'});
+    if (historyMutationInProgress) throw changedError();
+    const normalized = cloneRouteData(Array.isArray(items) ? items : []).map(normalizeRouteData).filter(Boolean);
+    assignRouteFamilies(normalized);
+    const raw = JSON.stringify(normalized);
+    await applyHistoryMutation(() => {
+      // Recheck after the pending checkpoint and on every retry. A fixed cloud
+      // merge must never replace a correction made during the journal await.
+      if (JSON.stringify(routes()) !== expected) throw changedError();
+      return {overrides:{[STORE]:raw}};
+    }, 'cloud-history');
+    return true;
   }
   function mergedRouteDeletionOverrides(saved) {
     const signature = localDeletionSignature(saved);
@@ -3551,7 +3573,7 @@
   $('#cancelRescue').addEventListener('click',closeRescueModal);$('#confirmRescue').addEventListener('click',()=>beginRescue(false));$('#rescueModal').addEventListener('click',event=>{if(event.target.id==='rescueModal')closeRescueModal();});
   $('#cancelMerge').addEventListener('click',closeMergeModal);$('#confirmMerge').addEventListener('click',mergeSavedRoutes);$('#mergeModal').addEventListener('click',event=>{if(event.target.id==='mergeModal')closeMergeModal();});
   $('#multiMinus').addEventListener('click',()=>{pendingMultiLocations--;updateMultiStopPicker();});$('#multiPlus').addEventListener('click',()=>{pendingMultiLocations++;updateMultiStopPicker();});$('#cancelMultiStop').addEventListener('click',()=>closeMultiStop());$('#confirmMultiStop').addEventListener('click',saveMultiStop);$('#multiStopModal').addEventListener('click',e=>{if(e.target.id==='multiStopModal')closeMultiStop();});
-  $('.bottom-nav').addEventListener('click',e=>{const b=e.target.closest('.nav-item');if(!b)return;document.querySelectorAll('.nav-item').forEach(item=>{item.classList.toggle('active',item===b);if(item===b)item.setAttribute('aria-current','page');else item.removeAttribute('aria-current')});document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));$(`#${b.dataset.view}`).classList.add('active');document.body.dataset.activeView=b.dataset.view;document.body.classList.toggle('drive-view-active',b.dataset.view==='driveView');requestAnimationFrame(()=>window.scrollTo({top:0,left:0,behavior:'auto'}));if(b.dataset.view==='liveView'&&map)setTimeout(()=>map.invalidateSize(),50);if(b.dataset.view==='historyView')renderHistory();if(b.dataset.view==='heatView')renderHeatMap();});
+  $('.bottom-nav').addEventListener('click',e=>{const b=e.target.closest('.nav-item');if(!b)return;document.querySelectorAll('.nav-item').forEach(item=>{item.classList.toggle('active',item===b);if(item===b)item.setAttribute('aria-current','page');else item.removeAttribute('aria-current')});document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));$(`#${b.dataset.view}`).classList.add('active');document.body.dataset.activeView=b.dataset.view;document.body.classList.toggle('drive-view-active',b.dataset.view==='driveView');window.RouteHeatDriveViewport?.sync(driveAppearance,{routeId:route?.id,paused:!!route?.pausedAt});requestAnimationFrame(()=>window.scrollTo({top:0,left:0,behavior:'auto'}));if(b.dataset.view==='liveView'&&map)setTimeout(()=>map.invalidateSize(),50);if(b.dataset.view==='historyView')renderHistory();if(b.dataset.view==='heatView')renderHeatMap();});
   $('#heatRange').addEventListener('click',e=>{const b=e.target.closest('button[data-range]');if(!b)return;heatRange=b.dataset.range;heatFilters={...heatFilters,time:heatRange,dateFrom:'',dateTo:''};heatDatasetCache=null;heatShouldFit=true;syncHeatFilterControls();renderHeatMap();});
   $('#heatMode').addEventListener('click',e=>{const b=e.target.closest('button[data-mode]');if(!b||!HEAT_MODES.has(b.dataset.mode))return;renderHeatMap.token=(renderHeatMap.token||0)+1;removeDensityHeatLayer();heatMode=b.dataset.mode;localStorage.setItem('routeheat.heatMode',heatMode);syncHeatFilterControls();renderHeatMap();});
   $('#heatFilterApply')?.addEventListener('click',applyHeatFilters);$('#heatFilterReset')?.addEventListener('click',resetHeatFilters);
@@ -3618,13 +3640,14 @@
   $('#packagePickerModal')?.addEventListener('click',event=>{if(event.target.id==='packagePickerModal'){closePackagePicker();return;}const button=event.target.closest('[data-picker-packages]');if(button)savePackagePicker(button.dataset.pickerPackages);});
   $('#packagePickerInput')?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();savePackagePicker();}});
   $('#driveCustomizeBtn')?.addEventListener('click',event=>openDriveStudio(event.currentTarget));
+  $('#driveCompactLayout')?.addEventListener('click',event=>openDriveStudio(event.currentTarget));
   $('#settingsDriveStudio')?.addEventListener('click',event=>openDriveStudio(event.currentTarget));
   $('#closeDriveStudio')?.addEventListener('click',()=>closeDriveStudio());
   $('#previewDriveStudio')?.addEventListener('click',()=>closeDriveStudio(true));
   $('#driveCustomizeModal')?.addEventListener('click',event=>{if(event.target.id==='driveCustomizeModal')closeDriveStudio();});
   $('#driveCustomizeModal')?.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeDriveStudio();}});
   $('#driveLayoutChoices')?.addEventListener('click',event=>{const button=event.target.closest('[data-drive-preset]');if(button)setDriveAppearance(window.RouteHeatCustomize.preset(button.dataset.drivePreset,driveAppearance),false);});
-  for(const [id,field] of [['driveInfoPosition','position'],['driveDialSize','size'],['driveDialStyle','dial'],['driveProgressStyle','progress'],['driveMultiLayout','multiLayout'],['driveTotePosition','totePosition'],['driveToteStyle','toteStyle'],['driveRouteControlsPosition','routeControlsPosition'],['driveRouteControlsStyle','routeControlsStyle'],['driveToteSound','toteSound'],['driveScreenMode','screenMode'],['driveCardColumns','cardColumns'],['driveCornerSize','cornerSize']])$('#'+id)?.addEventListener('change',event=>changeDriveStudioField(field,event.target.value));
+  for(const [id,field] of [['driveInfoPosition','position'],['driveDialSize','size'],['driveDialStyle','dial'],['driveProgressStyle','progress'],['driveMultiLayout','multiLayout'],['driveTotePosition','totePosition'],['driveToteStyle','toteStyle'],['driveRouteControlsPosition','routeControlsPosition'],['driveRouteControlsStyle','routeControlsStyle'],['driveToteSound','toteSound'],['driveScreenMode','screenMode'],['driveRouteBars','routeBars'],['driveCardColumns','cardColumns'],['driveCornerSize','cornerSize']])$('#'+id)?.addEventListener('change',event=>changeDriveStudioField(field,event.target.value));
   $('#driveControlPresets')?.addEventListener('click',event=>{const preset=driveControlPresets[event.target.closest('[data-control-preset]')?.dataset.controlPreset];if(preset){setDriveAppearance({...driveAppearance,...preset,layout:'custom'},false);renderAutoMultiArm();}});
   $('#previewToteSound')?.addEventListener('click',()=>void playToteSound(true));
   $('#driveShowProgress')?.addEventListener('change',event=>changeDriveStudioField('showProgress',event.target.checked));
@@ -3690,7 +3713,7 @@
     if($('#recentlyDeletedModal').classList.contains('open'))renderRecentlyDeleted();else updateRecentlyDeletedSummary();
   });
   const colorScheme=matchMedia('(prefers-color-scheme:light)');if(colorScheme.addEventListener)colorScheme.addEventListener('change',()=>{if(themePreference==='auto')applyTheme();});
-  durableStorageInit=initDurableStorage();window.RouteHeatStorageReady=durableStorageInit;window.RouteHeatHistory=Object.freeze({isMutating:()=>historyMutationInProgress,ready:()=>durableStorageInit,read:()=>cloneRouteData(routes()),replace:items=>saveRoutes(cloneRouteData(Array.isArray(items)?items:[]))});
+  durableStorageInit=initDurableStorage();window.RouteHeatStorageReady=durableStorageInit;window.RouteHeatHistory=Object.freeze({isMutating:()=>historyMutationInProgress,ready:()=>durableStorageInit,read:()=>cloneRouteData(routes()),replace:replaceCloudRouteHistory});
   async function bootstrap(){await durableStorageInit;pitStopsController?.refresh();driveAppearance=readDriveAppearance();autoMode=AUTO_MODES.has(localStorage.getItem(AUTO_MODE_STORE))?localStorage.getItem(AUTO_MODE_STORE):autoMode;autoEnabled=autoMode!=='off';driveMode=['standard','pro'].includes(localStorage.getItem(DRIVE_MODE_STORE))?localStorage.getItem(DRIVE_MODE_STORE):driveMode;deliveryFeedbackEnabled=localStorage.getItem(DELIVERY_FEEDBACK_STORE)!=='false';atmosphereEnabled=localStorage.getItem(ATMOSPHERE_ENABLED_STORE)!=='false';document.body.dataset.activeView=document.querySelector('.view.active')?.id||'liveView';document.body.classList.toggle('drive-view-active',document.body.dataset.activeView==='driveView');applyTheme();syncSettingsUi();renderAutoTrainingStatus();renderRouteContextTags();renderDeliveryAreasManager();initMap();renderLive();renderHistory();renderHealth();initBatteryHealth();getPosition(false);await offerRouteRecovery();setInterval(renderHealth,5000);setInterval(()=>resumeAutomaticAtmosphereQueue(),300000);setTimeout(()=>$('#launchScreen').classList.add('hide'),620);setTimeout(()=>$('#launchScreen').remove(),1100);setTimeout(showWhatsNewIfSafe,1350);setTimeout(()=>resumeAutomaticAtmosphereQueue(),1800);}
   bootstrap().catch(()=>{setDurableStorageStatus({state:'degraded',backend:'localStorage',message:'Started with local device storage'});document.body.dataset.activeView=document.querySelector('.view.active')?.id||'liveView';applyTheme();syncSettingsUi();renderDeliveryAreasManager();initMap();renderLive();renderHistory();void offerRouteRecovery();});
   if('serviceWorker' in navigator)window.addEventListener('load',registerRouteHeatServiceWorker);

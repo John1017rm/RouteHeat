@@ -19,6 +19,7 @@
   let session = null;
   let syncing = false;
   let syncRequested = false;
+  let latestCompletedSyncAt = 0;
   let cloudModalReturnFocus = null;
   let applyingAreaCloudMerge = false;
 
@@ -436,7 +437,7 @@
     (_, index) => items.slice(index * size, index * size + size)
   );
 
-  async function saveLocalRoutes(items) {
+  async function saveLocalRoutes(items, expectedFingerprint) {
     const sorted = items.slice().sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
     const after = JSON.stringify(sorted);
     const history = window.RouteHeatHistory;
@@ -446,8 +447,16 @@
         const value = history.read?.();
         if (Array.isArray(value)) current = value.slice().sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
       } catch {}
-      if (JSON.stringify(current) === after) return false;
-      if (history.replace(sorted) === false) throw new Error('Full route history could not be protected on this device.');
+      const changed = JSON.stringify(current) !== after;
+      try {
+        // Even unchanged history needs a verified checkpoint: an earlier save
+        // may still exist only in memory after the compact mirror filled up.
+        if (await history.replace(sorted, {expectedFingerprint}) === false) throw new Error('Device history save failed.');
+      } catch (error) {
+        if (error?.code === 'ROUTEHEAT_HISTORY_CHANGED') throw error;
+        throw new Error('Cloud was reached, but this browser could not save a complete device copy. Keep RouteHeat open and use Settings → Storage health to export a backup before freeing space.', {cause:error});
+      }
+      if (!changed) return false;
       window.dispatchEvent(new CustomEvent('routeheat:cloud-merged', {detail: {count: sorted.length}}));
       return true;
     }
@@ -606,6 +615,22 @@
     if(queued)await flushNeighborhoodSnapshotDeletions();
   }
 
+  function rememberCompletedSync(at) {
+    const value = Number(at);
+    if (!Number.isFinite(value) || value <= 0 || value > 8640000000000000) return;
+    latestCompletedSyncAt = value;
+    // This timestamp is display metadata. A full browser mirror must not turn
+    // an already verified route-and-Area backup into a failed sync.
+    try { localStorage.setItem(LAST_SYNC_KEY, String(value)); } catch {}
+  }
+
+  function completedSyncTime() {
+    let stored = 0;
+    try { stored = Number(localStorage.getItem(LAST_SYNC_KEY)); } catch {}
+    if (!Number.isFinite(stored) || stored < 0 || stored > 8640000000000000) stored = 0;
+    return Math.max(latestCompletedSyncAt, stored);
+  }
+
   function renderAccount() {
     const signedIn = !!session?.user;
     $('#cloudSignedOut').hidden = signedIn;
@@ -613,7 +638,7 @@
     dispatchNeighborhoodState();
     if (!signedIn) return;
     $('#cloudAccountEmail').textContent = session.user.email || 'Cloud account';
-    const last = Number(localStorage.getItem(LAST_SYNC_KEY));
+    const last = completedSyncTime();
     $('#cloudLastSync').textContent = last
       ? `Last synced ${new Intl.DateTimeFormat([], {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'}).format(last)}`
       : 'Ready for first sync';
@@ -1123,11 +1148,17 @@
         restartForNewerLocalRoute();
         return;
       }
-      await saveLocalRoutes([...merged.values()]);
+      try {
+        await saveLocalRoutes([...merged.values()], localSnapshotFingerprint);
+      } catch (error) {
+        if (error?.code !== 'ROUTEHEAT_HISTORY_CHANGED') throw error;
+        restartForNewerLocalRoute();
+        return;
+      }
       const areaResult = await syncDeliveryAreas(userId);
 
       const now = Date.now();
-      localStorage.setItem(LAST_SYNC_KEY, String(now));
+      rememberCompletedSync(now);
       renderAccount();
       setStatus(
         'synced',

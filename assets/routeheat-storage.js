@@ -557,7 +557,7 @@ export function createRouteHeatStorage(options = {}) {
         const migrationHistory = historyKey ? localValues[historyKey] : null;
         const migrationValues = normalizedValues({...localValues, ...(activeKey ? {[activeKey]: unsupersededActiveRaw(migrationHistory, activeCurrentRaw, eligibleAfterClear(localValues[activeKey]))} : {})});
         if (localValid && validateValues(migrationValues)) {
-          const snapshot = await commitNow(migrationValues, {reason: 'legacy-localStorage-migration', logicalClock: Math.max(localClock, activeRouteMeta(migrationValues[activeKey])?.updatedAt || 0)});
+          const {snapshot} = await commitNow(migrationValues, {reason: 'legacy-localStorage-migration', logicalClock: Math.max(localClock, activeRouteMeta(migrationValues[activeKey])?.updatedAt || 0)});
           const failures = apply(migrationValues);
           emit({state: 'saved', backend, sequence, message: 'Device protection ready'});
           return {backend, source: 'migration', recovered: false, localValid: true, failures, snapshot};
@@ -568,7 +568,7 @@ export function createRouteHeatStorage(options = {}) {
       if (!localValid) {
         const recoveredValues = normalizedValues({...primary.values, ...(activeKey ? {[activeKey]: unsupersededActiveRaw(primary.values[historyKey], activeCurrentRaw, eligibleAfterClear(primary.values[activeKey]))} : {})});
         let snapshot = primary;
-        if (routeHeatChecksum(recoveredValues) !== primary.checksum) snapshot = await commitNow(recoveredValues, {reason: 'invalid-local-active-merge', logicalClock: Math.max(Number(primary.logicalClock) || 0, activeRouteMeta(recoveredValues[activeKey])?.updatedAt || 0)});
+        if (routeHeatChecksum(recoveredValues) !== primary.checksum) ({snapshot} = await commitNow(recoveredValues, {reason: 'invalid-local-active-merge', logicalClock: Math.max(Number(primary.logicalClock) || 0, activeRouteMeta(recoveredValues[activeKey])?.updatedAt || 0)}));
         const failures = apply(recoveredValues);
         emit({state: failures.length ? 'degraded' : 'recovered', backend, sequence: primary.sequence, message: failures.length ? 'Recovery copy is safe, but the local mirror is full' : 'Recovered the last verified device copy'});
         return {backend, source: 'indexeddb-recovery', recovered: !failures.length, failures, snapshot};
@@ -589,7 +589,7 @@ export function createRouteHeatStorage(options = {}) {
       if (!validateValues(reconciled)) throw new Error('RouteHeat could not reconcile a valid device snapshot');
       const reconciledChecksum = routeHeatChecksum(reconciled);
       let snapshot = primary;
-      if (reconciledChecksum !== primary.checksum) snapshot = await commitNow(reconciled, {reason: preferPrimary ? 'durable-state-active-merge' : 'valid-newer-local-reconciliation', logicalClock: Math.max(primaryClock, localClock, activeRouteMeta(reconciled[activeKey])?.updatedAt || 0)});
+      if (reconciledChecksum !== primary.checksum) ({snapshot} = await commitNow(reconciled, {reason: preferPrimary ? 'durable-state-active-merge' : 'valid-newer-local-reconciliation', logicalClock: Math.max(primaryClock, localClock, activeRouteMeta(reconciled[activeKey])?.updatedAt || 0)}));
       const failures = apply(reconciled);
       const changed = reconciledChecksum !== localChecksum;
       emit({state: failures.length ? 'degraded' : changed ? 'recovered' : 'saved', backend, sequence: snapshot.sequence, message: failures.length ? 'Full device copy is safe, but the compact browser mirror is full' : changed ? 'Reconciled the newest verified route data' : 'Device protection ready'});

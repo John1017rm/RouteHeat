@@ -1,0 +1,46 @@
+/* 10.1: keep a reachable Layout exit, free on-route space, and offer an XL dial. */
+body {--drive-top-height:calc(64px + env(safe-area-inset-top));}
+.drive-focus-bar[hidden],.drive-minimize-nav[hidden] {display:none!important;}
+.drive-focus-bar {position:sticky;top:0;z-index:1000;display:grid;grid-template-columns:76px minmax(0,1fr) 86px;align-items:center;gap:5px;min-height:calc(48px + env(safe-area-inset-top));padding:calc(2px + env(safe-area-inset-top)) max(6px,env(safe-area-inset-right)) 2px max(6px,env(safe-area-inset-left));background:var(--rh-surface-raised);border-bottom:1px solid var(--rh-border-strong);}
+.drive-focus-bar>button {min-width:0;min-height:44px;padding:5px;border:1px solid var(--rh-border-strong);border-radius:12px;background:var(--rh-surface-raised);color:var(--text);font-size:12px;font-weight:800;}
+.drive-focus-bar>button>span[aria-hidden] {color:var(--accent);font-size:17px;}
+.drive-focus-bar .drive-focus-status {border:0;text-align:center;padding-inline:3px;line-height:1.25;overflow-wrap:anywhere;}
+.drive-focus-status>span,.drive-focus-status>small {display:block;}
+.drive-focus-status>span {font-size:11px;}
+.drive-focus-status>small {font-size:10px;color:var(--rh-text-subtle);margin-top:2px;}
+.drive-focus-status[data-warning="true"] {outline:1px solid var(--map-slow,var(--slow));outline-offset:-2px;}
+body.drive-bars-minimized {--rh-nav-height:0px;}
+body.drive-bars-minimized #driveCustomizeBtn {display:none!important;}
+body.drive-bars-minimized .topbar,body.drive-bars-minimized .bottom-nav {display:none!important;}
+body.drive-bars-available:not(.drive-bars-minimized) .bottom-nav {grid-template-columns:repeat(5,minmax(0,1fr));}
+.drive-minimize-nav {min-width:0;min-height:58px;border:0;border-left:1px solid var(--rh-border-strong);background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--accent);}
+.drive-minimize-nav>span {font-size:25px;line-height:1;}
+.drive-minimize-nav>b {font-size:10px;line-height:1.3;}
+#driveView[data-drive-size="xl"] {--drive-dial-size:min(384px,calc(100vw - 44px));}
+#driveView[data-drive-size="xl"] .drive-instruments {grid-template-columns:minmax(0,1fr);}
+#driveView[data-drive-size="xl"] .speedometer {grid-column:1;grid-row:1;}
+#driveView[data-drive-size="xl"] .drive-card-grid {grid-column:1;grid-row:2;}
+#driveView[data-drive-size="xl"][data-drive-position="top"] .speedometer {grid-row:2;}
+#driveView[data-drive-size="xl"][data-drive-position="top"] .drive-card-grid {grid-row:1;}
+#driveView[data-drive-size="xl"] .drive-dial-readout strong {font-size:clamp(48px,27cqi,100px);}
+#driveView[data-drive-size="xl"][data-package-placement="dial"] .drive-dial-readout strong {font-size:clamp(48px,21cqi,76px);}
+#driveView[data-drive-size="xl"][data-package-placement="dial"] .drive-dial-readout {top:8%;}
+#driveView[data-drive-size="xl"][data-package-placement="dial"] #drivePackageComposer {top:42.5%;left:50%;transform:translateX(-50%);width:min(74%,260px);}
+#driveView[data-drive-size="xl"][data-corner-size="large"][data-corner-locations="true"] #autoMultiArm .auto-multi-count {width:60px;height:60px;}
+#driveView[data-drive-size="xl"][data-package-placement="dial"] .package-composer-footer {display:none;}
+.studio-mini[data-mini-size="xl"] .studio-mini-dial {transform:scale(1.08);}
+/* Override the inherited page min-height. It exceeded the fixed workspace and clipped controls. */
+@media(min-height:700px) and (min-width:350px) {
+  #driveView.active[data-screen-mode="steady"] {top:var(--drive-top-height);min-height:0;height:calc(100dvh - var(--drive-top-height) - var(--rh-nav-height,76px) - env(safe-area-inset-bottom) - 4px);max-height:calc(100dvh - var(--drive-top-height) - var(--rh-nav-height,76px) - env(safe-area-inset-bottom) - 4px);}
+  #driveView.active[data-screen-mode="steady"] .drive-top {flex-shrink:0;}
+  #driveView[data-screen-mode="steady"][data-card-columns="three"] .drive-progress {grid-template-columns:minmax(0,1fr) auto;}
+  body.drive-bars-minimized #driveView[data-screen-mode="steady"][data-card-columns="three"] .drive-progress {padding-right:55px;}
+  #driveView[data-screen-mode="steady"] .drive-instruments {scroll-padding-block:6px;}
+  #driveView.active[data-screen-mode="steady"][data-drive-size="xl"] {--drive-dial-size:min(384px,calc(100vw - 44px));}
+  #driveView[data-screen-mode="steady"][data-drive-size="xl"][data-package-placement="dial"] #drivePackageComposer {top:42.5%;width:min(74%,260px);}
+  #driveView[data-screen-mode="steady"][data-drive-size="xl"][data-package-placement="dial"] .drive-dial-readout {top:8%;}
+}
+@media(max-width:349px) {
+  #driveView[data-drive-size="xl"][data-corner-locations="true"] #autoMultiArm .auto-multi-count {width:52px;height:52px;}
+}
+@media(forced-colors:active) {.drive-focus-status[data-warning="true"] {outline-color:Highlight;}}
