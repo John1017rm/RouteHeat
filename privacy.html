@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b171b">
+  <meta name="description" content="RouteHeat privacy policy and account deletion requests. Learn how RouteHeat Labs handles route, location, account, and backup data.">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+  <title>Privacy Policy · RouteHeat Labs</title>
+  <style>
+    :root{color-scheme:dark light;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0b171b;color:#edf5f4;line-height:1.7}
+    *{box-sizing:border-box}body{margin:0}main{max-width:840px;margin:auto;padding:48px 24px 64px}header{border-bottom:1px solid #365056;padding-bottom:26px;margin-bottom:28px}.brand{color:#8ceac8;font-size:.8rem;letter-spacing:.16em;font-weight:750}h1{font-size:clamp(2rem,6vw,3rem);line-height:1.15;letter-spacing:-.035em;margin:12px 0}h2{font-size:1.28rem;line-height:1.35;margin-top:34px}h3{font-size:1rem;margin-bottom:4px}p,ul,ol{margin-top:10px}li{margin:7px 0}a{color:#9ef0d4;text-underline-offset:4px;overflow-wrap:anywhere}a:hover{text-decoration-thickness:2px}a:focus-visible{outline:3px solid #ffd88b;outline-offset:5px;border-radius:3px}.meta{color:#bdd0d1}.request{background:#122b30;border:1px solid #40676c;border-radius:18px;padding:22px;margin:30px 0;scroll-margin-top:20px}.request h2{margin-top:0}.button{display:inline-block;border:1px solid #78d4b4;border-radius:10px;padding:10px 16px;text-decoration:none;font-weight:650;margin:4px 0}nav{display:flex;gap:12px 24px;flex-wrap:wrap}footer{margin-top:36px;padding-top:22px;border-top:1px solid #365056;color:#bdd0d1}@media(prefers-color-scheme:light){:root{background:#f5f9f8;color:#172b30}.brand,a{color:#096248}.meta,footer{color:#435e63}.request{background:#e6f2ee;border-color:#a6c9bd}header,footer{border-color:#b8ceca}.button{border-color:#147457}}@media(max-width:400px){main{padding:28px 18px 40px}.request{padding:17px}}@media print{:root{background:white;color:black}a,.meta,.brand,footer{color:black}.request{background:white;border-color:#777}main{max-width:none;padding:0}}
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="brand">ROUTEHEAT LABS</div>
+    <h1>Privacy Policy</h1>
+    <p class="meta">RouteHeat for Android and the web<br>Effective and last updated: October 3, 2026</p>
+    <p>RouteHeat Labs provides RouteHeat, a delivery route tracker and workday dashboard. This policy explains the information the app uses, when information leaves your device, and how to request deletion.</p>
+    <nav aria-label="Policy shortcuts"><a href="#data">Information we use</a><a href="#services">Connected services</a><a href="#deletion">Request account deletion</a></nav>
+  </header>
+
+  <section id="data">
+    <h2>Information we use and why</h2>
+    <ul>
+      <li><strong>Location and route activity:</strong> with your permission, RouteHeat uses precise GPS coordinates, timestamps, speed, and accuracy to show your position, record driven roads and stops, calculate route statistics, and provide nearby place reminders. The Android app requests foreground location permission, not Android background location permission.</li>
+      <li><strong>Workday records:</strong> stops, delivery locations, package counts, totes, pauses, rescues, timing, route plans, corrections, notes, delay reasons, and weather observations support your history, estimates, maps, comparisons, and achievements. Avoid entering customer names, access codes, or other unnecessary personal information into notes.</li>
+      <li><strong>Saved places and preferences:</strong> Delivery Area boundaries and names, bathroom locations and ratings, access details, notes, and layout, sound, and theme preferences support the features you choose.</li>
+      <li><strong>Account information:</strong> optional cloud accounts use an email address and password through Supabase authentication. The app keeps session credentials on your device to maintain sign-in.</li>
+      <li><strong>Technical information:</strong> location accuracy, connection status and timing, device storage status, and battery information where available help display diagnostics and protect saved routes. Servers receiving requests can also receive your IP address, request time, and browser or device request information.</li>
+      <li><strong>Support messages:</strong> if you contact us, we use your email address and the information you provide to respond and handle your request.</li>
+    </ul>
+    <p>The app stores route records and settings in local browser or app storage, including recovery copies. Core tracking can be used without a cloud account. RouteHeat does not include advertising or sell your personal information, and the current app does not include third-party advertising or behavioral analytics SDKs.</p>
+  </section>
+
+  <section id="services">
+    <h2>When information leaves your device</h2>
+    <h3>Optional cloud backup — Supabase</h3>
+    <p>When you sign in and sync, RouteHeat sends your saved routes, including precise GPS trails, stop locations, associated route information, and Delivery Areas to Supabase so you can back up and restore them. Cloud storage includes recovery records for deleted routes. Saved bathroom pins are currently kept on your device and included in portable backups; they are not part of cloud sync.</p>
+    <h3>Maps — OpenStreetMap</h3>
+    <p>Displaying maps requests map tiles from OpenStreetMap. The requested tile coordinates reveal the map area you view, and the provider receives normal network information such as your IP address. RouteHeat does not send your full route record to the map tile service.</p>
+    <h3>Route weather — Open-Meteo</h3>
+    <p>Automatic Route Atmosphere reports are enabled by default and can be turned off in Settings. Weather requests send up to three route-area coordinates rounded to approximately one kilometer and the relevant dates to Open-Meteo forecast or archive services. These requests do not include your exact stop coordinates, GPS trail, account information, package counts, or screenshots. The service also receives network request information. Modeled weather and your manual observations may become part of your saved route and its cloud backup.</p>
+    <h3>Optional Neighborhood Snapshot — Supabase and U.S. Census services</h3>
+    <p>If you enable this feature, an authenticated Supabase server function sends valid saved stop coordinates to the U.S. Census Bureau geocoder to identify Census tracts. It retrieves aggregate Census estimates for those tracts and saves a route snapshot. These are area statistics, not facts about individual customers or properties. Server caches and request limits support this feature.</p>
+    <h3>Screenshot import and downloaded assets</h3>
+    <p>If you select a route screenshot, optical character recognition runs on your device. RouteHeat does not upload the screenshot for recognition. Recognition software and language assets are downloaded from content delivery services, such as jsDelivr, which receive normal network request information. Extracted counts you accept become part of your route plan.</p>
+    <h3>Website hosting and support</h3>
+    <p>GitHub Pages hosts the RouteHeat website and this policy. Website visits, asset downloads, and connection checks contact the hosting service. Messages sent to our support address are handled by email providers, including Gmail. These services process information under their own privacy practices as well as their role in providing the service.</p>
+    <p>We use service providers to operate these features and may disclose information when legally required or necessary to investigate abuse or protect users and the service. We do not publish your routes or bathroom pins as a public directory. Exports you choose to share may contain precise location and route information.</p>
+  </section>
+
+  <section>
+    <h2>Storage, retention, and security</h2>
+    <p>On-device history is retained until removed from app or browser storage. Cloud history is retained for backup and recovery until permanently deleted. Ordinary route deletion moves records out of History but can leave local and cloud recovery copies; it is not a permanent data-erasure request. Signing out does not erase your history. Recovery records do not currently have a fixed automatic purge period.</p>
+    <p>Account deletion requests cover the account and associated cloud route records, Delivery Areas, recovery records, and account-linked Neighborhood Snapshot data. We handle requests manually after verifying account ownership. Provider backups and operational logs may remain for the provider's applicable retention period rather than being erased immediately. Information that must be retained for a legal or security obligation is limited to that purpose; we will explain any applicable exception when responding to your request.</p>
+    <p>RouteHeat uses HTTPS for network services. Local storage and exported backup files are not encrypted by RouteHeat itself; protect your device and any copies you export. Account access controls protect cloud records, but no storage or transmission method can guarantee absolute security. Service providers may process information outside your state or country.</p>
+  </section>
+
+  <section id="deletion" class="request" aria-labelledby="deletionTitle">
+    <h2 id="deletionTitle">Request account and data deletion</h2>
+    <p>You can request deletion without reinstalling RouteHeat or signing in to this page.</p>
+    <ol>
+      <li>Email <a href="mailto:routeheat@gmail.com?subject=RouteHeat%20account%20and%20data%20deletion">routeheat@gmail.com</a> with the subject <strong>RouteHeat account and data deletion</strong>.</li>
+      <li>Send from the email address used for your RouteHeat account when possible. Tell us whether you want your whole account and associated cloud data deleted or only specific data. Never send your password.</li>
+      <li>We will verify ownership, arrange the deletion, and confirm when it is complete. If verification or another issue delays the request, we will explain the next steps.</li>
+    </ol>
+    <a class="button" href="mailto:routeheat@gmail.com?subject=RouteHeat%20account%20and%20data%20deletion">Email a deletion request</a>
+    <p><strong>Copies on your devices:</strong> a cloud deletion cannot remotely erase local history or files you exported. Sign out on each device and clear RouteHeat's app or website storage if you also want those copies removed. Delete any exported files and copies in your own backup services. Clearing storage is permanent for data without another copy. Importing an old backup or syncing retained local routes into another account can upload that data again.</p>
+  </section>
+
+  <section>
+    <h2>Your controls and privacy requests</h2>
+    <p>You can revoke location permission in your device or browser settings, use the app without cloud sign-in, turn off automatic weather reports or Neighborhood Snapshot, edit saved information, and export your data. Revoking location permission limits tracking and nearby features. Contact us to request access, correction, deletion, or information about your data, including privacy rights that apply where you live.</p>
+    <h2>Children</h2>
+    <p>RouteHeat is intended for delivery work, not for children under 13. We do not knowingly collect personal information from children under 13. Contact us if you believe a child has provided information so we can investigate and remove it.</p>
+    <h2>Changes and contact</h2>
+    <p>We will update this page when our data practices change and revise the date above. For privacy questions or requests, contact <strong>RouteHeat Labs</strong> at <a href="mailto:routeheat@gmail.com">routeheat@gmail.com</a>.</p>
+  </section>
+  <footer>RouteHeat · RouteHeat Labs<br><a href="https://john1017rm.github.io/RouteHeat/">RouteHeat website</a></footer>
+</main>
+</body>
+</html>

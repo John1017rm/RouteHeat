@@ -438,7 +438,7 @@
   async function initDurableStorage(){
     const appearanceRevision=driveAppearanceRevision;
     try{
-      const module=await import('./routeheat-storage.js?v=10.1.0-r1');
+      const module=await import('./routeheat-storage.js?v=10.1.1-r1');
       durableStorage=module.createRouteHeatStorage({keys:DURABLE_STORAGE_KEYS,arrayKeys:DURABLE_ARRAY_KEYS,objectKeys:DURABLE_OBJECT_KEYS,journalLimit:40,activeKey:ACTIVE_ROUTE_STORE,historyKey:STORE,activeCheckpointLimit:8,getLogicalClock:durableLogicalClock,onStatus:setDurableStorageStatus});
       const result=await durableStorage.init();durableStorageReady=true;hydrateDriveAppearance(result,appearanceRevision);
       const historyFailure=(result.failures||[]).some(item=>item?.key===STORE),activeFailure=(result.failures||[]).some(item=>item?.key===ACTIVE_ROUTE_STORE),journalHistoryRaw=result.snapshot?.values?.[STORE],journalActiveRaw=result.snapshot?.values?.[ACTIVE_ROUTE_STORE];
@@ -1807,9 +1807,9 @@
     saved.atmosphere=updated;touchRoute(saved,true);all[index]=saved;if(!saveRoutes(all)){toast('Could not save the observation. Try again after freeing device storage.');return false;}
     window.dispatchEvent(new CustomEvent('routeheat:route-saved',{detail:{route:saved,source:'atmosphere'}}));renderHistory();renderOpenAtmosphereCards(routeId);toast(observation?'Your weather observation is saved':'Weather observation removed');return true;
   }
-  function openWhatsNew(force=false){if(!force&&(route||document.querySelector('.modal.open')))return false;whatsNewReturnFocus=document.activeElement;localStorage.setItem(WHATS_NEW_STORE,'10.1.0');const modal=$('#whatsNewModal'),closeButton=$('#closeWhatsNew'),doneButton=$('#doneWhatsNew');closeButton.onclick=()=>closeWhatsNew();doneButton.onclick=()=>closeWhatsNew();modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.classList.add('modal-scroll-locked');setTimeout(()=>doneButton.focus(),0);return true;}
+  function openWhatsNew(force=false){if(!force&&(route||document.querySelector('.modal.open')))return false;whatsNewReturnFocus=document.activeElement;localStorage.setItem(WHATS_NEW_STORE,'10.1.1');const modal=$('#whatsNewModal'),closeButton=$('#closeWhatsNew'),doneButton=$('#doneWhatsNew');closeButton.onclick=()=>closeWhatsNew();doneButton.onclick=()=>closeWhatsNew();modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.classList.add('modal-scroll-locked');setTimeout(()=>doneButton.focus(),0);return true;}
   function closeWhatsNew(restoreFocus=true){const modal=$('#whatsNewModal'),focus=whatsNewReturnFocus;modal.classList.remove('open');modal.setAttribute('aria-hidden','true');whatsNewReturnFocus=null;if(!document.querySelector('.modal.open'))document.body.classList.remove('modal-scroll-locked');if(restoreFocus&&focus?.isConnected&&focus.getClientRects().length)setTimeout(()=>focus.focus(),0);}
-  function showWhatsNewIfSafe(attempt=0){if(localStorage.getItem(WHATS_NEW_STORE)==='10.1.0'||route)return;if(document.querySelector('.modal.open')){if(attempt<12)setTimeout(()=>showWhatsNewIfSafe(attempt+1),850);return;}openWhatsNew();}
+  function showWhatsNewIfSafe(attempt=0){if(localStorage.getItem(WHATS_NEW_STORE)==='10.1.1'||route)return;if(document.querySelector('.modal.open')){if(attempt<12)setTimeout(()=>showWhatsNewIfSafe(attempt+1),850);return;}openWhatsNew();}
   function renderOrchestraCard(saved,selector,{compact=false}={}){const card=$(selector);if(!card||!saved||!window.RouteHeatOrchestra)return;card.innerHTML=window.RouteHeatOrchestra.renderCard(saved,{compact});card.hidden=false;}
 
   function freshRoutePosition(position=route?.lastPosition,now=Date.now(),maxAgeMs=60000,maxAccuracy=60){

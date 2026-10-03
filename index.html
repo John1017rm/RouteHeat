@@ -15,23 +15,23 @@
   <link rel="apple-touch-icon" href="assets/icon-192-v4.png">
   <link rel="preconnect" href="https://tile.openstreetmap.org">
   <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css?v=1.9.4-rh700">
-  <link rel="stylesheet" href="assets/route-delays.css?v=10.1.0-r1">
-  <link rel="stylesheet" href="assets/styles.css?v=10.1.0-r1">
-  <link rel="stylesheet" href="assets/routeheat-7.css?v=10.1.0-r1">
-  <link rel="stylesheet" href="assets/routeheat-8.css?v=10.1.0-r1">
-  <link rel="stylesheet" href="assets/routeheat-themes-9.css?v=10.1.0-r1">
-  <link rel="stylesheet" href="assets/drive-studio.css?v=10.1.0-r1">
-  <link rel="stylesheet" href="assets/package-controls.css?v=10.1.0-r1">
-  <link rel="stylesheet" href="assets/package-insights.css?v=10.1.0-r1">
-  <link rel="stylesheet" href="assets/pitstops.css?v=10.1.0-r1">
-  <link rel="stylesheet" href="assets/route-atmosphere-910.css?v=10.1.0-r1">
-  <link rel="stylesheet" href="assets/calendar-summary.css?v=10.1.0-r1">
-  <link rel="stylesheet" href="assets/polish-910.css?v=10.1.0-r1">
-  <link rel="stylesheet" href="assets/timeline-910.css?v=10.1.0-r1">
-  <link rel="stylesheet" href="assets/drive-controls-920.css?v=10.1.0-r1">
-  <link rel="stylesheet" href="assets/atlas-1000.css?v=10.1.0-r1">
-  <link rel="stylesheet" href="assets/drive-1000.css?v=10.1.0-r1">
-  <link rel="stylesheet" href="assets/drive-1010.css?v=10.1.0-r1">
+  <link rel="stylesheet" href="assets/route-delays.css?v=10.1.1-r1">
+  <link rel="stylesheet" href="assets/styles.css?v=10.1.1-r1">
+  <link rel="stylesheet" href="assets/routeheat-7.css?v=10.1.1-r1">
+  <link rel="stylesheet" href="assets/routeheat-8.css?v=10.1.1-r1">
+  <link rel="stylesheet" href="assets/routeheat-themes-9.css?v=10.1.1-r1">
+  <link rel="stylesheet" href="assets/drive-studio.css?v=10.1.1-r1">
+  <link rel="stylesheet" href="assets/package-controls.css?v=10.1.1-r1">
+  <link rel="stylesheet" href="assets/package-insights.css?v=10.1.1-r1">
+  <link rel="stylesheet" href="assets/pitstops.css?v=10.1.1-r1">
+  <link rel="stylesheet" href="assets/route-atmosphere-910.css?v=10.1.1-r1">
+  <link rel="stylesheet" href="assets/calendar-summary.css?v=10.1.1-r1">
+  <link rel="stylesheet" href="assets/polish-910.css?v=10.1.1-r1">
+  <link rel="stylesheet" href="assets/timeline-910.css?v=10.1.1-r1">
+  <link rel="stylesheet" href="assets/drive-controls-920.css?v=10.1.1-r1">
+  <link rel="stylesheet" href="assets/atlas-1000.css?v=10.1.1-r1">
+  <link rel="stylesheet" href="assets/drive-1000.css?v=10.1.1-r1">
+  <link rel="stylesheet" href="assets/drive-1010.css?v=10.1.1-r1">
   <title>RouteHeat — Delivery Pace</title>
 </head>
 <body>
@@ -660,7 +660,7 @@
 
   <div id="settingsModal" class="modal settings-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <div class="settings-sheet">
-      <div class="settings-head"><div><p class="eyebrow">ROUTEHEAT 10.1.0</p><h2 id="settingsTitle">Settings</h2><p>Make RouteHeat easier to see, hear, and use on the road.</p></div><button id="closeSettings" class="icon-btn close-btn" type="button" aria-label="Close settings">×</button></div>
+      <div class="settings-head"><div><p class="eyebrow">ROUTEHEAT 10.1.1</p><h2 id="settingsTitle">Settings</h2><p>Make RouteHeat easier to see, hear, and use on the road.</p></div><button id="closeSettings" class="icon-btn close-btn" type="button" aria-label="Close settings">×</button></div>
       <section class="settings-section"><div class="package-settings-row"><div><b>Count packages at each stop</b><p>One tap saves packages, selected locations and the completed stop. Arrange buttons in Drive studio.</p></div><label class="switch"><input id="settingsCountPackages" type="checkbox" aria-label="Count packages at each stop"><span></span></label></div></section><section class="settings-section drive-studio-entry"><button id="settingsDriveStudio" type="button" aria-haspopup="dialog" aria-controls="driveCustomizeModal"><span class="studio-entry-icon" aria-hidden="true">▦</span><span><b>Drive studio</b><small id="settingsDriveSummary">Your dial, cards, layout and theme</small></span><i aria-hidden="true">›</i></button></section>
       <section class="settings-section appearance-settings-section"><div class="settings-section-title"><span class="settings-section-icon">☀</span><div><b>Appearance</b><small>Choose how bright or dark RouteHeat should be.</small></div></div><div id="themeChoices" class="settings-choice three" role="group" aria-label="Appearance"><button type="button" data-theme="dark">Dark</button><button type="button" data-theme="light">Light</button><button type="button" data-theme="auto">Automatic</button></div><div class="settings-subgroup app-theme-settings"><div class="settings-row-label"><b>App theme</b><small>Four complete themes for panels, controls and route details, each with a dark and daylight finish.</small></div><div id="appThemeChoices" class="app-theme-choices" role="group" aria-label="App theme"><button type="button" data-app-theme="default" aria-pressed="true"><i aria-hidden="true"></i><span><b>Carbon</b><small>Graphite · precision mint</small></span></button><button type="button" data-app-theme="blue" aria-pressed="false"><i aria-hidden="true"></i><span><b>Glacier</b><small>Deep navy · ice blue</small></span></button><button type="button" data-app-theme="orange" aria-pressed="false"><i aria-hidden="true"></i><span><b>Ember</b><small>Warm charcoal · copper</small></span></button><button type="button" data-app-theme="purple" aria-pressed="false"><i aria-hidden="true"></i><span><b>Ultraviolet</b><small>Violet ink · soft pink</small></span></button></div><p id="appThemeStatus" class="settings-inline-status" role="status" aria-live="polite">Carbon · graphite surfaces and a precise mint accent.</p></div></section>
       <section class="settings-section"><div class="settings-section-title"><span class="settings-section-icon">♪</span><div><b>Stop feedback</b><small>Configure confirmation sound, vibration, and private route insights.</small></div></div><label class="settings-toggle"><span><b>Confirmation sound</b><small>Play stop and tote confirmations</small></span><span class="switch"><input id="settingsSound" type="checkbox"><i></i></span></label><div id="soundChoices" class="settings-choice sound-choice-grid" role="group" aria-label="Confirmation sound"><button type="button" data-sound="chime">Chime</button><button type="button" data-sound="bell">Bell</button><button type="button" data-sound="sparkle">Sparkle</button><button type="button" data-sound="arcade">Arcade</button><button type="button" data-sound="pulse">Pulse</button><button type="button" data-sound="beacon">Beacon</button><button type="button" data-sound="voice">Voice</button><button type="button" data-sound="loud">Extra loud</button></div><label class="volume-control"><span><b>Sound level</b><output id="soundVolumeValue">100%</output></span><input id="soundVolume" type="range" min="20" max="100" step="5" value="100"></label><button id="testSound" class="settings-test" type="button">Test confirmation</button><label class="settings-toggle"><span><b>Vibration feedback</b><small>Distinct patterns for stops, multis, and totes</small></span><span class="switch"><input id="settingsVibration" type="checkbox"><i></i></span></label><label class="settings-toggle delivery-feedback-setting"><span><b>Delivery insight cards</b><small>Occasional pace, yesterday, familiar-road, and coincidence insights after a stop</small></span><span class="switch"><input id="settingsDeliveryFeedback" type="checkbox" aria-describedby="deliveryFeedbackSettingNote"><i></i></span></label><p id="deliveryFeedbackSettingNote" class="settings-inline-status">Private, metric-based, and nonblocking. Feedback never asks you to rush; review it only while parked.</p></section>
@@ -670,15 +670,16 @@
       <section class="settings-section pit-settings-entry"><div class="settings-section-title"><span class="settings-section-icon" aria-hidden="true">WC</span><div><b>Bathrooms</b><small>Private saved bathrooms, favorites, and quiet nearby reminders.</small></div></div><button class="settings-test" type="button" data-open-pit-stops>Find or save a bathroom</button><p class="settings-inline-status">Save here or choose on the map. Included in device backups.</p></section>
       <section class="settings-section atmosphere-settings-section"><div class="settings-section-title"><span class="settings-section-icon atmosphere-settings-icon" aria-hidden="true">◒</span><div><b>Route Atmosphere</b><small>Remember what the conditions around each saved workday felt like.</small></div></div><div class="atmosphere-settings-hero" aria-hidden="true"><i></i><span>☀</span><span>☂</span><span>◐</span></div><label class="settings-toggle"><span><b>Add after finished routes</b><small>Save modeled temperature, conditions, wind, daylight, and moon phase</small></span><span class="switch"><input id="settingsRouteAtmosphere" type="checkbox" aria-describedby="atmosphereSettingsStatus atmospherePrivacyDisclosure"><i></i></span></label><p id="atmosphereSettingsStatus" class="settings-inline-status" role="status" aria-live="polite">On · new saved routes will build automatically.</p><button id="backfillRouteAtmosphere" class="settings-test" type="button">Fill missing route days</button><div id="atmospherePrivacyDisclosure" class="neighborhood-privacy-note"><span aria-hidden="true">◆</span><p><b>Approximate and route-level</b><small>After a route is safely saved, RouteHeat requests hourly weather for up to three areas rounded to about 1 km and the route dates. The app matches those areas to route hours on your device. No exact stops, GPS path, address, account, packages, or screenshot data is sent. Saved cards use modeled data under CC BY 4.0.</small></p></div></section>
       <section class="settings-section"><div class="settings-section-title"><span class="settings-section-icon">◇</span><div><b>Data protection</b><small>See exactly when and where your routes are protected.</small></div></div><div class="settings-health protection-health"><div><span>LAST SAVED</span><b id="settingsSaveHealth">Waiting for route activity</b></div><div><span>DEVICE COPY</span><b id="settingsProtectionHealth">Checking local protection</b></div><div><span>PENDING SYNC</span><b id="settingsPendingSync">Checking cloud queue</b></div><div><span>GPS</span><b id="settingsGpsHealth">Waiting for signal</b></div><div><span>BATTERY</span><b id="settingsBatteryHealth">Checking device</b></div><div><span>ROUTEHEAT DATA</span><b id="settingsStorage">Calculating</b></div></div><div class="storage-care-card"><div><b>Storage health</b><small id="settingsStorageDetail">Measuring RouteHeat records separately from Safari’s approximate browser estimate.</small></div><button id="settingsOptimizeStorage" type="button">Optimize safely</button><p>Removes redundant checkpoints only. Finished routes, the active route, cloud queues, and backups are never deleted.</p></div><div class="settings-actions"><button id="settingsCloud" class="secondary-btn" type="button">Cloud & account</button><button id="settingsExport" class="secondary-btn" type="button">Export all data</button></div><div class="backup-panel"><div><b>Portable .routeheat backup</b><small>Keep a portable copy of your routes and settings. Preview it before importing.</small></div><div class="backup-actions"><button id="exportRouteheatBackup" type="button">Create backup</button><label class="backup-import-button" for="routeheatBackupInput">Preview import<input id="routeheatBackupInput" type="file" accept=".routeheat,application/json"></label></div><p>Never clear browser data or reinstall before confirming your recovery copy.</p></div></section>
+      <section class="settings-section privacy-settings-section" aria-labelledby="privacySettingsTitle"><div class="settings-section-title"><span class="settings-section-icon" aria-hidden="true">◇</span><div><b id="privacySettingsTitle">Privacy &amp; your data</b><small>How RouteHeat Labs handles location, backups, and your account.</small></div></div><div class="privacy-settings-links"><a href="https://john1017rm.github.io/RouteHeat/privacy.html" target="_blank" rel="noopener noreferrer">Privacy policy <span aria-hidden="true">↗</span></a><a href="https://john1017rm.github.io/RouteHeat/privacy.html#deletion" target="_blank" rel="noopener noreferrer">Request account deletion <span aria-hidden="true">↗</span></a></div><p class="settings-inline-status">Deletion requests are handled by email. Deleting a route from History keeps recovery copies.</p></section>
       <section class="settings-section settings-recovery-section"><div class="settings-section-title"><span class="settings-section-icon" aria-hidden="true">↶</span><div><b>Route recovery</b><small>Bring a recently deleted finished route back to History.</small></div></div><button id="settingsRecentlyDeleted" class="recently-deleted-settings-button" type="button"><span class="recently-deleted-settings-copy"><b>Recently Deleted</b><small id="settingsRecentlyDeletedSummary">Check device and cloud recovery copies</small></span><span class="recently-deleted-settings-chevron" aria-hidden="true">›</span></button></section>
-      <section class="settings-section whats-new-settings-section"><button id="settingsWhatsNew" class="whats-new-settings-button" type="button" aria-haspopup="dialog" aria-controls="whatsNewModal"><span aria-hidden="true">10.1</span><span><b>What’s new in RouteHeat 10.1.0</b><small>Reliable sync, a reachable Layout button, compact bars, and an XL dial</small></span><i aria-hidden="true">›</i></button></section>
+      <section class="settings-section whats-new-settings-section"><button id="settingsWhatsNew" class="whats-new-settings-button" type="button" aria-haspopup="dialog" aria-controls="whatsNewModal"><span aria-hidden="true">10.1</span><span><b>What’s new in RouteHeat 10.1.1</b><small>Reliable sync, a reachable Layout button, compact bars, and an XL dial</small></span><i aria-hidden="true">›</i></button></section>
       <p class="settings-safety">◆ Only change settings while parked.</p>
     </div>
   </div>
 
   <div id="whatsNewModal" class="modal whats-new-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="whatsNewTitle" aria-describedby="whatsNewDescription">
     <div class="whats-new-sheet" tabindex="-1">
-      <header><div><p class="eyebrow">YOUR WORKDAY, REFINED</p><h2 id="whatsNewTitle">RouteHeat 10.1.0</h2><p id="whatsNewDescription">More room for your route. More dependable device protection.</p></div><button id="closeWhatsNew" class="icon-btn close-btn" type="button" aria-label="Close What’s New">×</button></header>
+      <header><div><p class="eyebrow">YOUR WORKDAY, REFINED</p><h2 id="whatsNewTitle">RouteHeat 10.1.1</h2><p id="whatsNewDescription">More room for your route. More dependable device protection.</p></div><button id="closeWhatsNew" class="icon-btn close-btn" type="button" aria-label="Close What’s New">×</button></header>
       <div class="whats-new-hero"><div class="whats-new-seven">10.1</div><div><span>ROUTEHEAT</span><b>A sharper view of your workday.</b><small>Shape your controls, see your counted workload, and keep useful places close.</small></div></div>
       <div class="whats-new-grid">
         <article class="whats-new-atlas"><span aria-hidden="true">↻</span><div><b>Dependable cloud restore</b><p>Sync waits for a verified device save. Large histories can stay in the device journal when the browser’s compact storage is full, with complete GPS trails preserved.</p></div></article>
@@ -687,7 +688,7 @@
         <article class="whats-new-scan"><span aria-hidden="true">◉</span><div><b>A bigger route dial</b><p>Choose XL for a larger circle and stops-per-hour reading, with package choices and corner location buttons. Readings stack above or below to give the dial room.</p></div></article>
       </div>
       <section class="whats-new-ar-note"><span aria-hidden="true">▦</span><div><b>Make it yours in Drive → Layout</b><p>Your current layout stays saved. Choose XL and Minimize while driving to try the roomier view. On smaller screens, scroll the readings while the Layout control remains accessible.</p></div></section>
-      <footer><p><span aria-hidden="true">◆</span> Route Moments are passive. Use every control and review screen only while safely parked.</p><button id="doneWhatsNew" class="route-toggle" type="button">Explore 10.1.0</button></footer>
+      <footer><p><span aria-hidden="true">◆</span> Route Moments are passive. Use every control and review screen only while safely parked.</p><button id="doneWhatsNew" class="route-toggle" type="button">Explore 10.1.1</button></footer>
     </div>
   </div>
 
@@ -722,24 +723,24 @@
   <script src="assets/vendor/leaflet/leaflet.js?v=1.9.4-rh700"></script>
   <script src="assets/vendor/leaflet/leaflet-heat.js?v=0.2.0-rh700"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3/dist/umd/supabase.js" crossorigin="anonymous"></script>
-  <script src="assets/supabase-config.js?v=10.1.0-r1"></script>
-  <script src="assets/route-atmosphere.js?v=10.1.0-r1"></script>
-  <script src="assets/routeheat-pitstops.js?v=10.1.0-r1"></script>
-  <script src="assets/route-intake.js?v=10.1.0-r1"></script>
-  <script src="assets/pace-orchestra.js?v=10.1.0-r1"></script>
-  <script src="assets/route-delays.js?v=10.1.0-r1"></script>
-  <script src="assets/routeheat-packages.js?v=10.1.0-r1"></script>
-  <script src="assets/routeheat-package-insights.js?v=10.1.0-r1"></script>
-  <script src="assets/routeheat-customize.js?v=10.1.0-r1"></script>
-  <script src="assets/routeheat-day-summary.js?v=10.1.0-r1"></script>
-  <script src="assets/routeheat-atlas-focus.js?v=10.1.0-r1"></script>
-  <script src="assets/routeheat-timeline.js?v=10.1.0-r1"></script>
-  <script src="assets/routeheat-projections.js?v=10.1.0-r1"></script>
-  <script src="assets/routeheat-drive-grid.js?v=10.1.0-r1"></script>
-<script src="assets/routeheat-drive-viewport.js?v=10.1.0-r1"></script>
-<script src="assets/routeheat-drive-controls.js?v=10.1.0-r1"></script>
-  <script src="assets/routeheat-tote-sound.js?v=10.1.0-r1"></script>
-  <script src="assets/app.js?v=10.1.0-r1"></script>
-  <script src="assets/cloud.js?v=10.1.0-r1"></script>
+  <script src="assets/supabase-config.js?v=10.1.1-r1"></script>
+  <script src="assets/route-atmosphere.js?v=10.1.1-r1"></script>
+  <script src="assets/routeheat-pitstops.js?v=10.1.1-r1"></script>
+  <script src="assets/route-intake.js?v=10.1.1-r1"></script>
+  <script src="assets/pace-orchestra.js?v=10.1.1-r1"></script>
+  <script src="assets/route-delays.js?v=10.1.1-r1"></script>
+  <script src="assets/routeheat-packages.js?v=10.1.1-r1"></script>
+  <script src="assets/routeheat-package-insights.js?v=10.1.1-r1"></script>
+  <script src="assets/routeheat-customize.js?v=10.1.1-r1"></script>
+  <script src="assets/routeheat-day-summary.js?v=10.1.1-r1"></script>
+  <script src="assets/routeheat-atlas-focus.js?v=10.1.1-r1"></script>
+  <script src="assets/routeheat-timeline.js?v=10.1.1-r1"></script>
+  <script src="assets/routeheat-projections.js?v=10.1.1-r1"></script>
+  <script src="assets/routeheat-drive-grid.js?v=10.1.1-r1"></script>
+<script src="assets/routeheat-drive-viewport.js?v=10.1.1-r1"></script>
+<script src="assets/routeheat-drive-controls.js?v=10.1.1-r1"></script>
+  <script src="assets/routeheat-tote-sound.js?v=10.1.1-r1"></script>
+  <script src="assets/app.js?v=10.1.1-r1"></script>
+  <script src="assets/cloud.js?v=10.1.1-r1"></script>
 </body>
 </html>

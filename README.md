@@ -1,4 +1,10 @@
-# RouteHeat 10.1.0
+# RouteHeat 10.1.1
+
+## 10.1.1 Privacy and account requests
+
+- Public privacy policy with location, cloud, weather, map, screenshot, recovery, and retention disclosures.
+- Settings links to the policy and an email account/data deletion request. Requests require manual handling by RouteHeat Labs; this is not automatic account deletion.
+- The service worker caches the policy separately so visiting it cannot replace the offline app screen.
 
 ## 10.1.0 Room to Drive
 
